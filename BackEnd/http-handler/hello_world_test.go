@@ -36,7 +36,6 @@ func TestHelloWorldHandler(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			s := &Service{}
-			s.InitServiceTest()
 
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/hello_world", nil)

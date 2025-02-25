@@ -13,5 +13,5 @@ docker-down:
 .PHONY: test
 test:
 	docker compose up -d
-	go test ./http-handler -v
+	go test ./... -v
 	docker compose down -v

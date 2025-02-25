@@ -1,11 +1,10 @@
-package main
+package database
 
 import (
+	"PLIC/models"
 	"context"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 )
 
@@ -32,13 +31,11 @@ func Test_POCDB(t *testing.T) {
 
 			ctx := context.Background()
 
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodPost, "/test", nil)
-			q := r.URL.Query()
-			q.Set("id", c.param)
-			r.URL.RawQuery = q.Encode()
-
-			err := s.CreateUser(w, r)
+			err := s.db.CreateUser(ctx, models.DBUser{
+				Id:    id,
+				Name:  "A name",
+				Email: "a@a.com",
+			})
 			require.NoError(t, err)
 			user, err := s.db.GetUser(ctx, id)
 			require.NoError(t, err)

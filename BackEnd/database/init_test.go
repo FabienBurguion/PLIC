@@ -1,19 +1,22 @@
-package main
+package database
 
 import (
-	"PLIC/database"
 	"database/sql"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"io/ioutil"
 )
 
+type Service struct {
+	db Database
+}
+
 func (s *Service) InitServiceTest() {
 	db, err := InitDBTest("../database/sql/1.0.0.sql")
 	if err != nil {
 		panic(err)
 	}
-	s.db = database.Database{
+	s.db = Database{
 		Database: db,
 	}
 }
