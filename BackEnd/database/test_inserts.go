@@ -7,7 +7,7 @@ import (
 )
 
 func (db Database) CreateUser(ctx context.Context, user models.DBUser) error {
-	_, err := db.Database.ExecContext(ctx, `
+	_, err := db.Database.NamedExecContext(ctx, `
 		INSERT INTO users (id, name, email)
 		VALUES (:id, :name, :email)`, user)
 	if err != nil {
@@ -16,9 +16,9 @@ func (db Database) CreateUser(ctx context.Context, user models.DBUser) error {
 	return nil
 }
 
-func (db *Database) GetUser(ctx context.Context, id string) (*models.DBUser, error) {
+func (db Database) GetUser(ctx context.Context, id string) (*models.DBUser, error) {
 	rows, err := db.Database.QueryContext(ctx, `
-		SELECT id, name, email, created_at, updated_at
+		SELECT id, name, email
 		FROM users
 		WHERE id = $1`, id)
 	if err != nil {

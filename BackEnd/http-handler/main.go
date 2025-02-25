@@ -4,6 +4,7 @@ import (
 	"PLIC/database"
 	"database/sql"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
@@ -41,7 +42,7 @@ func initDb() database.Database {
 	}
 	fmt.Printf("version=%s\n", version)
 	return database.Database{
-		Database: db,
+		Database: sqlx.NewDb(db, "postgres"),
 	}
 }
 

@@ -1,7 +1,3 @@
-.PHONY: test
-test:
-	go test ./http-handler -v
-
 .PHONY: build
 build:
 	cd http-handler && go build -o ../bin/http-handler.exe
@@ -12,4 +8,10 @@ docker-up:
 
 .PHONY: docker-down
 docker-down:
-	docker compose down -d
+	docker compose down -v
+
+.PHONY: test
+test:
+	docker compose up -d
+	go test ./http-handler -v
+	docker compose down -v

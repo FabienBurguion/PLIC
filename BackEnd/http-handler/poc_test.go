@@ -33,7 +33,7 @@ func Test_POCDB(t *testing.T) {
 			ctx := context.Background()
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodPost, "", nil)
+			r := httptest.NewRequest(http.MethodPost, "/test", nil)
 			q := r.URL.Query()
 			q.Set("id", c.param)
 			r.URL.RawQuery = q.Encode()

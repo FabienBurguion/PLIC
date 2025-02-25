@@ -1,7 +1,9 @@
 package database
 
-import "database/sql"
+import (
+	"github.com/jmoiron/sqlx"
+)
 
 type Database struct {
-	Database *sql.DB
+	Database *sqlx.DB
 }
