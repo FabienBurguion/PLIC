@@ -35,6 +35,8 @@ func TestHelloWorldHandler(t *testing.T) {
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
+			s := &Service{}
+			s.InitServiceTest()
 
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/hello_world", nil)
@@ -42,7 +44,7 @@ func TestHelloWorldHandler(t *testing.T) {
 			q.Set("name", c.param)
 			r.URL.RawQuery = q.Encode()
 
-			err := GetHelloWorld(w, r)
+			err := s.GetHelloWorld(w, r)
 			require.NoError(t, err)
 			require.Equal(t, c.expected.statusCode, w.Code)
 			var actualBody models.HelloWorldResponse
