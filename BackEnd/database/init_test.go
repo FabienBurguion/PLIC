@@ -5,7 +5,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	"io/ioutil"
 	"os"
 )
 
@@ -38,7 +37,7 @@ func InitDBTest(sqlFile string) (*sqlx.DB, error) {
 		return nil, err
 	}
 
-	sqlBytes, err := ioutil.ReadFile(sqlFile)
+	sqlBytes, err := os.ReadFile(sqlFile)
 	if err != nil {
 		return nil, err
 	}

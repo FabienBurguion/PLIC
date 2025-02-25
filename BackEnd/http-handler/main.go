@@ -39,7 +39,9 @@ func initDb() database.Database {
 	if err != nil {
 		panic(err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		_ = db.Close()
+	}(db)
 
 	var version string
 	if err := db.QueryRow("select version()").Scan(&version); err != nil {
@@ -60,7 +62,7 @@ type methodHandlers struct {
 
 var handlers = make(map[string]*methodHandlers)
 
-func (s *Service) GET(path string, handlerFunc func(w http.ResponseWriter, _ *http.Request) error) {
+func (s *Service) GET(path string, handlerFunc func(_ http.ResponseWriter, _ *http.Request) error) {
 	if handlers[path] == nil {
 		handlers[path] = &methodHandlers{}
 		mux.HandleFunc(path, handleRequest)
@@ -68,7 +70,7 @@ func (s *Service) GET(path string, handlerFunc func(w http.ResponseWriter, _ *ht
 	handlers[path].get = handlerFunc
 }
 
-func (s *Service) POST(path string, handlerFunc func(w http.ResponseWriter, _ *http.Request) error) {
+func (s *Service) POST(path string, handlerFunc func(_ http.ResponseWriter, _ *http.Request) error) {
 	if handlers[path] == nil {
 		handlers[path] = &methodHandlers{}
 		mux.HandleFunc(path, handleRequest)
@@ -88,16 +90,16 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		if handler.get != nil {
 			_ = handler.get(w, r)
 		} else {
-			http.Error(w, httpx.MethodNotAllowedError, http.StatusMethodNotAllowed)
+			_ = httpx.WriteError(w, http.StatusMethodNotAllowed, httpx.MethodNotAllowedError)
 		}
 	case http.MethodPost:
 		if handler.post != nil {
 			_ = handler.post(w, r)
 		} else {
-			http.Error(w, httpx.MethodNotAllowedError, http.StatusMethodNotAllowed)
+			_ = httpx.WriteError(w, http.StatusMethodNotAllowed, httpx.MethodNotAllowedError)
 		}
 	default:
-		http.Error(w, httpx.MethodNotAllowedError, http.StatusMethodNotAllowed)
+		_ = httpx.WriteError(w, http.StatusMethodNotAllowed, httpx.MethodNotAllowedError)
 	}
 }
 
