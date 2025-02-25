@@ -3,8 +3,10 @@ package database
 import (
 	"database/sql"
 	"github.com/jmoiron/sqlx"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"io/ioutil"
+	"os"
 )
 
 type Service struct {
@@ -22,7 +24,15 @@ func (s *Service) InitServiceTest() {
 }
 
 func InitDBTest(sqlFile string) (*sqlx.DB, error) {
-	dsn := "host=host.docker.internal port=5433 user=test password=test dbname=test sslmode=disable"
+	err := godotenv.Load("../.env")
+	if err != nil {
+		panic(err)
+	}
+	dockerHost := os.Getenv("DOCKER_HOST")
+	if dockerHost == "" {
+		panic("DATABASE_URL environment variable is not set")
+	}
+	dsn := "host=" + dockerHost + " port=5433 user=test password=test dbname=test sslmode=disable"
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, err

@@ -4,7 +4,12 @@ import (
 	"PLIC/models"
 	"context"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 )
+
+type Database struct {
+	Database *sqlx.DB
+}
 
 func (db Database) CreateUser(ctx context.Context, user models.DBUser) error {
 	_, err := db.Database.NamedExecContext(ctx, `
