@@ -29,7 +29,7 @@ func InitDBTest(sqlFile string) (*sqlx.DB, error) {
 	}
 	dockerHost := os.Getenv("DOCKER_HOST")
 	if dockerHost == "" {
-		panic("DATABASE_URL environment variable is not set")
+		panic("DOCKER_HOST environment variable is not set")
 	}
 	dsn := "host=" + dockerHost + " port=5433 user=test password=test dbname=test sslmode=disable"
 	db, err := sql.Open("postgres", dsn)
