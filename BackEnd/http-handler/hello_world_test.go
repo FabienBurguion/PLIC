@@ -24,10 +24,10 @@ func TestHelloWorldHandler(t *testing.T) {
 	testCases := []testCase{
 		{
 			name:  "Basic test",
-			param: "Melody",
+			param: "Emma",
 			expected: expected{
 				statusCode: http.StatusOK,
-				response:   models.HelloWorldResponse{Response: "Hello Melody"},
+				response:   models.HelloWorldResponse{Response: "Hello Emma"},
 			},
 		},
 	}

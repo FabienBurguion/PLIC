@@ -2,6 +2,7 @@ package main
 
 import (
 	"PLIC/database"
+	"PLIC/httpx"
 	"database/sql"
 	"fmt"
 	"github.com/jmoiron/sqlx"
@@ -12,6 +13,8 @@ import (
 
 	_ "github.com/lib/pq"
 )
+
+const Port string = "8080"
 
 type Service struct {
 	db database.Database
@@ -85,16 +88,16 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		if handler.get != nil {
 			_ = handler.get(w, r)
 		} else {
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+			http.Error(w, httpx.MethodNotAllowedError, http.StatusMethodNotAllowed)
 		}
 	case http.MethodPost:
 		if handler.post != nil {
 			_ = handler.post(w, r)
 		} else {
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+			http.Error(w, httpx.MethodNotAllowedError, http.StatusMethodNotAllowed)
 		}
 	default:
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		http.Error(w, httpx.MethodNotAllowedError, http.StatusMethodNotAllowed)
 	}
 }
 
@@ -108,6 +111,6 @@ func main() {
 
 	s.GET("/hello_world", s.GetHelloWorld)
 
-	fmt.Println("Server running on port 8080...")
-	Start(":8080")
+	fmt.Println("Server running on port " + Port + "...")
+	Start(":" + Port)
 }
