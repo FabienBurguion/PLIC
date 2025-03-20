@@ -6,6 +6,10 @@ import (
 	"net/http"
 )
 
+func (s *Service) GetHelloWorldBasic(w http.ResponseWriter, _ *http.Request) error {
+	return httpx.Write(w, http.StatusOK, "Hello World")
+}
+
 func (s *Service) GetHelloWorld(w http.ResponseWriter, r *http.Request) error {
 	name := r.URL.Query().Get("name")
 	return httpx.Write(w, http.StatusOK, models.HelloWorldResponse{
