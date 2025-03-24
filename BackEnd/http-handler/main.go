@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -21,11 +22,13 @@ const Port string = "8080"
 type Service struct {
 	db     database.Database
 	server *http.ServeMux
+	clock  Clock
 }
 
 func (s *Service) InitService() {
 	s.db = initDb()
 	s.server = http.NewServeMux()
+	s.clock = Clock{offset: time.Hour}
 }
 
 func initDb() database.Database {
@@ -107,7 +110,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) Start(port string) {
+func (s *Service) Start() {
 	log.Println("🚀 Serveur démarré sur AWS Lambda")
 	lambdaHandler := httpadapter.NewV2(s.server)
 	lambda.Start(lambdaHandler.ProxyWithContext)
@@ -122,7 +125,7 @@ func main() {
 
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		fmt.Println("🚀 Démarrage sur AWS Lambda...")
-		s.Start("")
+		s.Start()
 	} else {
 		fmt.Println("🌍 Démarrage en local sur le port " + Port + "...")
 		log.Fatal(http.ListenAndServe(":"+Port, s.server))

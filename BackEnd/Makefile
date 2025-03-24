@@ -19,8 +19,10 @@ test:
 	go test ./... -v
 	docker compose down -v
 
-SHELL = powershell
-
 .PHONY: zip-windows
 zip-windows:
 	powershell -ExecutionPolicy Bypass -File build.ps1
+
+.PHONY: deploy-windows
+deploy: zip-windows
+	aws lambda update-function-code --function-name backend-go-lambda --zip-file fileb://function.zip

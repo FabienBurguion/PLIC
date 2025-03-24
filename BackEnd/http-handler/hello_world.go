@@ -7,7 +7,7 @@ import (
 )
 
 func (s *Service) GetHelloWorldBasic(w http.ResponseWriter, _ *http.Request) error {
-	return httpx.Write(w, http.StatusOK, "Hello World")
+	return httpx.Write(w, http.StatusOK, s.clock.Now())
 }
 
 func (s *Service) GetHelloWorld(w http.ResponseWriter, r *http.Request) error {
