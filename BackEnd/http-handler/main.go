@@ -118,10 +118,14 @@ func main() {
 	s := &Service{}
 	s.InitService()
 
+	//LOGIN
+	s.POST("/register", s.Register)
+	s.POST("/login", s.Login)
+
+	// ENDPOINTS FOR TESTING PURPOSE
 	s.GET("/", s.withAuthentication(s.GetTime))
 	s.GET("/hello_world", s.withAuthentication(s.GetHelloWorld))
-	s.POST("/login", s.Login)
-	s.POST("/register", s.Register)
+
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		fmt.Println("🚀 Démarrage sur AWS Lambda...")
 		s.Start()
