@@ -31,10 +31,10 @@ func Test_POCDB(t *testing.T) {
 
 			ctx := context.Background()
 
-			err := s.db.CreateUser(ctx, models.DBUser{
-				Id:    id,
-				Name:  "A name",
-				Email: "a@a.com",
+			err := s.db.CreateUserForTest(ctx, models.DBUsers{
+				Id:       id,
+				Username: "A name",
+				Password: "A password",
 			})
 			require.NoError(t, err)
 			user, err := s.db.GetUser(ctx, id)

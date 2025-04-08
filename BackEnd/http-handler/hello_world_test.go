@@ -43,7 +43,7 @@ func TestHelloWorldHandler(t *testing.T) {
 			q.Set("name", c.param)
 			r.URL.RawQuery = q.Encode()
 
-			err := s.GetHelloWorld(w, r)
+			err := s.GetHelloWorld(w, r, models.AuthInfo{})
 			require.NoError(t, err)
 			require.Equal(t, c.expected.statusCode, w.Code)
 			var actualBody models.HelloWorldResponse

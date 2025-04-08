@@ -3,6 +3,7 @@ package main
 import (
 	"PLIC/database"
 	"PLIC/httpx"
+	"PLIC/models"
 	"database/sql"
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -63,13 +64,13 @@ func initDb() database.Database {
 }
 
 type methodHandlers struct {
-	get  func(w http.ResponseWriter, _ *http.Request) error
-	post func(w http.ResponseWriter, _ *http.Request) error
+	get  func(w http.ResponseWriter, _ *http.Request, info models.AuthInfo) error
+	post func(w http.ResponseWriter, _ *http.Request, info models.AuthInfo) error
 }
 
 var handlers = make(map[string]*methodHandlers)
 
-func (s *Service) GET(path string, handlerFunc func(_ http.ResponseWriter, _ *http.Request) error) {
+func (s *Service) GET(path string, handlerFunc func(w http.ResponseWriter, r *http.Request, info models.AuthInfo) error) {
 	if handlers[path] == nil {
 		handlers[path] = &methodHandlers{}
 		s.server.HandleFunc(path, handleRequest)
@@ -77,7 +78,7 @@ func (s *Service) GET(path string, handlerFunc func(_ http.ResponseWriter, _ *ht
 	handlers[path].get = handlerFunc
 }
 
-func (s *Service) POST(path string, handlerFunc func(_ http.ResponseWriter, _ *http.Request) error) {
+func (s *Service) POST(path string, handlerFunc func(w http.ResponseWriter, r *http.Request, info models.AuthInfo) error) {
 	if handlers[path] == nil {
 		handlers[path] = &methodHandlers{}
 		s.server.HandleFunc(path, handleRequest)
@@ -95,13 +96,13 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		if handler.get != nil {
-			_ = handler.get(w, r)
+			_ = handler.get(w, r, models.AuthInfo{})
 		} else {
 			_ = httpx.WriteError(w, http.StatusMethodNotAllowed, httpx.MethodNotAllowedError)
 		}
 	case http.MethodPost:
 		if handler.post != nil {
-			_ = handler.post(w, r)
+			_ = handler.post(w, r, models.AuthInfo{})
 		} else {
 			_ = httpx.WriteError(w, http.StatusMethodNotAllowed, httpx.MethodNotAllowedError)
 		}
@@ -120,11 +121,10 @@ func main() {
 	s := &Service{}
 	s.InitService()
 
-	s.GET("/", s.GetHelloWorldBasic)
-	s.GET("/hello_world", s.GetHelloWorld)
-	//s.POST("/signin", s.signIn)
-	//s.POST("/signup", s.signUp)
-
+	s.GET("/", s.withAuthentication(s.GetTime))
+	s.GET("/hello_world", s.withAuthentication(s.GetHelloWorld))
+	s.POST("/login", s.Login)
+	s.POST("/register", s.Register)
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		fmt.Println("🚀 Démarrage sur AWS Lambda...")
 		s.Start()

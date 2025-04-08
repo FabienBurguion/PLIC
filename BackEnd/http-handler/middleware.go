@@ -1,6 +1,8 @@
 package main
 
 import (
+	"PLIC/httpx"
+	"PLIC/models"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	"net/http"
@@ -10,35 +12,34 @@ import (
 
 var jwtSecret = os.Getenv("JWT_SECRET")
 
-func (s *Service) withAuthentification(httpHandler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+func (s *Service) withAuthentication(handler func(http.ResponseWriter, *http.Request, models.AuthInfo) error) func(w http.ResponseWriter, r *http.Request, info models.AuthInfo) error {
+	return func(w http.ResponseWriter, r *http.Request, info models.AuthInfo) error {
+		auth := models.AuthInfo{IsConnected: false}
+
 		authHeader := r.Header.Get("Authorization")
-		if (authHeader == "") || (authHeader == "Bearer") {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		token := strings.TrimPrefix(authHeader, "Bearer ")
-		res, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("There was an error")
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+
+			token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+				}
+				return jwtSecret, nil
+			})
+
+			if err == nil && token.Valid {
+				if claims, ok := token.Claims.(jwt.MapClaims); ok {
+					if userID, ok := claims["user_id"].(string); ok {
+						auth.IsConnected = true
+						auth.UserID = userID
+					}
+				}
 			}
-			return jwtSecret, nil
-		})
-		if err != nil || !res.Valid {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
 		}
-		claims, ok := res.Claims.(jwt.MapClaims)
-		if !ok {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
+
+		if err := handler(w, r, auth); err != nil {
+			return httpx.WriteError(w, http.StatusUnauthorized, httpx.UnauthorizedError)
 		}
-		userId, ok := claims["userId"].(string)
-		userExist, err := s.db.CheckUserExist(ctx, userId)
-		if !ok || !userExist || err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-	})
+		return nil
+	}
 }

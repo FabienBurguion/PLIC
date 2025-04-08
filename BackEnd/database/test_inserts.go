@@ -13,21 +13,21 @@ type Database struct {
 	Database *sqlx.DB
 }
 
-func (db Database) CreateUser(ctx context.Context, user models.DBUser) error {
+func (db Database) CreateUserForTest(ctx context.Context, user models.DBUsers) error {
 	_, err := db.Database.NamedExecContext(ctx, `
-		INSERT INTO users (id, name, email)
-		VALUES (:id, :name, :email)`, user)
+		INSERT INTO users (id, username, password)
+		VALUES (:id, :username, :password)`, user)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (db Database) GetUser(ctx context.Context, id string) (*models.DBUser, error) {
-	var user models.DBUser
+func (db Database) GetUser(ctx context.Context, id string) (*models.DBUsers, error) {
+	var user models.DBUsers
 
 	err := db.Database.GetContext(ctx, &user, `
-		SELECT id, name, email
+		SELECT id, username, password
 		FROM users
 		WHERE id = $1`, id)
 	if err != nil {

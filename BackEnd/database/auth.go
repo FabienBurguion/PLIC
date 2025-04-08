@@ -24,3 +24,30 @@ func (db Database) CheckUserExist(ctx context.Context, id string) (bool, error) 
 
 	return true, nil
 }
+
+func (db Database) GetUserWithUsername(ctx context.Context, username string) (*models.DBUsers, error) {
+	var user models.DBUsers
+
+	err := db.Database.GetContext(ctx, &user, `
+		SELECT id, username, password
+		FROM users
+		WHERE username = $1`, username)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("aucun utilisateur trouvé avec l'username %s", username)
+		}
+		return nil, fmt.Errorf("échec de la requête SQL : %w", err)
+	}
+
+	return &user, nil
+}
+
+func (db Database) CreateUser(ctx context.Context, user models.DBUsers) error {
+	_, err := db.Database.ExecContext(ctx, `
+		INSERT INTO users (id, username, password)
+		VALUES ($1, $2, $3)`, user.Id, user.Username, user.Password)
+	if err != nil {
+		return fmt.Errorf("échec de l'insertion utilisateur : %w", err)
+	}
+	return nil
+}
