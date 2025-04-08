@@ -13,7 +13,7 @@ type Service struct {
 }
 
 func (s *Service) InitServiceTest() {
-	db, err := InitDBTest("../database/sql/1.0.0.sql")
+	db, err := InitDBTest("../database/sql/migration-0.0.0-1.0.0.sql")
 	if err != nil {
 		panic(err)
 	}

@@ -122,6 +122,8 @@ func main() {
 
 	s.GET("/", s.GetHelloWorldBasic)
 	s.GET("/hello_world", s.GetHelloWorld)
+	//s.POST("/signin", s.signIn)
+	//s.POST("/signup", s.signUp)
 
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		fmt.Println("🚀 Démarrage sur AWS Lambda...")
