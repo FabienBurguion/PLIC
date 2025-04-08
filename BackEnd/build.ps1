@@ -5,3 +5,4 @@ go build -o ../bootstrap
 cd ..
 Compress-Archive -Path bootstrap -DestinationPath function.zip -Force
 rm bootstrap
+rm function.zip
