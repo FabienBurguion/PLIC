@@ -26,6 +26,8 @@ type Service struct {
 	clock  Clock
 }
 
+type httpHandler func(http.ResponseWriter, *http.Request, models.AuthInfo) error
+
 func (s *Service) InitService() {
 	s.db = initDb()
 	s.server = http.NewServeMux()
@@ -67,7 +69,7 @@ type methodHandlers struct {
 
 var handlers = make(map[string]*methodHandlers)
 
-func (s *Service) GET(path string, handlerFunc func(w http.ResponseWriter, r *http.Request, info models.AuthInfo) error) {
+func (s *Service) GET(path string, handlerFunc httpHandler) {
 	if handlers[path] == nil {
 		handlers[path] = &methodHandlers{}
 		s.server.HandleFunc(path, handleRequest)
@@ -75,7 +77,7 @@ func (s *Service) GET(path string, handlerFunc func(w http.ResponseWriter, r *ht
 	handlers[path].get = handlerFunc
 }
 
-func (s *Service) POST(path string, handlerFunc func(w http.ResponseWriter, r *http.Request, info models.AuthInfo) error) {
+func (s *Service) POST(path string, handlerFunc httpHandler) {
 	if handlers[path] == nil {
 		handlers[path] = &methodHandlers{}
 		s.server.HandleFunc(path, handleRequest)
