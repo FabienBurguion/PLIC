@@ -63,8 +63,8 @@ func initDb() database.Database {
 }
 
 type methodHandlers struct {
-	get  func(w http.ResponseWriter, _ *http.Request, info models.AuthInfo) error
-	post func(w http.ResponseWriter, _ *http.Request, info models.AuthInfo) error
+	get  httpHandler
+	post httpHandler
 }
 
 var handlers = make(map[string]*methodHandlers)
