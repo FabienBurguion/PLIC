@@ -1,8 +1,7 @@
 $env:GOOS="linux"
 $env:GOARCH="amd64"
-cd http-handler
+Set-location http-handler
 go build -o ../bootstrap
-cd ..
+Set-location ..
 Compress-Archive -Path bootstrap -DestinationPath function.zip -Force
-rm bootstrap
-rm function.zip
+Remove-Item bootstrap

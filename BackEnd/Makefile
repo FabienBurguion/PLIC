@@ -1,4 +1,4 @@
-.PHONE: all
+.PHONY: all
 all: build
 
 .PHONY: build
@@ -21,8 +21,13 @@ test:
 
 .PHONY: zip-windows
 zip-windows:
-	powershell -ExecutionPolicy Bypass -File build.ps1
+	powershell -ExecutionPolicy Bypass -File zip-project.ps1
 
 .PHONY: deploy-windows
 deploy-windows: zip-windows
 	aws lambda update-function-code --function-name backend-go-lambda --zip-file fileb://function.zip
+
+.PHONY: clean-windows
+clean-windows:
+	if exist bin rmdir /s /q bin
+	if exist function.zip del /q function.zip
