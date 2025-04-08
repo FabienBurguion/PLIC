@@ -34,7 +34,7 @@ func (db Database) GetUserWithUsername(ctx context.Context, username string) (*m
 		WHERE username = $1`, username)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("aucun utilisateur trouvé avec l'username %s", username)
+			return nil, nil
 		}
 		return nil, fmt.Errorf("échec de la requête SQL : %w", err)
 	}

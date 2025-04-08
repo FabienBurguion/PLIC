@@ -3,10 +3,17 @@ package main
 import (
 	"PLIC/httpx"
 	"PLIC/models"
+	"log"
 	"net/http"
+	"time"
 )
 
-func (s *Service) GetTime(w http.ResponseWriter, _ *http.Request, _ models.AuthInfo) error {
+func (s *Service) GetTime(w http.ResponseWriter, _ *http.Request, ai models.AuthInfo) error {
+	log.Printf("IsConnected: %v\n", ai.IsConnected)
+	log.Println("UserId: ", ai.UserID)
+	if !ai.IsConnected {
+		return httpx.Write(w, http.StatusOK, time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
+	}
 	return httpx.Write(w, http.StatusOK, s.clock.Now())
 }
 

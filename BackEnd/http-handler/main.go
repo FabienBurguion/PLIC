@@ -49,9 +49,6 @@ func initDb() database.Database {
 	if err != nil {
 		panic(err)
 	}
-	defer func(db *sql.DB) {
-		_ = db.Close()
-	}(db)
 
 	var version string
 	if err := db.QueryRow("select version()").Scan(&version); err != nil {

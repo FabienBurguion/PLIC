@@ -1,10 +1,10 @@
 package main
 
 import (
-	"PLIC/httpx"
 	"PLIC/models"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -14,6 +14,7 @@ var jwtSecret = os.Getenv("JWT_SECRET")
 
 func (s *Service) withAuthentication(handler func(http.ResponseWriter, *http.Request, models.AuthInfo) error) func(w http.ResponseWriter, r *http.Request, info models.AuthInfo) error {
 	return func(w http.ResponseWriter, r *http.Request, info models.AuthInfo) error {
+		log.Println("Entering authent middleware")
 		auth := models.AuthInfo{IsConnected: false}
 
 		authHeader := r.Header.Get("Authorization")
@@ -24,7 +25,7 @@ func (s *Service) withAuthentication(handler func(http.ResponseWriter, *http.Req
 				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 				}
-				return jwtSecret, nil
+				return []byte(jwtSecret), nil
 			})
 
 			if err == nil && token.Valid {
@@ -37,9 +38,6 @@ func (s *Service) withAuthentication(handler func(http.ResponseWriter, *http.Req
 			}
 		}
 
-		if err := handler(w, r, auth); err != nil {
-			return httpx.WriteError(w, http.StatusUnauthorized, httpx.UnauthorizedError)
-		}
-		return nil
+		return handler(w, r, auth)
 	}
 }

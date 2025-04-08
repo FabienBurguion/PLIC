@@ -24,5 +24,5 @@ zip-windows:
 	powershell -ExecutionPolicy Bypass -File build.ps1
 
 .PHONY: deploy-windows
-deploy: zip-windows
+deploy-windows: zip-windows
 	aws lambda update-function-code --function-name backend-go-lambda --zip-file fileb://function.zip
