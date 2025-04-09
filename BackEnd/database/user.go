@@ -25,7 +25,7 @@ func (db Database) CheckUserExist(ctx context.Context, id string) (bool, error) 
 	return true, nil
 }
 
-func (db Database) GetUserWithUsername(ctx context.Context, username string) (*models.DBUsers, error) {
+func (db Database) GetUserByUsername(ctx context.Context, username string) (*models.DBUsers, error) {
 	var user models.DBUsers
 
 	err := db.Database.GetContext(ctx, &user, `
@@ -43,9 +43,9 @@ func (db Database) GetUserWithUsername(ctx context.Context, username string) (*m
 }
 
 func (db Database) CreateUser(ctx context.Context, user models.DBUsers) error {
-	_, err := db.Database.ExecContext(ctx, `
+	_, err := db.Database.NamedExecContext(ctx, `
 		INSERT INTO users (id, username, password, created_at, updated_at)
-		VALUES ($1, $2, $3)`, user.Id, user.Username, user.Password)
+		VALUES (:id, :username, :password, :created_at, :updated_at)`, user)
 	if err != nil {
 		return fmt.Errorf("échec de l'insertion utilisateur : %w", err)
 	}

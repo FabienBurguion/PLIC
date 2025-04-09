@@ -32,7 +32,7 @@ func Test_POCDB(t *testing.T) {
 
 			ctx := context.Background()
 
-			err := s.db.CreateUserForTest(ctx, models.DBUsers{
+			err := s.db.CreateUser(ctx, models.DBUsers{
 				Id:        id,
 				Username:  "A name",
 				Password:  "A password",
@@ -40,7 +40,7 @@ func Test_POCDB(t *testing.T) {
 				UpdatedAt: time.Now(),
 			})
 			require.NoError(t, err)
-			user, err := s.db.GetUser(ctx, id)
+			user, err := s.db.GetUserByUsername(ctx, "A name")
 			require.NoError(t, err)
 			require.Equal(t, user.Id, c.param)
 		})
