@@ -1,0 +1,252 @@
+package main
+
+import (
+	"PLIC/models"
+	"bytes"
+	"encoding/json"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+)
+
+func TestService_Login(t *testing.T) {
+	type expected struct {
+		code     int
+		response models.LoginResponse
+	}
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		param    models.LoginRequest
+		expected expected
+	}
+
+	userId := uuid.NewString()
+	username := "Username"
+	password := "Password"
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	require.NoError(t, err)
+
+	claims := jwt.MapClaims{
+		"user_id": userId,
+		"exp":     tokenDuration,
+		"iat":     time.Now().Unix(),
+	}
+	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token, err := tok.SignedString([]byte(jwtSecret))
+	require.NoError(t, err)
+
+	testCases := []testCase{
+		{
+			name: "User exists -> can login and receives token",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userId).
+						WithUsername(username).
+						WithPassword(string(hashedPassword)),
+				},
+			},
+			param: models.LoginRequest{
+				Username: username,
+				Password: password,
+			},
+			expected: expected{
+				code:     http.StatusOK,
+				response: models.LoginResponse{Token: token},
+			},
+		},
+		{
+			name: "Wrong username => 401",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userId).
+						WithUsername(username).
+						WithPassword(string(hashedPassword)),
+				},
+			},
+			param: models.LoginRequest{
+				Username: "Another username",
+				Password: password,
+			},
+			expected: expected{
+				code: http.StatusUnauthorized,
+			},
+		},
+		{
+			name: "Wrong password => 401",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userId).
+						WithUsername(username).
+						WithPassword(string(hashedPassword)),
+				},
+			},
+			param: models.LoginRequest{
+				Username: username,
+				Password: "Another password",
+			},
+			expected: expected{
+				code: http.StatusUnauthorized,
+			},
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
+
+			body, _ := json.Marshal(c.param)
+
+			req := httptest.NewRequest("POST", "/login", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			err := s.Login(w, req, models.AuthInfo{})
+			require.NoError(t, err)
+			resp := w.Result()
+			defer resp.Body.Close()
+			require.Equal(t, c.expected.code, resp.StatusCode)
+			if c.expected.code != http.StatusOK {
+				return
+			}
+			var actual models.LoginResponse
+			err = json.NewDecoder(resp.Body).Decode(&actual)
+			require.NoError(t, err)
+			parsedToken, err := jwt.Parse(actual.Token, func(token *jwt.Token) (interface{}, error) {
+				return []byte(jwtSecret), nil
+			})
+			require.NoError(t, err)
+			require.True(t, parsedToken.Valid)
+
+			claims, ok := parsedToken.Claims.(jwt.MapClaims)
+			require.True(t, ok)
+			require.Equal(t, userId, claims["user_id"])
+		})
+	}
+}
+
+func TestService_Register(t *testing.T) {
+	type expected struct {
+		code     int
+		response models.LoginResponse
+	}
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		param    models.LoginRequest
+		expected expected
+	}
+
+	userId := uuid.NewString()
+	username := "NewUser"
+	password := "NewPassword"
+
+	testCases := []testCase{
+		{
+			name: "User does not exist -> can register and receives token",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{},
+			},
+			param: models.LoginRequest{
+				Username: username,
+				Password: password,
+			},
+			expected: expected{
+				code: http.StatusCreated,
+			},
+		},
+		{
+			name: "Empty username => bad request",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{},
+			},
+			param: models.LoginRequest{
+				Username: "",
+				Password: password,
+			},
+			expected: expected{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "Empty password => bad request",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{},
+			},
+			param: models.LoginRequest{
+				Username: username,
+				Password: "",
+			},
+			expected: expected{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "User already exists -> 401",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userId).
+						WithUsername(username),
+				},
+			},
+			param: models.LoginRequest{
+				Username: username,
+				Password: password,
+			},
+			expected: expected{
+				code: http.StatusUnauthorized,
+			},
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
+
+			body, _ := json.Marshal(c.param)
+
+			req := httptest.NewRequest("POST", "/register", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			err := s.Register(w, req, models.AuthInfo{})
+			require.NoError(t, err)
+
+			resp := w.Result()
+			defer resp.Body.Close()
+			require.Equal(t, c.expected.code, resp.StatusCode)
+
+			if c.expected.code != http.StatusCreated {
+				return
+			}
+
+			var actual models.LoginResponse
+			err = json.NewDecoder(resp.Body).Decode(&actual)
+			require.NoError(t, err)
+
+			parsedToken, err := jwt.Parse(actual.Token, func(token *jwt.Token) (interface{}, error) {
+				return []byte(jwtSecret), nil
+			})
+			require.NoError(t, err)
+			require.True(t, parsedToken.Valid)
+
+			claims, ok := parsedToken.Claims.(jwt.MapClaims)
+			require.True(t, ok)
+			require.NotEmpty(t, claims["user_id"])
+		})
+	}
+}

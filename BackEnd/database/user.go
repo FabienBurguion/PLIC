@@ -17,7 +17,7 @@ func (db Database) CheckUserExist(ctx context.Context, id string) (bool, error) 
 		WHERE id = $1`, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return false, fmt.Errorf("aucun utilisateur trouvé avec l'ID %s", id)
+			return false, nil
 		}
 		return false, fmt.Errorf("échec de la requête SQL : %w", err)
 	}

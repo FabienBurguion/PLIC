@@ -34,8 +34,12 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, _ models.AuthInf
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
 	user, err := s.db.GetUserByUsername(ctx, req.Username)
-	if err != nil || user == nil {
+	if err != nil {
 		log.Println("Error getting the user")
+		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
+	}
+	if user == nil {
+		log.Println("No user found")
 		return httpx.WriteError(w, http.StatusUnauthorized, httpx.UnauthorizedError)
 	}
 
@@ -57,6 +61,10 @@ func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.Auth
 	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Println("Erreur JSON:", err)
+		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
+	}
+	if req.Username == "" || req.Password == "" {
+		log.Printf("Username or Password empty")
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
 	user, err := s.db.GetUserByUsername(ctx, req.Username)

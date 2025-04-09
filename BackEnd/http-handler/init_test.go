@@ -1,6 +1,7 @@
-package database
+package main
 
 import (
+	"PLIC/database"
 	"PLIC/models"
 	"context"
 	"database/sql"
@@ -8,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -17,10 +17,6 @@ import (
 	"strings"
 	"time"
 )
-
-type Service struct {
-	db Database
-}
 
 type DBFixtures struct {
 	Users []models.DBUsers
@@ -87,7 +83,7 @@ func (s *Service) InitServiceTest() {
 	if err != nil {
 		panic(err)
 	}
-	s.db = Database{
+	s.db = database.Database{
 		Database: db,
 	}
 
