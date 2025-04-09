@@ -15,8 +15,8 @@ type Database struct {
 
 func (db Database) CreateUserForTest(ctx context.Context, user models.DBUsers) error {
 	_, err := db.Database.NamedExecContext(ctx, `
-		INSERT INTO users (id, username, password)
-		VALUES (:id, :username, :password)`, user)
+		INSERT INTO users (id, username, password, created_at, updated_at)
+		VALUES (:id, :username, :password, :created_at, :updated_at)`, user)
 	if err != nil {
 		return err
 	}
@@ -27,7 +27,7 @@ func (db Database) GetUser(ctx context.Context, id string) (*models.DBUsers, err
 	var user models.DBUsers
 
 	err := db.Database.GetContext(ctx, &user, `
-		SELECT id, username, password
+		SELECT id, username, password, created_at, updated_at
 		FROM users
 		WHERE id = $1`, id)
 	if err != nil {

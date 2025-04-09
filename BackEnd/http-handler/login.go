@@ -30,18 +30,22 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, _ models.AuthInf
 	ctx := r.Context()
 	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Println(err)
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
 	user, err := s.db.GetUserWithUsername(ctx, req.Username)
 	if err != nil || user == nil {
+		log.Println("Error getting the user")
 		return httpx.WriteError(w, http.StatusUnauthorized, httpx.UnauthorizedError)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+		log.Println("Error comparing password")
 		return httpx.WriteError(w, http.StatusUnauthorized, httpx.UnauthorizedError)
 	}
 	token, err := GenerateJWT(user.Id)
 	if err != nil {
+		log.Println("Error generating token")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 	return httpx.Write(w, http.StatusOK, models.LoginResponse{Token: token})
@@ -70,9 +74,11 @@ func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.Auth
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 	newUser := models.DBUsers{
-		Id:       uuid.NewString(),
-		Username: req.Username,
-		Password: string(hashedPassword),
+		Id:        uuid.NewString(),
+		Username:  req.Username,
+		Password:  string(hashedPassword),
+		CreatedAt: s.clock.Now(),
+		UpdatedAt: s.clock.Now(),
 	}
 	token, err := GenerateJWT(newUser.Id)
 	if err != nil {

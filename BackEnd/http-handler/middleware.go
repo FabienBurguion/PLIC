@@ -12,7 +12,7 @@ import (
 
 var jwtSecret = os.Getenv("JWT_SECRET")
 
-func (s *Service) withAuthentication(handler httpHandler) httpHandler {
+func withAuthentication(handler httpHandler) httpHandler {
 	return func(w http.ResponseWriter, r *http.Request, info models.AuthInfo) error {
 		log.Println("Entering authent middleware")
 		auth := models.AuthInfo{IsConnected: false}
@@ -37,7 +37,6 @@ func (s *Service) withAuthentication(handler httpHandler) httpHandler {
 				}
 			}
 		}
-
 		return handler(w, r, auth)
 	}
 }

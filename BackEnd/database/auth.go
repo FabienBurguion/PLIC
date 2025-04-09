@@ -12,7 +12,7 @@ func (db Database) CheckUserExist(ctx context.Context, id string) (bool, error) 
 	var user models.DBUsers
 
 	err := db.Database.GetContext(ctx, &user, `
-		SELECT id, username, password
+		SELECT id, username, password, created_at, updated_at
 		FROM users
 		WHERE id = $1`, id)
 	if err != nil {
@@ -29,7 +29,7 @@ func (db Database) GetUserWithUsername(ctx context.Context, username string) (*m
 	var user models.DBUsers
 
 	err := db.Database.GetContext(ctx, &user, `
-		SELECT id, username, password
+		SELECT id, username, password, created_at, updated_at
 		FROM users
 		WHERE username = $1`, username)
 	if err != nil {
@@ -44,7 +44,7 @@ func (db Database) GetUserWithUsername(ctx context.Context, username string) (*m
 
 func (db Database) CreateUser(ctx context.Context, user models.DBUsers) error {
 	_, err := db.Database.ExecContext(ctx, `
-		INSERT INTO users (id, username, password)
+		INSERT INTO users (id, username, password, created_at, updated_at)
 		VALUES ($1, $2, $3)`, user.Id, user.Username, user.Password)
 	if err != nil {
 		return fmt.Errorf("échec de l'insertion utilisateur : %w", err)

@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 func Test_POCDB(t *testing.T) {
@@ -32,9 +33,11 @@ func Test_POCDB(t *testing.T) {
 			ctx := context.Background()
 
 			err := s.db.CreateUserForTest(ctx, models.DBUsers{
-				Id:       id,
-				Username: "A name",
-				Password: "A password",
+				Id:        id,
+				Username:  "A name",
+				Password:  "A password",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
 			})
 			require.NoError(t, err)
 			user, err := s.db.GetUser(ctx, id)
