@@ -3,9 +3,12 @@ package main
 import (
 	"PLIC/database"
 	"PLIC/mailer"
+	"context"
 	"database/sql"
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
@@ -20,10 +23,11 @@ import (
 const Port string = "8080"
 
 type Service struct {
-	db     database.Database
-	server *http.ServeMux
-	clock  Clock
-	mailer *mailer.Mailer
+	db       database.Database
+	server   *http.ServeMux
+	clock    Clock
+	mailer   *mailer.Mailer
+	s3Client *s3.Client
 }
 
 func (s *Service) InitService() {
@@ -33,6 +37,12 @@ func (s *Service) InitService() {
 	s.mailer = &mailer.Mailer{
 		LastSentAt:  make(map[string]time.Time),
 		AlreadySent: make(map[string]bool),
+	}
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		log.Println("Failed to load SDK config:", err)
+	} else {
+		s.s3Client = s3.NewFromConfig(cfg)
 	}
 }
 
@@ -82,6 +92,8 @@ func main() {
 	s.GET("/", withAuthentication(s.GetTime))
 	s.GET("/hello_world", withAuthentication(s.GetHelloWorld))
 	s.POST("/email", s.SendMail)
+	s.POST("/image", s.UploadImageToS3)
+	s.GET("/image", s.GetS3Image)
 
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		fmt.Println("🚀 Démarrage sur AWS Lambda...")
