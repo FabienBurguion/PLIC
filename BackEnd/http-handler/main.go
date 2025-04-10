@@ -2,6 +2,7 @@ package main
 
 import (
 	"PLIC/database"
+	"PLIC/mailer"
 	"database/sql"
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -22,12 +23,17 @@ type Service struct {
 	db     database.Database
 	server *http.ServeMux
 	clock  Clock
+	mailer *mailer.Mailer
 }
 
 func (s *Service) InitService() {
 	s.db = initDb()
 	s.server = http.NewServeMux()
 	s.clock = Clock{offset: time.Hour}
+	s.mailer = &mailer.Mailer{
+		LastSentAt:  make(map[string]time.Time),
+		AlreadySent: make(map[string]bool),
+	}
 }
 
 func initDb() database.Database {
@@ -75,6 +81,7 @@ func main() {
 	// ENDPOINTS FOR TESTING PURPOSE
 	s.GET("/", withAuthentication(s.GetTime))
 	s.GET("/hello_world", withAuthentication(s.GetHelloWorld))
+	s.POST("/email", s.SendMail)
 
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		fmt.Println("🚀 Démarrage sur AWS Lambda...")
