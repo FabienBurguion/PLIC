@@ -3,11 +3,9 @@ package main
 import (
 	"PLIC/httpx"
 	"PLIC/models"
+	"PLIC/s3_management"
 	"bytes"
 	"errors"
-	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
 	"log"
 	"net/http"
@@ -32,12 +30,7 @@ func (s *Service) UploadImageToS3(w http.ResponseWriter, r *http.Request, _ mode
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 
-	_, err = s.s3Client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(bucketName),
-		Key:         aws.String(objectKey),
-		Body:        bytes.NewReader(buf.Bytes()),
-		ContentType: aws.String(http.DetectContentType(buf.Bytes())),
-	})
+	err = s3_management.PutObject(ctx, s.s3Client, bucketName, objectKey, buf)
 	if err != nil {
 		var oe *smithy.OperationError
 		if errors.As(err, &oe) {
@@ -55,24 +48,11 @@ func (s *Service) GetS3Image(w http.ResponseWriter, r *http.Request, _ models.Au
 	bucketName := "test-plic"
 
 	objectKey := bucketName + "file.png"
-	presigner := s3.NewPresignClient(s.s3Client)
-	resp, err := presigner.PresignGetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(bucketName),
-		Key:    aws.String(objectKey),
-	})
+	resp, err := s3_management.GetObject(ctx, s.s3Client, bucketName, objectKey)
 
 	if err != nil {
 		log.Println(err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
-	}
-
-	fmt.Println("🔗 URL S3 presignée :", resp.URL)
-
-	testResp, err := http.Get(resp.URL)
-	if err != nil {
-		log.Println("❌ URL invalide :", err)
-	} else {
-		log.Println("✅ Code HTTP presigned:", testResp.StatusCode)
 	}
 
 	return httpx.Write(w, http.StatusCreated, models.ImageUrl{
