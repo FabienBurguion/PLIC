@@ -17,9 +17,7 @@ func (s *Service) UploadImageToS3(w http.ResponseWriter, r *http.Request, _ mode
 	ctx := r.Context()
 	bucketName := "test-plic"
 	objectKey := bucketName + "file.png"
-	// Charge la config AWS depuis Lambda (IAM)
 
-	// Suppose que tu reçois un multipart/form-data avec le champ "image"
 	file, _, err := r.FormFile("image")
 	if err != nil {
 		log.Printf("fichier non trouvé: %w", err)
@@ -27,7 +25,6 @@ func (s *Service) UploadImageToS3(w http.ResponseWriter, r *http.Request, _ mode
 	}
 	defer file.Close()
 
-	// Lis le fichier dans un buffer
 	buf := new(bytes.Buffer)
 	_, err = buf.ReadFrom(file)
 	if err != nil {
@@ -35,7 +32,6 @@ func (s *Service) UploadImageToS3(w http.ResponseWriter, r *http.Request, _ mode
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 
-	// Upload vers S3
 	_, err = s.s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(bucketName),
 		Key:         aws.String(objectKey),
