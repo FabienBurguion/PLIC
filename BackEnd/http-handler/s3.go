@@ -19,7 +19,7 @@ func (s *Service) UploadImageToS3(w http.ResponseWriter, r *http.Request, _ mode
 	file, _, err := r.FormFile("image")
 	if err != nil {
 		log.Printf("fichier non trouvé: %w", err)
-		return httpx.WriteError(w, http.StatusNotFound, httpx.NotFoundError)
+		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
 	defer file.Close()
 

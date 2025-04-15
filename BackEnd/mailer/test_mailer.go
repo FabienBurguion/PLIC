@@ -10,10 +10,11 @@ import (
 )
 
 func (mailer *Mailer) SendTestMail(to string) error {
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("❌ Erreur de chargement du fichier .env :", err)
-		return err
+	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") == "" {
+		err := godotenv.Load()
+		if err != nil {
+			log.Println("Warning: No .env file found, using environment variables")
+		}
 	}
 
 	from := os.Getenv("SMTP_FROM")
@@ -25,7 +26,7 @@ func (mailer *Mailer) SendTestMail(to string) error {
 
 	if mailer.AlreadySent[to] && time.Since(mailer.LastSentAt[to]) < 10*time.Second {
 		log.Println("⛔️ Email déjà envoyé récemment à", to, "→ annulation.")
-		return err
+		return fmt.Errorf("\"⛔️ Email déjà envoyé récemment à\", to, \"→ annulation.\"")
 	}
 
 	log.Println("🚀 Envoi de l'email via Mailjet à", to)
