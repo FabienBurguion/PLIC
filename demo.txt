@@ -13,8 +13,7 @@ $response
 
 MAIL
 
-$response = Invoke-WebRequest -Uri "https://gfosd9euua.execute-api.eu-west-3.amazonaws.com/email" -Method POST -Body (@{ email = "fabien.burguion@epita.fr" } | ConvertTo-Json) -ContentType "application/json"
-$response.Content
+Invoke-WebRequest -Uri "https://gfosd9euua.execute-api.eu-west-3.amazonaws.com/email" -Method POST -Body (@{ email = "fabien.burguion@epita.fr" } | ConvertTo-Json) -ContentType "application/json"
 
 IMAGE
 

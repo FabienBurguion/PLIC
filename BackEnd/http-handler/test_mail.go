@@ -24,5 +24,5 @@ func (s *Service) SendMail(w http.ResponseWriter, r *http.Request, _ models.Auth
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, err.Error())
 	}
-	return nil
+	return httpx.Write(w, http.StatusOK, nil)
 }
