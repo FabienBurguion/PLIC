@@ -4,9 +4,11 @@ $response = Invoke-WebRequest -Uri "https://gfosd9euua.execute-api.eu-west-3.ama
 $response.Content
 
 SANS TOKEN
+
 curl.exe -X GET https://gfosd9euua.execute-api.eu-west-3.amazonaws.com --insecure
 
 AVEC TOKEN
+
 $token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NDQ4MTU4NTUsImlhdCI6MTc0NDcyOTQ5NiwidXNlcl9pZCI6ImRjZGJlMDM2LWVlMjItNGY3My04MGJlLWI0YmY2YWU2NTUzOSJ9.umU54GVBTP7T9ksinmcXAfH7WmawpMjbbNaK2kGGmjc"
 $response = Invoke-RestMethod -Uri "https://gfosd9euua.execute-api.eu-west-3.amazonaws.com" -Method GET -Headers @{ Authorization = "Bearer $token" }
 $response
@@ -17,5 +19,4 @@ Invoke-WebRequest -Uri "https://gfosd9euua.execute-api.eu-west-3.amazonaws.com/e
 
 IMAGE
 
-curl.exe -X GET https://gfosd9euua.execute-api.eu-west-3.amazonaws.com/image --insecure
 curl.exe -X POST https://gfosd9euua.execute-api.eu-west-3.amazonaws.com/image -F "image=@C:\Users\fabie\Pictures\Sans titre.jpg" --insecure

@@ -31,3 +31,7 @@ deploy-windows: zip-windows
 clean-windows:
 	if exist bin rmdir /s /q bin
 	if exist function.zip del /q function.zip
+
+.PHONY: generate-swagger
+generate-swagger:
+	cd http-handler && swag init --parseDependency --parseInternal

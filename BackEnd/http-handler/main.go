@@ -3,6 +3,7 @@ package main
 import (
 	"PLIC/database"
 	"PLIC/mailer"
+	"PLIC/models"
 	"context"
 	"database/sql"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
+	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	"log"
@@ -74,6 +76,38 @@ func initDb() database.Database {
 	}
 }
 
+// DOCS ONLY: fake router for swaggo
+func docsRouter() {
+	r := gin.New()
+	s := &Service{}
+	s.InitService()
+	r.POST("/register", func(c *gin.Context) {
+		_ = s.Register(c.Writer, c.Request, models.AuthInfo{})
+	})
+	r.POST("/login", func(c *gin.Context) {
+		_ = s.Login(c.Writer, c.Request, models.AuthInfo{})
+	})
+
+	r.GET("/", func(c *gin.Context) {
+		_ = s.GetTime(c.Writer, c.Request, models.AuthInfo{})
+	})
+	r.GET("/hello_world", func(c *gin.Context) {
+		_ = s.GetHelloWorld(c.Writer, c.Request, models.AuthInfo{})
+	})
+
+	r.POST("/email", func(c *gin.Context) {
+		_ = s.SendMail(c.Writer, c.Request, models.AuthInfo{})
+	})
+
+	r.POST("/image", func(c *gin.Context) {
+		_ = s.UploadImageToS3(c.Writer, c.Request, models.AuthInfo{})
+	})
+
+	r.GET("/image", func(c *gin.Context) {
+		_ = s.GetS3Image(c.Writer, c.Request, models.AuthInfo{})
+	})
+}
+
 func (s *Service) Start() {
 	log.Println("🚀 Serveur démarré sur AWS Lambda")
 	lambdaHandler := httpadapter.NewV2(s.server)
@@ -91,7 +125,11 @@ func main() {
 	// ENDPOINTS FOR TESTING PURPOSE
 	s.GET("/", withAuthentication(s.GetTime))
 	s.GET("/hello_world", withAuthentication(s.GetHelloWorld))
+
+	// ENDPOINTS FOR EMAIL
 	s.POST("/email", s.SendMail)
+
+	// ENDPOINTS FOR S3
 	s.POST("/image", s.UploadImageToS3)
 	s.GET("/image", s.GetS3Image)
 

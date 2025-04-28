@@ -55,6 +55,18 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, _ models.AuthInf
 	return httpx.Write(w, http.StatusOK, models.LoginResponse{Token: token})
 }
 
+// Register godoc
+// @Summary      Register a new user
+// @Description  Register a user with username and password
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body models.LoginRequest true "User credentials"
+// @Success      201 {object} models.LoginResponse
+// @Failure      400 {object} models.Error "Bad request"
+// @Failure      401 {object} models.Error "User already exists"
+// @Failure      500 {object} models.Error "Internal server error"
+// @Router       /register [post]
 func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
 	log.Println("Entering Register")
 	ctx := r.Context()
