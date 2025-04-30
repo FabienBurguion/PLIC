@@ -4,6 +4,16 @@ definitions:
       message:
         type: string
     type: object
+  models.HelloWorldResponse:
+    properties:
+      response:
+        type: string
+    type: object
+  models.ImageUrl:
+    properties:
+      url:
+        type: string
+    type: object
   models.LoginRequest:
     properties:
       password:
@@ -16,9 +26,152 @@ definitions:
       token:
         type: string
     type: object
+  models.MailerRequest:
+    properties:
+      email:
+        type: string
+    type: object
 info:
   contact: {}
 paths:
+  /:
+    get:
+      description: Returns the current server time. If the user is not authenticated,
+        returns a fixed default time.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Current time in RFC3339 format
+          schema:
+            type: string
+      summary: Get current server time
+      tags:
+      - testing
+  /email:
+    post:
+      consumes:
+      - application/json
+      description: Sends a test email to the specified address
+      parameters:
+      - description: Email request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.MailerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Invalid email address or bad request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Send test email
+      tags:
+      - mail
+  /hello_world:
+    get:
+      description: Returns a greeting with the provided name
+      parameters:
+      - description: Name to greet
+        in: query
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.HelloWorldResponse'
+      summary: Say Hello
+      tags:
+      - testing
+  /image:
+    get:
+      description: Retrieves a pre-signed URL to access an image stored in S3
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.ImageUrl'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Get image URL from S3
+      tags:
+      - upload
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads an image file to an S3 bucket
+      parameters:
+      - description: Image file to upload
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad request or file not found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Upload an image to S3
+      tags:
+      - upload
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a user with username and password
+      parameters:
+      - description: User credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LoginResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Login a user
+      tags:
+      - auth
   /register:
     post:
       consumes:

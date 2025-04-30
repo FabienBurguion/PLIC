@@ -4,6 +4,215 @@
         "contact": {}
     },
     "paths": {
+        "/": {
+            "get": {
+                "description": "Returns the current server time. If the user is not authenticated, returns a fixed default time.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "testing"
+                ],
+                "summary": "Get current server time",
+                "responses": {
+                    "200": {
+                        "description": "Current time in RFC3339 format",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/email": {
+            "post": {
+                "description": "Sends a test email to the specified address",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "Send test email",
+                "parameters": [
+                    {
+                        "description": "Email request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.MailerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Invalid email address or bad request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/hello_world": {
+            "get": {
+                "description": "Returns a greeting with the provided name",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "testing"
+                ],
+                "summary": "Say Hello",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name to greet",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.HelloWorldResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/image": {
+            "get": {
+                "description": "Retrieves a pre-signed URL to access an image stored in S3",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "upload"
+                ],
+                "summary": "Get image URL from S3",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.ImageUrl"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Uploads an image file to an S3 bucket",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "upload"
+                ],
+                "summary": "Upload an image to S3",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Image file to upload",
+                        "name": "image",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created"
+                    },
+                    "400": {
+                        "description": "Bad request or file not found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/login": {
+            "post": {
+                "description": "Authenticate a user with username and password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Login a user",
+                "parameters": [
+                    {
+                        "description": "User credentials",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/register": {
             "post": {
                 "description": "Register a user with username and password",
@@ -66,6 +275,22 @@
                 }
             }
         },
+        "models.HelloWorldResponse": {
+            "type": "object",
+            "properties": {
+                "response": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ImageUrl": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
         "models.LoginRequest": {
             "type": "object",
             "properties": {
@@ -81,6 +306,14 @@
             "type": "object",
             "properties": {
                 "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.MailerRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
                     "type": "string"
                 }
             }

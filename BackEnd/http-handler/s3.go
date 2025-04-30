@@ -11,6 +11,17 @@ import (
 	"net/http"
 )
 
+// UploadImageToS3 godoc
+// @Summary      Upload an image to S3
+// @Description  Uploads an image file to an S3 bucket
+// @Tags         upload
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        image formData file true "Image file to upload"
+// @Success      201
+// @Failure      400 {object} models.Error "Bad request or file not found"
+// @Failure      500 {object} models.Error "Internal server error"
+// @Router       /image [post]
 func (s *Service) UploadImageToS3(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
 	ctx := r.Context()
 	bucketName := "test-plic"
@@ -43,6 +54,14 @@ func (s *Service) UploadImageToS3(w http.ResponseWriter, r *http.Request, _ mode
 	return httpx.Write(w, http.StatusCreated, nil)
 }
 
+// GetS3Image godoc
+// @Summary      Get image URL from S3
+// @Description  Retrieves a pre-signed URL to access an image stored in S3
+// @Tags         upload
+// @Produce      json
+// @Success      201 {object} models.ImageUrl
+// @Failure      500 {object} models.Error "Internal server error"
+// @Router       /image [get]
 func (s *Service) GetS3Image(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
 	ctx := r.Context()
 	bucketName := "test-plic"

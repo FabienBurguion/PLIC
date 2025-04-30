@@ -26,6 +26,18 @@ func GenerateJWT(userID string) (string, error) {
 	return token.SignedString([]byte(jwtSecret))
 }
 
+// Login godoc
+// @Summary      Login a user
+// @Description  Authenticate a user with username and password
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body models.LoginRequest true "User credentials"
+// @Success      200 {object} models.LoginResponse
+// @Failure      400 {object} models.Error "Bad request"
+// @Failure      401 {object} models.Error "Invalid credentials"
+// @Failure      500 {object} models.Error "Internal server error"
+// @Router       /login [post]
 func (s *Service) Login(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
 	ctx := r.Context()
 	var req models.LoginRequest
