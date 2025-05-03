@@ -98,6 +98,7 @@ func main() {
 	// ENDPOINTS FOR S3
 	s.POST("/image", s.UploadImageToS3)
 	s.GET("/image", s.GetS3Image)
+	s.POST("/place", s.HandleSyncGooglePlaces)
 
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		fmt.Println("🚀 Démarrage sur AWS Lambda...")

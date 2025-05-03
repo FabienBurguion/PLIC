@@ -23,7 +23,8 @@ type Service struct {
 }
 
 type DBFixtures struct {
-	Users []models.DBUsers
+	Users  []models.DBUsers
+	Courts []models.DBCourt
 }
 
 func findLatestMigrationFile(dir string) (string, error) {

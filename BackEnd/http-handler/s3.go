@@ -37,7 +37,7 @@ func (s *Service) UploadImageToS3(w http.ResponseWriter, r *http.Request, _ mode
 	buf := new(bytes.Buffer)
 	_, err = buf.ReadFrom(file)
 	if err != nil {
-		log.Printf("lecture fichier: %w", err)
+		log.Printf("lecture fichier: %v", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 

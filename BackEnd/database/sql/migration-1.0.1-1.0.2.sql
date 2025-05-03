@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS terrain (
+    id TEXT PRIMARY KEY,
+    address TEXT NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
+    latitude DOUBLE PRECISION NOT NULL
+);
