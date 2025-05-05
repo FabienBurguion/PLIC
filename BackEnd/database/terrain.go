@@ -4,30 +4,9 @@ import (
 	"PLIC/models"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
-	"net/http"
 )
-
-func (db Database) GetPlaces(latitude, longitude float64, apiKey string) ([]models.Place, error) {
-	url := fmt.Sprintf(
-		"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=%f,%f&radius=1000&type=sports_complex&key=%s",
-		latitude, longitude, apiKey)
-	log.Println(url)
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	var data models.GooglePlacesResponse
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, err
-	}
-
-	return data.Results, nil
-}
 
 func (db Database) InsertTerrain(ctx context.Context, id string, p models.Place) error {
 	_, err := db.Database.ExecContext(ctx, `

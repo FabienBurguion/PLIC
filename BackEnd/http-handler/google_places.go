@@ -1,6 +1,7 @@
 package main
 
 import (
+	google_handler "PLIC/google-handler"
 	"PLIC/httpx"
 	"PLIC/models"
 	"context"
@@ -11,20 +12,18 @@ import (
 )
 
 func (s *Service) SyncGooglePlaces(ctx context.Context, latitude, longitude float64, apiKey string) error {
-	places, err := s.db.GetPlaces(latitude, longitude, apiKey)
+	places, err := google_handler.GetPlaces("https://maps.googleapis.com/maps/api/place/nearbysearch", latitude, longitude, apiKey)
 	log.Println(err)
 	log.Println(places)
 	if err != nil {
 		return fmt.Errorf("échec de la récupération des lieux via Google Maps API : %w", err)
 	}
 
-	// Boucle sur les résultats
 	for _, place := range places {
 		id := uuid.NewString()
 		err := s.db.InsertTerrain(ctx, id, place)
 		log.Println(err)
 		if err != nil {
-			// On log l’erreur mais on continue pour les autres
 			log.Printf("Erreur lors de l'insertion du terrain \"%s\": %v", place.Name, err)
 		}
 	}
