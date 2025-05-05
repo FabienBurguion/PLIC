@@ -51,3 +51,15 @@ func (db Database) CreateUser(ctx context.Context, user models.DBUsers) error {
 	}
 	return nil
 }
+
+func (db Database) ChangePassword(ctx context.Context, username string, newPasswordHash string) error {
+	_, err := db.Database.ExecContext(ctx, `
+		UPDATE users
+		SET password = $1, updated_at = NOW()
+		WHERE username = $2
+	`, newPasswordHash, username)
+	if err != nil {
+		return fmt.Errorf("échec de la mise à jour du mot de passe : %w", err)
+	}
+	return nil
+}
