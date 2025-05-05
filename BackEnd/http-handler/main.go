@@ -118,6 +118,8 @@ func main() {
 	// ENDPOINTS FOR S3
 	s.POST("/image", withAuthentication(s.UploadImageToS3))
 	s.GET("/image", withAuthentication(s.GetS3Image))
+
+	// GOOGLE
 	s.POST("/place", withAuthentication(s.HandleSyncGooglePlaces))
 
 	if s.configuration.Lambda.FunctionName != "" {

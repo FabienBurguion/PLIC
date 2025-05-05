@@ -198,6 +198,19 @@ func (s *Service) ForgetPassword(w http.ResponseWriter, r *http.Request, _ model
 	return httpx.Write(w, http.StatusOK, nil)
 }
 
+// ChangePassword godoc
+// @Summary      Change password for authenticated user
+// @Description  Allows a connected user to change their password
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body models.ChangePasswordRequest true "New password payload"
+// @Success      200 {object} nil "Password changed successfully"
+// @Failure      400 {object} models.Error "Bad request (invalid JSON)"
+// @Failure      401 {object} models.Error "Unauthorized (not connected or user not found)"
+// @Failure      500 {object} models.Error "Internal server error"
+// @Router       /change-password [post]
 func (s *Service) ChangePassword(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
 	if !ai.IsConnected {
 		return httpx.WriteError(w, http.StatusUnauthorized, httpx.UnauthorizedError)

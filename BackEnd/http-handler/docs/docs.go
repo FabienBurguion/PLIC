@@ -35,6 +35,60 @@ const docTemplate = `{
                 }
             }
         },
+        "/change-password": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Allows a connected user to change their password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Change password for authenticated user",
+                "parameters": [
+                    {
+                        "description": "New password payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Password changed successfully"
+                    },
+                    "400": {
+                        "description": "Bad request (invalid JSON)",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized (not connected or user not found)",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/email": {
             "post": {
                 "description": "Sends a test email to the specified address",
@@ -65,6 +119,49 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid email address or bad request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/forget-password": {
+            "post": {
+                "description": "Generate a new password and send it via email to the user if the account exists",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Request password reset",
+                "parameters": [
+                    {
+                        "description": "Email of the user",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.MailerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success even if user does not exist (for security)"
+                    },
+                    "400": {
+                        "description": "Bad request (invalid JSON or email format)",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -224,6 +321,29 @@ const docTemplate = `{
                 }
             }
         },
+        "/place": {
+            "post": {
+                "description": "Appelle l'API Google Places pour synchroniser les terrains autour d'une position donnée (Paris en dur pour l'instant)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "google"
+                ],
+                "summary": "Synchronise les terrains depuis l'API Google Places",
+                "responses": {
+                    "201": {
+                        "description": "Synchro réussie"
+                    },
+                    "500": {
+                        "description": "Erreur lors de la synchronisation",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/register": {
             "post": {
                 "description": "Register a user with username and password",
@@ -278,6 +398,14 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "models.ChangePasswordRequest": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Error": {
             "type": "object",
             "properties": {

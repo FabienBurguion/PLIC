@@ -32,6 +32,14 @@ func (s *Service) SyncGooglePlaces(ctx context.Context, latitude, longitude floa
 	return nil
 }
 
+// HandleSyncGooglePlaces godoc
+// @Summary      Synchronise les terrains depuis l'API Google Places
+// @Description  Appelle l'API Google Places pour synchroniser les terrains autour d'une position donnée (Paris en dur pour l'instant)
+// @Tags         google
+// @Produce      json
+// @Success      201 {object} nil "Synchro réussie"
+// @Failure      500 {object} models.Error "Erreur lors de la synchronisation"
+// @Router       /place [post]
 func (s *Service) HandleSyncGooglePlaces(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
 	ctx := r.Context()
 	lat := 48.8566
@@ -45,5 +53,4 @@ func (s *Service) HandleSyncGooglePlaces(w http.ResponseWriter, r *http.Request,
 		return httpx.WriteError(w, http.StatusInternalServerError, "erreur lors de la synchro des terrains")
 	}
 	return httpx.Write(w, http.StatusCreated, nil)
-
 }
