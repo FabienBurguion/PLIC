@@ -3,6 +3,7 @@ package main
 import (
 	"PLIC/database"
 	"PLIC/mailer"
+	"PLIC/models"
 	"context"
 	"database/sql"
 	"fmt"
@@ -10,11 +11,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
+	"github.com/caarlos0/env/v10"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -23,20 +24,37 @@ import (
 const Port string = "8080"
 
 type Service struct {
-	db       database.Database
-	server   *http.ServeMux
-	clock    Clock
-	mailer   *mailer.Mailer
-	s3Client *s3.Client
+	db            database.Database
+	server        *http.ServeMux
+	clock         Clock
+	mailer        *mailer.Mailer
+	s3Client      *s3.Client
+	configuration *models.Configuration
+}
+
+func LoadConfig() (*models.Configuration, error) {
+	var cfg models.Configuration
+	if err := env.Parse(&cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
 }
 
 func (s *Service) InitService() {
-	s.db = initDb()
+	_ = godotenv.Load()
+	appConfig, err := LoadConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+	s.configuration = appConfig
+
+	s.db = s.initDb()
 	s.server = http.NewServeMux()
 	s.clock = Clock{offset: time.Hour}
 	s.mailer = &mailer.Mailer{
 		LastSentAt:  make(map[string]time.Time),
 		AlreadySent: make(map[string]bool),
+		Config:      &appConfig.Mailer,
 	}
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
@@ -46,15 +64,15 @@ func (s *Service) InitService() {
 	}
 }
 
-func initDb() database.Database {
-	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") == "" {
+func (s *Service) initDb() database.Database {
+	if s.configuration.Lambda.FunctionName == "" {
 		err := godotenv.Load()
 		if err != nil {
 			log.Println("Warning: No .env file found, using environment variables")
 		}
 	}
 
-	connStr := os.Getenv("DATABASE_URL")
+	connStr := s.configuration.Database.ConnectionString
 	if connStr == "" {
 		panic("DATABASE_URL environment variable is not set")
 	}
@@ -93,14 +111,14 @@ func main() {
 	s.GET("/hello_world", withAuthentication(s.GetHelloWorld))
 
 	// ENDPOINTS FOR EMAIL
-	s.POST("/email", s.SendMail)
+	s.POST("/email", withAuthentication(s.SendMail))
 
 	// ENDPOINTS FOR S3
-	s.POST("/image", s.UploadImageToS3)
-	s.GET("/image", s.GetS3Image)
-	s.POST("/place", s.HandleSyncGooglePlaces)
+	s.POST("/image", withAuthentication(s.UploadImageToS3))
+	s.GET("/image", withAuthentication(s.GetS3Image))
+	s.POST("/place", withAuthentication(s.HandleSyncGooglePlaces))
 
-	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
+	if s.configuration.Lambda.FunctionName != "" {
 		fmt.Println("🚀 Démarrage sur AWS Lambda...")
 		s.Start()
 	} else {

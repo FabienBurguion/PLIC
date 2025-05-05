@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"log"
 	"net/http"
-	"os"
 )
 
 func (s *Service) SyncGooglePlaces(ctx context.Context, latitude, longitude float64, apiKey string) error {
@@ -37,7 +36,7 @@ func (s *Service) HandleSyncGooglePlaces(w http.ResponseWriter, r *http.Request,
 	ctx := r.Context()
 	lat := 48.8566
 	lng := 2.3522
-	apiKey := os.Getenv("GOOGLE_APIKEY")
+	apiKey := s.configuration.Google.ApiKey
 	log.Println(apiKey)
 
 	err := s.SyncGooglePlaces(ctx, lat, lng, apiKey)

@@ -2,29 +2,13 @@ package mailer
 
 import (
 	"fmt"
-	"github.com/joho/godotenv"
 	"gopkg.in/gomail.v2"
 	"log"
-	"os"
 	"time"
 )
 
 func (mailer *Mailer) SendTestMail(to string) error {
-	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") == "" {
-		err := godotenv.Load()
-		if err != nil {
-			log.Println("Warning: No .env file found, using environment variables")
-		}
-	}
-
-	from := os.Getenv("SMTP_FROM")
-	host := os.Getenv("SMTP_HOST")
-	port := 587
-	_, _ = fmt.Sscanf(os.Getenv("SMTP_PORT"), "%d", &port)
-	username := os.Getenv("SMTP_USERNAME")
-	password := os.Getenv("SMTP_PASSWORD")
-
-	if mailer.AlreadySent[to] && time.Since(mailer.LastSentAt[to]) < 10*time.Second {
+	if mailer.AlreadySent[to] && time.Since(mailer.LastSentAt[to]) < time.Minute {
 		log.Println("⛔️ Email déjà envoyé récemment à", to, "→ annulation.")
 		return fmt.Errorf("\"⛔️ Email déjà envoyé récemment à\", to, \"→ annulation.\"")
 	}
@@ -32,7 +16,7 @@ func (mailer *Mailer) SendTestMail(to string) error {
 	log.Println("🚀 Envoi de l'email via Mailjet à", to)
 
 	m := gomail.NewMessage()
-	m.SetHeader("From", from)
+	m.SetHeader("From", mailer.Config.From)
 	m.SetHeader("To", to)
 	m.SetHeader("Subject", "Hello from Go + Mailjet ✅")
 
@@ -54,7 +38,7 @@ func (mailer *Mailer) SendTestMail(to string) error {
 	m.SetBody("text/plain", textBody)
 	m.AddAlternative("text/html", htmlBody)
 
-	d := gomail.NewDialer(host, port, username, password)
+	d := gomail.NewDialer(mailer.Config.Host, mailer.Config.Port, mailer.Config.Username, mailer.Config.Password)
 
 	if err := d.DialAndSend(m); err != nil {
 		log.Println("❌ Échec de l'envoi à", to, ":", err)
