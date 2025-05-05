@@ -1,0 +1,76 @@
+package main
+
+import (
+	"PLIC/mailer"
+	"PLIC/models"
+	"bytes"
+	"encoding/json"
+	"github.com/stretchr/testify/require"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+func TestService_SendTestMail(t *testing.T) {
+	type expected struct {
+		statusCode int
+		mailsSent  map[string]int
+	}
+
+	type testCase struct {
+		name     string
+		param    models.MailerRequest
+		expected expected
+	}
+
+	testCases := []testCase{
+		{
+			name: "Basic test",
+			param: models.MailerRequest{
+				Email: "example@gmail.com",
+			},
+			expected: expected{
+				statusCode: http.StatusOK,
+				mailsSent: map[string]int{
+					"test": 1,
+				},
+			},
+		},
+		{
+			name: "Invalid email",
+			param: models.MailerRequest{
+				Email: "NotAnEmail",
+			},
+			expected: expected{
+				statusCode: http.StatusBadRequest,
+			},
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			s := &Service{}
+			s.InitServiceTest()
+			mockMailer := mailer.NewMockMailer()
+			s.mailer = mockMailer
+
+			body, _ := json.Marshal(c.param)
+
+			req := httptest.NewRequest("POST", "/email", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			err := s.SendMail(w, req, models.AuthInfo{})
+			require.NoError(t, err)
+
+			resp := w.Result()
+			defer resp.Body.Close()
+			require.Equal(t, c.expected.statusCode, resp.StatusCode)
+			if c.expected.statusCode != http.StatusOK {
+				return
+			}
+			require.Equal(t, c.expected.mailsSent, mockMailer.SentCounts)
+		})
+	}
+}
