@@ -20,7 +20,7 @@ func (mailer *Mailer) SendTestMail(to string) error {
 	from := os.Getenv("SMTP_FROM")
 	host := os.Getenv("SMTP_HOST")
 	port := 587
-	fmt.Sscanf(os.Getenv("SMTP_PORT"), "%d", &port)
+	_, _ = fmt.Sscanf(os.Getenv("SMTP_PORT"), "%d", &port)
 	username := os.Getenv("SMTP_USERNAME")
 	password := os.Getenv("SMTP_PASSWORD")
 
@@ -35,7 +35,24 @@ func (mailer *Mailer) SendTestMail(to string) error {
 	m.SetHeader("From", from)
 	m.SetHeader("To", to)
 	m.SetHeader("Subject", "Hello from Go + Mailjet ✅")
-	m.SetBody("text/plain", "Coucou, voici un mail sans tomber en spam 🚀")
+
+	textBody := "Coucou, voici un mail sans tomber en spam 🚀"
+	htmlBody := `
+	<html>
+		<body style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
+			<div style="max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px;">
+				<h2 style="color: #333;">Salut 👋</h2>
+				<p style="font-size: 16px;">Voici un <strong>email stylisé en HTML</strong> envoyé avec Go et Mailjet.</p>
+				<p>🚀 Profite bien de ta journée !</p>
+				<hr style="margin: 20px 0;">
+				<small style="color: #888;">Envoyé automatiquement depuis une app Go.</small>
+			</div>
+		</body>
+	</html>
+`
+
+	m.SetBody("text/plain", textBody)
+	m.AddAlternative("text/html", htmlBody)
 
 	d := gomail.NewDialer(host, port, username, password)
 
