@@ -106,6 +106,7 @@ func main() {
 	s.POST("/register", s.Register)
 	s.POST("/login", s.Login)
 	s.POST("/forgot-password", s.ForgetPassword)
+	s.POST("/change-password", withAuthentication(s.ChangePassword))
 
 	// ENDPOINTS FOR TESTING PURPOSE
 	s.GET("/", withAuthentication(s.GetTime))
