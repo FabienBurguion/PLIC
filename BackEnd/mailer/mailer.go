@@ -8,6 +8,11 @@ import (
 	"time"
 )
 
+type MailerInterface interface {
+	SendTestMail(to string) error
+	SendPasswordForgotMail(to string, newPassword string) error
+}
+
 type Mailer struct {
 	AlreadySent map[string]bool
 	LastSentAt  map[string]time.Time

@@ -27,7 +27,7 @@ type Service struct {
 	db            database.Database
 	server        *http.ServeMux
 	clock         Clock
-	mailer        *mailer.Mailer
+	mailer        mailer.MailerInterface
 	s3Client      *s3.Client
 	configuration *models.Configuration
 }

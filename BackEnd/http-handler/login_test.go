@@ -1,6 +1,7 @@
 package main
 
 import (
+	"PLIC/mailer"
 	"PLIC/models"
 	"bytes"
 	"context"
@@ -248,6 +249,116 @@ func TestService_Register(t *testing.T) {
 			claims, ok := parsedToken.Claims.(jwt.MapClaims)
 			require.True(t, ok)
 			require.NotEmpty(t, claims["user_id"])
+		})
+	}
+}
+
+func TestService_ForgetPassword(t *testing.T) {
+	type expected struct {
+		statusCode      int
+		changedPassword bool
+		mailSent        map[string]int
+	}
+
+	type testCase struct {
+		name     string
+		param    models.MailerRequest
+		fixtures DBFixtures
+		expected expected
+	}
+
+	userId := uuid.NewString()
+	oldPassword := "oldSecurePassword"
+
+	testCases := []testCase{
+		{
+			name: "Password changes + mail sent",
+			param: models.MailerRequest{
+				Email: "example@gmail.com",
+			},
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userId).
+						WithUsername("example@gmail.com").
+						WithPassword(oldPassword),
+				},
+			},
+			expected: expected{
+				statusCode: http.StatusOK,
+				mailSent: map[string]int{
+					"password_forgot": 1,
+				},
+				changedPassword: true,
+			},
+		},
+		{
+			name: "Not an email -> 400",
+			param: models.MailerRequest{
+				Email: "notAnEmail",
+			},
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userId).
+						WithUsername("example@gmail.com").
+						WithPassword(oldPassword),
+				},
+			},
+			expected: expected{
+				statusCode:      http.StatusBadRequest,
+				changedPassword: false,
+			},
+		},
+		{
+			name: "user does not exist",
+			param: models.MailerRequest{
+				Email: "example@gmail.com",
+			},
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture(),
+				},
+			},
+			expected: expected{
+				statusCode:      http.StatusOK,
+				changedPassword: false,
+			},
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := context.Background()
+			t.Parallel()
+			s := &Service{}
+			s.InitServiceTest()
+			mockMailer := mailer.NewMockMailer()
+			s.mailer = mockMailer
+			s.loadFixtures(c.fixtures)
+
+			body, _ := json.Marshal(c.param)
+
+			req := httptest.NewRequest("POST", "/forget-password", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			err := s.ForgetPassword(w, req, models.AuthInfo{})
+			require.NoError(t, err)
+
+			resp := w.Result()
+			defer resp.Body.Close()
+			require.Equal(t, c.expected.statusCode, resp.StatusCode)
+			if c.expected.statusCode != http.StatusOK {
+				return
+			}
+			if !c.expected.changedPassword {
+				return
+			}
+			require.Equal(t, c.expected.mailSent, mockMailer.SentCounts)
+			user, err := s.db.GetUserById(ctx, userId)
+			require.NoError(t, err)
+			require.NotEqual(t, oldPassword, user.Password)
 		})
 	}
 }
