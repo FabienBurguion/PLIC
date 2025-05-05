@@ -3,6 +3,7 @@ package main
 import (
 	"PLIC/models"
 	"bytes"
+	"context"
 	"encoding/json"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -247,6 +248,121 @@ func TestService_Register(t *testing.T) {
 			claims, ok := parsedToken.Claims.(jwt.MapClaims)
 			require.True(t, ok)
 			require.NotEmpty(t, claims["user_id"])
+		})
+	}
+}
+
+func TestService_ChangePassword(t *testing.T) {
+	type expected struct {
+		statusCode      int
+		currentPassword string
+	}
+
+	type testCase struct {
+		name     string
+		param    models.AuthInfo
+		fixtures DBFixtures
+		expected expected
+	}
+
+	userId := uuid.NewString()
+	oldPassword := "oldSecurePassword"
+	newPassword := "newSecurePassword"
+
+	param := models.ChangePasswordRequest{
+		Password: newPassword,
+	}
+
+	testCases := []testCase{
+		{
+			name: "User does not exist -> 401",
+			param: models.AuthInfo{
+				IsConnected: true,
+				UserID:      userId,
+			},
+			expected: expected{
+				statusCode: http.StatusUnauthorized,
+			},
+		},
+		{
+			name: "User exists -> 200",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userId).
+						WithPassword(oldPassword),
+				},
+			},
+			param: models.AuthInfo{
+				IsConnected: true,
+				UserID:      userId,
+			},
+			expected: expected{
+				statusCode:      http.StatusOK,
+				currentPassword: newPassword,
+			},
+		},
+		{
+			name: "Not authentified -> 401",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userId).
+						WithPassword(oldPassword),
+				},
+			},
+			param: models.AuthInfo{
+				IsConnected: false,
+			},
+			expected: expected{
+				statusCode: http.StatusUnauthorized,
+			},
+		},
+		{
+			name: "Incorrect user Id -> 401",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userId).
+						WithPassword(oldPassword),
+				},
+			},
+			param: models.AuthInfo{
+				IsConnected: true,
+				UserID:      uuid.NewString(),
+			},
+			expected: expected{
+				statusCode: http.StatusUnauthorized,
+			},
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := context.Background()
+			t.Parallel()
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
+
+			body, _ := json.Marshal(param)
+
+			req := httptest.NewRequest("POST", "/change-password", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			err := s.ChangePassword(w, req, c.param)
+			require.NoError(t, err)
+
+			resp := w.Result()
+			defer resp.Body.Close()
+			require.Equal(t, c.expected.statusCode, resp.StatusCode)
+			if c.expected.statusCode != http.StatusOK {
+				return
+			}
+			user, err := s.db.GetUserById(ctx, userId)
+			require.NoError(t, err)
+			require.NoError(t, bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(c.expected.currentPassword)))
 		})
 	}
 }
