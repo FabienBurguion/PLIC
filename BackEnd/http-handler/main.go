@@ -122,6 +122,11 @@ func main() {
 	// GOOGLE
 	s.POST("/place", withAuthentication(s.HandleSyncGooglePlaces))
 
+	// ENDPOINTS FOR MATCHES
+	s.GET("/match/all", withAuthentication(s.GetAllMatches))
+	s.GET("/match", withAuthentication(s.GetMatchByID))
+	s.POST("/match", withAuthentication(s.CreateMatch))
+
 	if s.configuration.Lambda.FunctionName != "" {
 		fmt.Println("🚀 Démarrage sur AWS Lambda...")
 		s.Start()

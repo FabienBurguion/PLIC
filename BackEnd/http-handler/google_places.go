@@ -13,8 +13,6 @@ import (
 
 func (s *Service) SyncGooglePlaces(ctx context.Context, latitude, longitude float64, apiKey string) error {
 	places, err := google_handler.GetPlaces("https://maps.googleapis.com/maps/api/place/nearbysearch", latitude, longitude, apiKey)
-	log.Println(err)
-	log.Println(places)
 	if err != nil {
 		return fmt.Errorf("échec de la récupération des lieux via Google Maps API : %w", err)
 	}
@@ -22,7 +20,6 @@ func (s *Service) SyncGooglePlaces(ctx context.Context, latitude, longitude floa
 	for _, place := range places {
 		id := uuid.NewString()
 		err := s.db.InsertTerrain(ctx, id, place)
-		log.Println(err)
 		if err != nil {
 			log.Printf("Erreur lors de l'insertion du terrain \"%s\": %v", place.Name, err)
 		}
@@ -44,7 +41,6 @@ func (s *Service) HandleSyncGooglePlaces(w http.ResponseWriter, r *http.Request,
 	lat := 48.8566
 	lng := 2.3522
 	apiKey := s.configuration.Google.ApiKey
-	log.Println(apiKey)
 
 	err := s.SyncGooglePlaces(ctx, lat, lng, apiKey)
 	if err != nil {
