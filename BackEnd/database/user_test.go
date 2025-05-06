@@ -5,6 +5,7 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 	"testing"
 	"time"
 )
@@ -127,6 +128,53 @@ func TestDatabase_GetUserByUsername(t *testing.T) {
 			user, err := s.db.GetUserByUsername(ctx, c.param)
 			require.NoError(t, err)
 			require.Equal(t, user.Username, c.param)
+		})
+	}
+}
+
+func TestDatabase_ChangePassword(t *testing.T) {
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		param    string
+	}
+
+	username := "Fabien"
+	oldPassword := "password"
+	newPassword := "<PASSWORD>"
+
+	testCases := []testCase{
+		{
+			name: "Basic test",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithUsername(username).
+						WithPassword(oldPassword),
+				},
+			},
+			param: newPassword,
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
+
+			ctx := context.Background()
+
+			hash, err := bcrypt.GenerateFromPassword([]byte(c.param), bcrypt.DefaultCost)
+			require.NoError(t, err)
+
+			err = s.db.ChangePassword(ctx, username, string(hash))
+			require.NoError(t, err)
+			user, err := s.db.GetUserByUsername(ctx, username)
+			require.NoError(t, err)
+			err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(newPassword))
+			require.NoError(t, err)
 		})
 	}
 }
