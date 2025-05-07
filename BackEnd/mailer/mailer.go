@@ -65,7 +65,7 @@ func (mailer *Mailer) SendTestMail(to string) error {
 }
 
 func (mailer *Mailer) SendPasswordForgotMail(to string, newPassword string) error {
-	if mailer.AlreadySent[to] && time.Since(mailer.LastSentAt[to]) < time.Minute {
+	if mailer.AlreadySent[to] && time.Since(mailer.LastSentAt[to]) < 10*time.Second {
 		log.Println("⛔️ Email déjà envoyé récemment à", to, "→ annulation.")
 		return fmt.Errorf("\"⛔️ Email déjà envoyé récemment à\", to, \"→ annulation.\"")
 	}
