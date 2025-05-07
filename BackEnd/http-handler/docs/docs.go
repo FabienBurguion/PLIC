@@ -321,6 +321,129 @@ const docTemplate = `{
                 }
             }
         },
+        "/match": {
+            "get": {
+                "description": "Retourne les informations d’un match en fonction de son identifiant passé en paramètre de requête",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Récupère un match par son ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Identifiant du match",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Match trouvé",
+                        "schema": {
+                            "$ref": "#/definitions/models.MatchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ID manquant ou invalide",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Match non trouvé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur serveur ou base de données",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Enregistre un nouveau match en base de données à partir des données fournies en JSON",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Crée un nouveau match",
+                "parameters": [
+                    {
+                        "description": "Objet match à créer",
+                        "name": "match",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.DBMatches"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Match créé avec succès",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Données invalides ou champ ID manquant",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur lors de la création du match",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/match/all": {
+            "get": {
+                "description": "Retourne la liste complète de tous les matchs stockés en base",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Liste tous les matchs",
+                "responses": {
+                    "200": {
+                        "description": "Liste des matchs",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.MatchResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur serveur lors de la récupération des matchs",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/place": {
             "post": {
                 "description": "Appelle l'API Google Places pour synchroniser les terrains autour d'une position donnée (Paris en dur pour l'instant)",
@@ -406,6 +529,35 @@ const docTemplate = `{
                 }
             }
         },
+        "models.DBMatches": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "etat": {
+                    "$ref": "#/definitions/models.EtatMatch"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "lieu": {
+                    "type": "string"
+                },
+                "nbre_participant": {
+                    "type": "integer"
+                },
+                "score1": {
+                    "type": "integer"
+                },
+                "score2": {
+                    "type": "integer"
+                },
+                "sport": {
+                    "$ref": "#/definitions/models.Sport"
+                }
+            }
+        },
         "models.Error": {
             "type": "object",
             "properties": {
@@ -413,6 +565,23 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "models.EtatMatch": {
+            "type": "string",
+            "enum": [
+                "Termine",
+                "Manque Score",
+                "En cours",
+                "Valide",
+                "Manque joueur"
+            ],
+            "x-enum-varnames": [
+                "Termine",
+                "ManqueScore",
+                "EnCours",
+                "Valide",
+                "ManqueJoueur"
+            ]
         },
         "models.HelloWorldResponse": {
             "type": "object",
@@ -456,6 +625,46 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "models.MatchResponse": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "etat": {
+                    "$ref": "#/definitions/models.EtatMatch"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "lieu": {
+                    "type": "string"
+                },
+                "nbre_participant": {
+                    "type": "integer"
+                },
+                "score1": {
+                    "type": "integer"
+                },
+                "score2": {
+                    "type": "integer"
+                },
+                "sport": {
+                    "$ref": "#/definitions/models.Sport"
+                }
+            }
+        },
+        "models.Sport": {
+            "type": "string",
+            "enum": [
+                "basket",
+                "foot"
+            ],
+            "x-enum-varnames": [
+                "Basket",
+                "Foot"
+            ]
         }
     }
 }`

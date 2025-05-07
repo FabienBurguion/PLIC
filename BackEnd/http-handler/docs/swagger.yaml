@@ -4,11 +4,44 @@ definitions:
       password:
         type: string
     type: object
+  models.DBMatches:
+    properties:
+      date:
+        type: string
+      etat:
+        $ref: '#/definitions/models.EtatMatch'
+      id:
+        type: string
+      lieu:
+        type: string
+      nbre_participant:
+        type: integer
+      score1:
+        type: integer
+      score2:
+        type: integer
+      sport:
+        $ref: '#/definitions/models.Sport'
+    type: object
   models.Error:
     properties:
       message:
         type: string
     type: object
+  models.EtatMatch:
+    enum:
+    - Termine
+    - Manque Score
+    - En cours
+    - Valide
+    - Manque joueur
+    type: string
+    x-enum-varnames:
+    - Termine
+    - ManqueScore
+    - EnCours
+    - Valide
+    - ManqueJoueur
   models.HelloWorldResponse:
     properties:
       response:
@@ -36,6 +69,33 @@ definitions:
       email:
         type: string
     type: object
+  models.MatchResponse:
+    properties:
+      date:
+        type: string
+      etat:
+        $ref: '#/definitions/models.EtatMatch'
+      id:
+        type: string
+      lieu:
+        type: string
+      nbre_participant:
+        type: integer
+      score1:
+        type: integer
+      score2:
+        type: integer
+      sport:
+        $ref: '#/definitions/models.Sport'
+    type: object
+  models.Sport:
+    enum:
+    - basket
+    - foot
+    type: string
+    x-enum-varnames:
+    - Basket
+    - Foot
 info:
   contact: {}
 paths:
@@ -240,6 +300,89 @@ paths:
       summary: Login a user
       tags:
       - auth
+  /match:
+    get:
+      description: Retourne les informations d’un match en fonction de son identifiant
+        passé en paramètre de requête
+      parameters:
+      - description: Identifiant du match
+        in: query
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Match trouvé
+          schema:
+            $ref: '#/definitions/models.MatchResponse'
+        "400":
+          description: ID manquant ou invalide
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Match non trouvé
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Erreur serveur ou base de données
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Récupère un match par son ID
+      tags:
+      - match
+    post:
+      consumes:
+      - application/json
+      description: Enregistre un nouveau match en base de données à partir des données
+        fournies en JSON
+      parameters:
+      - description: Objet match à créer
+        in: body
+        name: match
+        required: true
+        schema:
+          $ref: '#/definitions/models.DBMatches'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Match créé avec succès
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Données invalides ou champ ID manquant
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Erreur lors de la création du match
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Crée un nouveau match
+      tags:
+      - match
+  /match/all:
+    get:
+      description: Retourne la liste complète de tous les matchs stockés en base
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Liste des matchs
+          schema:
+            items:
+              $ref: '#/definitions/models.MatchResponse'
+            type: array
+        "500":
+          description: Erreur serveur lors de la récupération des matchs
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Liste tous les matchs
+      tags:
+      - match
   /place:
     post:
       description: Appelle l'API Google Places pour synchroniser les terrains autour
