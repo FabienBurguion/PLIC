@@ -29,3 +29,16 @@ type DBMatches struct {
 	Score1          int       `db:"score1" json:"score1"`
 	Score2          int       `db:"score2" json:"score2"`
 }
+
+func (m DBMatches) ToMatchResponse() MatchResponse {
+	return MatchResponse{
+		Id:              m.Id,
+		Sport:           m.Sport,
+		Lieu:            m.Lieu,
+		Date:            m.Date,
+		NbreParticipant: m.NbreParticipant,
+		Etat:            m.Etat,
+		Score1:          m.Score1,
+		Score2:          m.Score2,
+	}
+}

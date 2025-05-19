@@ -49,7 +49,13 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, _ models
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch matches: "+err.Error())
 	}
 
-	return httpx.Write(w, http.StatusOK, matches)
+	res := make([]models.MatchResponse, len(matches))
+
+	for i, match := range matches {
+		res[i] = match.ToMatchResponse()
+	}
+
+	return httpx.Write(w, http.StatusOK, res)
 }
 
 // CreateMatch godoc
