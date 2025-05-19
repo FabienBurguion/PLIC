@@ -4,6 +4,7 @@ import (
 	"PLIC/httpx"
 	"PLIC/models"
 	"encoding/json"
+	"github.com/go-chi/chi/v5"
 	"net/http"
 )
 
@@ -12,16 +13,16 @@ import (
 // @Description  Retourne les informations d’un match en fonction de son identifiant passé en paramètre de requête
 // @Tags         match
 // @Produce      json
-// @Param        id   query     string  true  "Identifiant du match"
+// @Param        id   path      string  true  "Identifiant du match"
 // @Success      200  {object}  models.MatchResponse "Match trouvé"
 // @Failure      400  {object}  models.Error         "ID manquant ou invalide"
 // @Failure      404  {object}  models.Error         "Match non trouvé"
 // @Failure      500  {object}  models.Error         "Erreur serveur ou base de données"
-// @Router       /match [get]
+// @Router       /match/{id} [get]
 func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
-	id := r.URL.Query().Get("id")
+	id := chi.URLParam(r, "id")
 	if id == "" {
-		return httpx.WriteError(w, http.StatusBadRequest, "missing id in query params")
+		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
 	}
 
 	match, err := s.db.GetMatchById(r.Context(), id)
@@ -64,13 +65,13 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, _ models
 // @Tags         match
 // @Accept       json
 // @Produce      json
-// @Param        match  body      models.DBMatches  true  "Objet match à créer"
-// @Success      201    {object}  map[string]string "Match créé avec succès"
-// @Failure      400    {object}  models.Error      "Données invalides ou champ ID manquant"
-// @Failure      500    {object}  models.Error      "Erreur lors de la création du match"
+// @Param        match  body      models.MatchRequest  true  "Objet match à créer"
+// @Success      201    {object}  map[string]string    "Match créé avec succès"
+// @Failure      400    {object}  models.Error         "Données invalides ou champ ID manquant"
+// @Failure      500    {object}  models.Error         "Erreur lors de la création du match"
 // @Router       /match [post]
 func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
-	var match models.DBMatches
+	var match models.MatchRequest
 
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
@@ -78,13 +79,11 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, _ models.A
 		return httpx.WriteError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 	}
 
-	if match.Id == "" {
-		return httpx.WriteError(w, http.StatusBadRequest, "missing match ID")
-	}
+	matchDb := match.ToDBMatches()
 
-	if err := s.db.CreateMatch(r.Context(), match); err != nil {
+	if err := s.db.CreateMatch(r.Context(), matchDb); err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to create match: "+err.Error())
 	}
 
-	return httpx.Write(w, http.StatusCreated, map[string]string{"status": "match created", "id": match.Id})
+	return httpx.Write(w, http.StatusCreated, map[string]string{"status": "match created", "id": matchDb.Id})
 }

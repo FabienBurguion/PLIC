@@ -4,25 +4,6 @@ definitions:
       password:
         type: string
     type: object
-  models.DBMatches:
-    properties:
-      date:
-        type: string
-      etat:
-        $ref: '#/definitions/models.EtatMatch'
-      id:
-        type: string
-      lieu:
-        type: string
-      nbre_participant:
-        type: integer
-      score1:
-        type: integer
-      score2:
-        type: integer
-      sport:
-        $ref: '#/definitions/models.Sport'
-    type: object
   models.Error:
     properties:
       message:
@@ -68,6 +49,23 @@ definitions:
     properties:
       email:
         type: string
+    type: object
+  models.MatchRequest:
+    properties:
+      date:
+        type: string
+      etat:
+        $ref: '#/definitions/models.EtatMatch'
+      lieu:
+        type: string
+      nbre_participant:
+        type: integer
+      score1:
+        type: integer
+      score2:
+        type: integer
+      sport:
+        $ref: '#/definitions/models.Sport'
     type: object
   models.MatchResponse:
     properties:
@@ -301,12 +299,45 @@ paths:
       tags:
       - auth
   /match:
+    post:
+      consumes:
+      - application/json
+      description: Enregistre un nouveau match en base de données à partir des données
+        fournies en JSON
+      parameters:
+      - description: Objet match à créer
+        in: body
+        name: match
+        required: true
+        schema:
+          $ref: '#/definitions/models.MatchRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Match créé avec succès
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Données invalides ou champ ID manquant
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Erreur lors de la création du match
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Crée un nouveau match
+      tags:
+      - match
+  /match/{id}:
     get:
       description: Retourne les informations d’un match en fonction de son identifiant
         passé en paramètre de requête
       parameters:
       - description: Identifiant du match
-        in: query
+        in: path
         name: id
         required: true
         type: string
@@ -330,38 +361,6 @@ paths:
           schema:
             $ref: '#/definitions/models.Error'
       summary: Récupère un match par son ID
-      tags:
-      - match
-    post:
-      consumes:
-      - application/json
-      description: Enregistre un nouveau match en base de données à partir des données
-        fournies en JSON
-      parameters:
-      - description: Objet match à créer
-        in: body
-        name: match
-        required: true
-        schema:
-          $ref: '#/definitions/models.DBMatches'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Match créé avec succès
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Données invalides ou champ ID manquant
-          schema:
-            $ref: '#/definitions/models.Error'
-        "500":
-          description: Erreur lors de la création du match
-          schema:
-            $ref: '#/definitions/models.Error'
-      summary: Crée un nouveau match
       tags:
       - match
   /match/all:

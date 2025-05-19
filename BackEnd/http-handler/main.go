@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
 	"github.com/caarlos0/env/v10"
+	"github.com/go-chi/chi/v5"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	"log"
@@ -25,7 +26,7 @@ const Port string = "8080"
 
 type Service struct {
 	db            database.Database
-	server        *http.ServeMux
+	server        *chi.Mux
 	clock         Clock
 	mailer        mailer.MailerInterface
 	s3Client      *s3.Client
@@ -49,7 +50,7 @@ func (s *Service) InitService() {
 	s.configuration = appConfig
 
 	s.db = s.initDb()
-	s.server = http.NewServeMux()
+	s.server = chi.NewRouter()
 	s.clock = Clock{offset: time.Hour}
 	s.mailer = &mailer.Mailer{
 		LastSentAt:  make(map[string]time.Time),
@@ -124,7 +125,7 @@ func main() {
 
 	// ENDPOINTS FOR MATCHES
 	s.GET("/match/all", withAuthentication(s.GetAllMatches))
-	s.GET("/match", withAuthentication(s.GetMatchByID))
+	s.GET("/match/{id}", withAuthentication(s.GetMatchByID))
 	s.POST("/match", withAuthentication(s.CreateMatch))
 
 	if s.configuration.Lambda.FunctionName != "" {

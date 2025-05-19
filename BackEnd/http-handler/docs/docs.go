@@ -322,51 +322,6 @@ const docTemplate = `{
             }
         },
         "/match": {
-            "get": {
-                "description": "Retourne les informations d’un match en fonction de son identifiant passé en paramètre de requête",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "match"
-                ],
-                "summary": "Récupère un match par son ID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Identifiant du match",
-                        "name": "id",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Match trouvé",
-                        "schema": {
-                            "$ref": "#/definitions/models.MatchResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "ID manquant ou invalide",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "404": {
-                        "description": "Match non trouvé",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Erreur serveur ou base de données",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            },
             "post": {
                 "description": "Enregistre un nouveau match en base de données à partir des données fournies en JSON",
                 "consumes": [
@@ -386,7 +341,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.DBMatches"
+                            "$ref": "#/definitions/models.MatchRequest"
                         }
                     }
                 ],
@@ -437,6 +392,53 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Erreur serveur lors de la récupération des matchs",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/match/{id}": {
+            "get": {
+                "description": "Retourne les informations d’un match en fonction de son identifiant passé en paramètre de requête",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Récupère un match par son ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Identifiant du match",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Match trouvé",
+                        "schema": {
+                            "$ref": "#/definitions/models.MatchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ID manquant ou invalide",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Match non trouvé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur serveur ou base de données",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -529,35 +531,6 @@ const docTemplate = `{
                 }
             }
         },
-        "models.DBMatches": {
-            "type": "object",
-            "properties": {
-                "date": {
-                    "type": "string"
-                },
-                "etat": {
-                    "$ref": "#/definitions/models.EtatMatch"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "lieu": {
-                    "type": "string"
-                },
-                "nbre_participant": {
-                    "type": "integer"
-                },
-                "score1": {
-                    "type": "integer"
-                },
-                "score2": {
-                    "type": "integer"
-                },
-                "sport": {
-                    "$ref": "#/definitions/models.Sport"
-                }
-            }
-        },
         "models.Error": {
             "type": "object",
             "properties": {
@@ -623,6 +596,32 @@ const docTemplate = `{
             "properties": {
                 "email": {
                     "type": "string"
+                }
+            }
+        },
+        "models.MatchRequest": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "etat": {
+                    "$ref": "#/definitions/models.EtatMatch"
+                },
+                "lieu": {
+                    "type": "string"
+                },
+                "nbre_participant": {
+                    "type": "integer"
+                },
+                "score1": {
+                    "type": "integer"
+                },
+                "score2": {
+                    "type": "integer"
+                },
+                "sport": {
+                    "$ref": "#/definitions/models.Sport"
                 }
             }
         },
