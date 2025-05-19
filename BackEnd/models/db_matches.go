@@ -24,10 +24,10 @@ type DBMatches struct {
 	Sport           Sport     `db:"sport"`
 	Lieu            string    `db:"lieu"`
 	Date            time.Time `db:"date"`
-	NbreParticipant int       `db:"nbre_participant" json:"nbre_participant"`
+	NbreParticipant int       `db:"nbre_participant"`
 	Etat            EtatMatch `db:"etat"`
-	Score1          int       `db:"score1" json:"score1"`
-	Score2          int       `db:"score2" json:"score2"`
+	Score1          int       `db:"score1"`
+	Score2          int       `db:"score2"`
 }
 
 func (m DBMatches) ToMatchResponse() MatchResponse {
