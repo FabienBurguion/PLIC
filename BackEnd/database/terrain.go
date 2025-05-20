@@ -38,3 +38,14 @@ func (db Database) GetTerrainByAddress(ctx context.Context, address string) (*mo
 
 	return &court, nil
 }
+
+func (db Database) GetAllTerrains(ctx context.Context) ([]models.DBCourt, error) {
+	var terrains []models.DBCourt
+	err := db.Database.SelectContext(ctx, &terrains, `
+		SELECT id, address, longitude, latitude
+		FROM terrain`)
+	if err != nil {
+		return nil, fmt.Errorf("échec de la récupération des terrains : %w", err)
+	}
+	return terrains, nil
+}

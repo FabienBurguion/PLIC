@@ -133,6 +133,9 @@ func main() {
 	// GOOGLE
 	s.POST("/place", withAuthentication(s.HandleSyncGooglePlaces))
 
+	// ENDPOINTS FOR TERRAINS
+	s.GET("/court/all", withAuthentication(s.GetAllTerrains))
+
 	// ENDPOINTS FOR MATCHES
 	s.GET("/match/all", withAuthentication(s.GetAllMatches))
 	s.GET("/match/{id}", withAuthentication(s.GetMatchByID))
