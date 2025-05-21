@@ -105,7 +105,7 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.A
 // @Failure      403 {object} models.Error "Incorrect rights"
 // @Failure      404 {object} models.Error "User not found"
 // @Failure      500 {object} models.Error "Internal server error"
-// @Router       /users/{id} [param]
+// @Router       /users/{id} [patch]
 // @Security     BearerAuth
 func (s *Service) PatchUser(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
 	ctx := r.Context()

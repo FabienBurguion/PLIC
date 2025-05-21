@@ -530,7 +530,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.LoginRequest"
+                            "$ref": "#/definitions/models.RegisterRequest"
                         }
                     }
                 ],
@@ -598,6 +598,62 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Missing ID in URL params",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Patch a user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Patch a user by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Missing ID in URL params",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Incorrect rights",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -752,6 +808,17 @@ const docTemplate = `{
                 }
             }
         },
+        "models.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Sport": {
             "type": "string",
             "enum": [
@@ -767,19 +834,27 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "bio": {
+                    "description": "@nullable",
                     "type": "string"
                 },
                 "createdAt": {
                     "type": "string"
                 },
                 "favoriteCity": {
+                    "description": "@nullable",
                     "type": "string"
                 },
                 "favoriteField": {
+                    "description": "@nullable",
                     "type": "string"
                 },
                 "favoriteSport": {
-                    "$ref": "#/definitions/models.Sport"
+                    "description": "@nullable",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Sport"
+                        }
+                    ]
                 },
                 "fields": {
                     "type": "array",
@@ -788,6 +863,7 @@ const docTemplate = `{
                     }
                 },
                 "profilePicture": {
+                    "description": "@nullable",
                     "type": "string"
                 },
                 "sports": {
@@ -803,6 +879,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "winrate": {
+                    "description": "@nullable",
                     "type": "integer"
                 }
             }

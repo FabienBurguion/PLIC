@@ -87,6 +87,13 @@ definitions:
       sport:
         $ref: '#/definitions/models.Sport'
     type: object
+  models.RegisterRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
   models.Sport:
     enum:
     - basket
@@ -98,20 +105,26 @@ definitions:
   models.UserResponse:
     properties:
       bio:
+        description: '@nullable'
         type: string
       createdAt:
         type: string
       favoriteCity:
+        description: '@nullable'
         type: string
       favoriteField:
+        description: '@nullable'
         type: string
       favoriteSport:
-        $ref: '#/definitions/models.Sport'
+        allOf:
+        - $ref: '#/definitions/models.Sport'
+        description: '@nullable'
       fields:
         items:
           $ref: '#/definitions/models.Field'
         type: array
       profilePicture:
+        description: '@nullable'
         type: string
       sports:
         items:
@@ -122,6 +135,7 @@ definitions:
       visitedFields:
         type: integer
       winrate:
+        description: '@nullable'
         type: integer
     type: object
 info:
@@ -466,7 +480,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/models.LoginRequest'
+          $ref: '#/definitions/models.RegisterRequest'
       produces:
       - application/json
       responses:
@@ -522,6 +536,42 @@ paths:
       security:
       - BearerAuth: []
       summary: Get a user by ID
+      tags:
+      - users
+    patch:
+      consumes:
+      - application/json
+      description: Patch a user
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Missing ID in URL params
+          schema:
+            $ref: '#/definitions/models.Error'
+        "403":
+          description: Incorrect rights
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Patch a user by ID
       tags:
       - users
 swagger: "2.0"

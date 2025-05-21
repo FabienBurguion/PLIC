@@ -3,21 +3,30 @@ package models
 import "time"
 
 type UserResponse struct {
-	Username       string    `json:"username"`
-	ProfilePicture *string   `json:"profilePicture"`
-	Bio            *string   `json:"bio"`
-	CreatedAt      time.Time `json:"createdAt"`
-	VisitedFields  int       `json:"visitedFields"`
-	Winrate        *int      `json:"winrate"`
-	FavoriteCity   *string   `json:"favoriteCity"`
-	FavoriteSport  *Sport    `json:"favoriteSport"`
-	FavoriteField  *string   `json:"favoriteField"`
-	Sports         []Sport   `json:"sports"`
-	Fields         []Field   `json:"fields"`
+	Username string `json:"username"`
+	// @nullable
+	ProfilePicture *string `json:"profilePicture"`
+	// @nullable
+	Bio           *string   `json:"bio"`
+	CreatedAt     time.Time `json:"createdAt"`
+	VisitedFields int       `json:"visitedFields"`
+	// @nullable
+	Winrate *int `json:"winrate"`
+	// @nullable
+	FavoriteCity *string `json:"favoriteCity"`
+	// @nullable
+	FavoriteSport *Sport `json:"favoriteSport"`
+	// @nullable
+	FavoriteField *string `json:"favoriteField"`
+	Sports        []Sport `json:"sports"`
+	Fields        []Field `json:"fields"`
 }
 
 type UserPatchRequest struct {
+	// @nullable
 	Username *string `json:"username"`
-	Email    *string `json:"email"`
-	Bio      *string `json:"bio"`
+	// @nullable
+	Email *string `json:"email"`
+	// @nullable
+	Bio *string `json:"bio"`
 }
