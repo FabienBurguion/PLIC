@@ -4,9 +4,11 @@ import (
 	"PLIC/httpx"
 	"PLIC/models"
 	"PLIC/s3_management"
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
+	"sync"
 )
 
 // GetUserById godoc
@@ -28,19 +30,41 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.A
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
 	}
 
-	user, err := s.db.GetUserById(r.Context(), id)
-	if err != nil {
-		log.Println("errored getting user by id:", err)
-		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
+	var (
+		user       *models.DBUsers
+		s3Response *v4.PresignedHTTPRequest
+		userErr    error
+		s3Err      error
+	)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	ctx := r.Context()
+
+	go func() {
+		defer wg.Done()
+		user, userErr = s.db.GetUserById(ctx, id)
+	}()
+
+	go func() {
+		defer wg.Done()
+		s3Response, s3Err = s3_management.GetProfilePicture(ctx, s.s3Client, id)
+	}()
+
+	wg.Wait()
+
+	if userErr != nil {
+		log.Println("errored getting user by id:", userErr)
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+userErr.Error())
 	}
 
 	if user == nil {
 		return httpx.WriteError(w, http.StatusNotFound, "user not found")
 	}
 
-	s3Response, err := s3_management.GetProfilePicture(r.Context(), s.s3Client, id)
-	if err != nil {
-		log.Println("error getting profile picture:", err)
+	if s3Err != nil {
+		log.Println("error getting profile picture:", s3Err)
 	}
 
 	res := models.UserResponse{
