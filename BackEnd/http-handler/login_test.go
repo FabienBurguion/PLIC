@@ -145,12 +145,12 @@ func TestService_Register(t *testing.T) {
 	type testCase struct {
 		name     string
 		fixtures DBFixtures
-		param    models.LoginRequest
+		param    models.RegisterRequest
 		expected expected
 	}
 
 	userId := uuid.NewString()
-	username := "NewUser"
+	email := "NewEmail"
 	password := "NewPassword"
 
 	testCases := []testCase{
@@ -159,8 +159,8 @@ func TestService_Register(t *testing.T) {
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{},
 			},
-			param: models.LoginRequest{
-				Username: username,
+			param: models.RegisterRequest{
+				Email:    email,
 				Password: password,
 			},
 			expected: expected{
@@ -168,12 +168,12 @@ func TestService_Register(t *testing.T) {
 			},
 		},
 		{
-			name: "Empty username => bad request",
+			name: "Empty email => bad request",
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{},
 			},
-			param: models.LoginRequest{
-				Username: "",
+			param: models.RegisterRequest{
+				Email:    "",
 				Password: password,
 			},
 			expected: expected{
@@ -185,8 +185,8 @@ func TestService_Register(t *testing.T) {
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{},
 			},
-			param: models.LoginRequest{
-				Username: username,
+			param: models.RegisterRequest{
+				Email:    email,
 				Password: "",
 			},
 			expected: expected{
@@ -199,11 +199,11 @@ func TestService_Register(t *testing.T) {
 				Users: []models.DBUsers{
 					models.NewDBUsersFixture().
 						WithId(userId).
-						WithUsername(username),
+						WithEmail(email),
 				},
 			},
-			param: models.LoginRequest{
-				Username: username,
+			param: models.RegisterRequest{
+				Email:    email,
 				Password: password,
 			},
 			expected: expected{
