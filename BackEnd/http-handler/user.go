@@ -72,16 +72,16 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.A
 		ProfilePicture: ptr(s3Response.URL),
 		Bio:            user.Bio,
 		CreatedAt:      user.CreatedAt,
-		VisitedFields:  0,
-		Winrate:        100,
-		FavoriteCity:   "a wonderful city",
-		FavoriteSport:  "a wonderful sport",
-		FavoriteField:  "a wonderful field",
-		Sports: []models.Sport{
+		VisitedFields:  0,                   // TODO NO HARDCODE
+		Winrate:        100,                 // TODO NO HARDCODE
+		FavoriteCity:   "a wonderful city",  // TODO NO HARDCODE
+		FavoriteSport:  "a wonderful sport", // TODO NO HARDCODE
+		FavoriteField:  "a wonderful field", // TODO NO HARDCODE
+		Sports: []models.Sport{ // TODO NO HARDCODE
 			models.Basket,
 			models.Foot,
 		},
-		Fields: []models.Field{
+		Fields: []models.Field{ // TODO NO HARDCODE
 			{
 				Ranking: 1,
 				Name:    "a wonderful field",
