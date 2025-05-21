@@ -41,3 +41,13 @@ func (u DBUsers) WithPassword(password string) DBUsers {
 	u.Password = password
 	return u
 }
+
+func (u DBUsers) WithEmail(email string) DBUsers {
+	u.Email = email
+	return u
+}
+
+func (u DBUsers) WithBio(bio string) DBUsers {
+	u.Bio = ptr(bio)
+	return u
+}

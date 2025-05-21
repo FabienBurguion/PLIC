@@ -15,3 +15,9 @@ type UserResponse struct {
 	Sports         []Sport   `json:"sports"`
 	Fields         []Field   `json:"fields"`
 }
+
+type UserPatchRequest struct {
+	Username *string `json:"username"`
+	Email    *string `json:"email"`
+	Bio      *string `json:"bio"`
+}

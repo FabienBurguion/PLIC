@@ -3,7 +3,7 @@ package main
 import (
 	"PLIC/httpx"
 	"PLIC/models"
-	"PLIC/s3_management"
+	"encoding/json"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/go-chi/chi/v5"
 	"log"
@@ -49,7 +49,7 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.A
 
 	go func() {
 		defer wg.Done()
-		s3Response, s3Err = s3_management.GetProfilePicture(ctx, s.s3Client, id)
+		s3Response, s3Err = s.s3Service.GetProfilePicture(ctx, id)
 	}()
 
 	wg.Wait()
@@ -91,4 +91,65 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.A
 	}
 
 	return httpx.Write(w, http.StatusOK, res)
+}
+
+// PatchUser godoc
+// @Summary      Patch a user by ID
+// @Description  Patch a user
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "User ID"
+// @Success      200
+// @Failure      400 {object} models.Error "Missing ID in URL params"
+// @Failure      403 {object} models.Error "Incorrect rights"
+// @Failure      404 {object} models.Error "User not found"
+// @Failure      500 {object} models.Error "Internal server error"
+// @Router       /users/{id} [param]
+// @Security     BearerAuth
+func (s *Service) PatchUser(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	ctx := r.Context()
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
+	}
+
+	if !ai.IsConnected || ai.UserID != id {
+		return httpx.WriteError(w, http.StatusForbidden, "not authorized")
+	}
+
+	var req models.UserPatchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Println("Erreur JSON:", err)
+		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
+	}
+
+	user, err := s.db.GetUserById(ctx, id)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
+	}
+	if user == nil {
+		return httpx.WriteError(w, http.StatusNotFound, "user not found")
+	}
+
+	if req.Username != nil {
+		user.Username = *req.Username
+	}
+
+	if req.Email != nil {
+		user.Email = *req.Email
+	}
+
+	if req.Bio != nil {
+		user.Bio = req.Bio
+	}
+
+	err = s.db.UpdateUser(ctx, req, id)
+
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
+	}
+
+	return httpx.Write(w, http.StatusOK, nil)
 }

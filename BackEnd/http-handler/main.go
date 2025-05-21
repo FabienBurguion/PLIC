@@ -4,6 +4,7 @@ import (
 	"PLIC/database"
 	"PLIC/mailer"
 	"PLIC/models"
+	"PLIC/s3_management"
 	"context"
 	"database/sql"
 	"fmt"
@@ -29,7 +30,7 @@ type Service struct {
 	server        *chi.Mux
 	clock         Clock
 	mailer        mailer.MailerInterface
-	s3Client      *s3.Client
+	s3Service     s3_management.S3Service
 	configuration *models.Configuration
 }
 
@@ -61,7 +62,8 @@ func (s *Service) InitService() {
 	if err != nil {
 		log.Println("Failed to load SDK config:", err)
 	} else {
-		s.s3Client = s3.NewFromConfig(cfg)
+		s3Client := s3.NewFromConfig(cfg)
+		s.s3Service = &s3_management.RealS3Service{Client: s3Client}
 	}
 }
 
@@ -113,7 +115,7 @@ func main() {
 	s.GET("/", withAuthentication(s.GetTime))
 	s.GET("/hello_world", withAuthentication(s.GetHelloWorld))
 
-	// ENDPOINTS FOR EMAIL
+	// ENDPOINTS FOR EMAIL - TESTING
 	s.POST("/email", withAuthentication(s.SendMail))
 
 	// ENDPOINTS FOR S3
@@ -131,6 +133,7 @@ func main() {
 
 	//ENDPOINTS FOR USERS
 	s.GET("/users/{id}", withAuthentication(s.GetUserById))
+	s.PATCH("/users/{id}", withAuthentication(s.PatchUser))
 
 	if s.configuration.Lambda.FunctionName != "" {
 		fmt.Println("🚀 Démarrage sur AWS Lambda...")

@@ -3,7 +3,6 @@ package main
 import (
 	"PLIC/httpx"
 	"PLIC/models"
-	"PLIC/s3_management"
 	"bytes"
 	"errors"
 	"github.com/aws/smithy-go"
@@ -42,7 +41,7 @@ func (s *Service) UploadImageToS3(w http.ResponseWriter, r *http.Request, _ mode
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 
-	err = s3_management.PutObject(ctx, s.s3Client, bucketName, objectKey, buf)
+	err = s.s3Service.PutObject(ctx, bucketName, objectKey, buf)
 	if err != nil {
 		var oe *smithy.OperationError
 		if errors.As(err, &oe) {
@@ -68,7 +67,7 @@ func (s *Service) GetS3Image(w http.ResponseWriter, r *http.Request, _ models.Au
 	bucketName := "test-plic"
 
 	objectKey := bucketName + "file.png"
-	resp, err := s3_management.GetObject(ctx, s.s3Client, bucketName, objectKey)
+	resp, err := s.s3Service.GetObject(ctx, bucketName, objectKey)
 
 	if err != nil {
 		log.Println(err)
@@ -116,7 +115,7 @@ func (s *Service) UploadProfilePictureToS3(w http.ResponseWriter, r *http.Reques
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 
-	err = s3_management.PutObject(ctx, s.s3Client, bucketName, objectKey, buf)
+	err = s.s3Service.PutObject(ctx, bucketName, objectKey, buf)
 	if err != nil {
 		var oe *smithy.OperationError
 		if errors.As(err, &oe) {

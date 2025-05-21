@@ -3,6 +3,7 @@ package main
 import (
 	"PLIC/database"
 	"PLIC/models"
+	"PLIC/s3_management"
 	"context"
 	"database/sql"
 	"fmt"
@@ -91,6 +92,10 @@ func (s *Service) InitServiceTest() {
 		<-time.After(10 * time.Second)
 		_ = cleanup()
 	}()
+
+	mockS3 := &s3_management.MockS3Service{}
+
+	s.s3Service = mockS3
 }
 
 func InitDBTest(sqlFile string) (*sqlx.DB, func() error, error) {
