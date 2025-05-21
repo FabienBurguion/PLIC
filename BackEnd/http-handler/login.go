@@ -76,7 +76,7 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, _ models.AuthInf
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        request body models.LoginRequest true "User credentials"
+// @Param        request body models.RegisterRequest true "User credentials"
 // @Success      201 {object} models.LoginResponse
 // @Failure      400 {object} models.Error "Bad request"
 // @Failure      401 {object} models.Error "User already exists"
@@ -85,16 +85,16 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, _ models.AuthInf
 func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
 	log.Println("Entering Register")
 	ctx := r.Context()
-	var req models.LoginRequest
+	var req models.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Println("Erreur JSON:", err)
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
-	if req.Username == "" || req.Password == "" {
+	if req.Email == "" || req.Password == "" {
 		log.Printf("Username or Password empty")
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
-	user, err := s.db.GetUserByUsername(ctx, req.Username)
+	user, err := s.db.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		log.Println("Erreur DB:", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
@@ -108,9 +108,12 @@ func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.Auth
 		log.Println("Erreur hash:", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
+	id := uuid.NewString()
 	newUser := models.DBUsers{
-		Id:        uuid.NewString(),
-		Username:  req.Username,
+		Id:        id,
+		Username:  "user" + id,
+		Email:     req.Email,
+		Bio:       nil,
 		Password:  string(hashedPassword),
 		CreatedAt: s.clock.Now(),
 		UpdatedAt: s.clock.Now(),

@@ -42,6 +42,23 @@ func (db Database) GetUserByUsername(ctx context.Context, username string) (*mod
 	return &user, nil
 }
 
+func (db Database) GetUserByEmail(ctx context.Context, email string) (*models.DBUsers, error) {
+	var user models.DBUsers
+
+	err := db.Database.GetContext(ctx, &user, `
+		SELECT id, username, email, bio, password, created_at, updated_at
+		FROM users
+		WHERE email = $1`, email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("échec de la requête SQL : %w", err)
+	}
+
+	return &user, nil
+}
+
 func (db Database) GetUserById(ctx context.Context, id string) (*models.DBUsers, error) {
 	var user models.DBUsers
 
