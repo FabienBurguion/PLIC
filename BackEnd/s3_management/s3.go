@@ -28,5 +28,5 @@ func GetObject(ctx context.Context, s3Client *s3.Client, bucketName string, obje
 }
 
 func GetProfilePicture(ctx context.Context, s3Client *s3.Client, userId string) (*v4.PresignedHTTPRequest, error) {
-	return GetObject(ctx, s3Client, "user-profil-pictures", userId)
+	return GetObject(ctx, s3Client, "user-profil-pictures", userId+".png")
 }

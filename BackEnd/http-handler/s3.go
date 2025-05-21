@@ -100,7 +100,7 @@ func (s *Service) UploadProfilePictureToS3(w http.ResponseWriter, r *http.Reques
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
 	}
 
-	objectKey := bucketName + id
+	objectKey := id + ".png"
 
 	file, _, err := r.FormFile("image")
 	if err != nil {
