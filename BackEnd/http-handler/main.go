@@ -119,6 +119,7 @@ func main() {
 	// ENDPOINTS FOR S3
 	s.POST("/image", withAuthentication(s.UploadImageToS3))
 	s.GET("/image", withAuthentication(s.GetS3Image))
+	s.POST("/profile_picture/{id}", withAuthentication(s.UploadProfilePictureToS3))
 
 	// GOOGLE
 	s.POST("/place", withAuthentication(s.HandleSyncGooglePlaces))
@@ -127,6 +128,9 @@ func main() {
 	s.GET("/match/all", withAuthentication(s.GetAllMatches))
 	s.GET("/match/{id}", withAuthentication(s.GetMatchByID))
 	s.POST("/match", withAuthentication(s.CreateMatch))
+
+	//ENDPOINTS FOR USERS
+	s.GET("/users/{id}", withAuthentication(s.GetUserById))
 
 	if s.configuration.Lambda.FunctionName != "" {
 		fmt.Println("🚀 Démarrage sur AWS Lambda...")

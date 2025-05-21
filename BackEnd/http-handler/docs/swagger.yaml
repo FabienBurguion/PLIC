@@ -23,6 +23,15 @@ definitions:
     - EnCours
     - Valide
     - ManqueJoueur
+  models.Field:
+    properties:
+      name:
+        type: string
+      ranking:
+        type: integer
+      score:
+        type: integer
+    type: object
   models.HelloWorldResponse:
     properties:
       response:
@@ -54,16 +63,8 @@ definitions:
     properties:
       date:
         type: string
-      etat:
-        $ref: '#/definitions/models.EtatMatch'
       lieu:
         type: string
-      nbre_participant:
-        type: integer
-      score1:
-        type: integer
-      score2:
-        type: integer
       sport:
         $ref: '#/definitions/models.Sport'
     type: object
@@ -94,6 +95,35 @@ definitions:
     x-enum-varnames:
     - Basket
     - Foot
+  models.UserResponse:
+    properties:
+      bio:
+        type: string
+      createdAt:
+        type: string
+      favoriteCity:
+        type: string
+      favoriteField:
+        type: string
+      favoriteSport:
+        $ref: '#/definitions/models.Sport'
+      fields:
+        items:
+          $ref: '#/definitions/models.Field'
+        type: array
+      profilePicture:
+        type: string
+      sports:
+        items:
+          $ref: '#/definitions/models.Sport'
+        type: array
+      username:
+        type: string
+      visitedFields:
+        type: integer
+      winrate:
+        type: integer
+    type: object
 info:
   contact: {}
 paths:
@@ -398,6 +428,33 @@ paths:
       summary: Synchronise les terrains depuis l'API Google Places
       tags:
       - google
+  /profile_picture/{id}:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads a profile picture to an S3 bucket
+      parameters:
+      - description: Image file to upload
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad request or file not found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Upload a profile picture to S3
+      tags:
+      - upload
   /register:
     post:
       consumes:
@@ -432,4 +489,39 @@ paths:
       summary: Register a new user
       tags:
       - auth
+  /users/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve user information, including profile picture and preferences
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserResponse'
+        "400":
+          description: Missing ID in URL params
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Get a user by ID
+      tags:
+      - users
 swagger: "2.0"

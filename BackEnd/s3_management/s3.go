@@ -26,3 +26,7 @@ func GetObject(ctx context.Context, s3Client *s3.Client, bucketName string, obje
 		Key:    aws.String(objectKey),
 	})
 }
+
+func GetProfilePicture(ctx context.Context, s3Client *s3.Client, userId string) (*v4.PresignedHTTPRequest, error) {
+	return GetObject(ctx, s3Client, "user-profil-pictures", userId)
+}

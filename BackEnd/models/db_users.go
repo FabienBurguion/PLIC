@@ -8,6 +8,8 @@ import (
 type DBUsers struct {
 	Id        string    `db:"id"`
 	Username  string    `db:"username"`
+	Email     string    `db:"email"`
+	Bio       *string   `db:"bio"`
 	Password  string    `db:"password"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
@@ -17,6 +19,8 @@ func NewDBUsersFixture() DBUsers {
 	return DBUsers{
 		Id:        uuid.NewString(),
 		Username:  "username",
+		Email:     "an email",
+		Bio:       ptr("A bio"),
 		Password:  "password",
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),

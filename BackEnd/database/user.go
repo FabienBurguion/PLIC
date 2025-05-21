@@ -12,7 +12,7 @@ func (db Database) CheckUserExist(ctx context.Context, id string) (bool, error) 
 	var user models.DBUsers
 
 	err := db.Database.GetContext(ctx, &user, `
-		SELECT id, username, password, created_at, updated_at
+		SELECT id, username, email, bio, password, created_at, updated_at
 		FROM users
 		WHERE id = $1`, id)
 	if err != nil {
@@ -29,7 +29,7 @@ func (db Database) GetUserByUsername(ctx context.Context, username string) (*mod
 	var user models.DBUsers
 
 	err := db.Database.GetContext(ctx, &user, `
-		SELECT id, username, password, created_at, updated_at
+		SELECT id, username, email, bio, password, created_at, updated_at
 		FROM users
 		WHERE username = $1`, username)
 	if err != nil {
@@ -46,7 +46,7 @@ func (db Database) GetUserById(ctx context.Context, id string) (*models.DBUsers,
 	var user models.DBUsers
 
 	err := db.Database.GetContext(ctx, &user, `
-		SELECT id, username, password, created_at, updated_at
+		SELECT id, username, email, bio, password, created_at, updated_at
 		FROM users
 		WHERE id = $1`, id)
 	if err != nil {
@@ -61,8 +61,8 @@ func (db Database) GetUserById(ctx context.Context, id string) (*models.DBUsers,
 
 func (db Database) CreateUser(ctx context.Context, user models.DBUsers) error {
 	_, err := db.Database.NamedExecContext(ctx, `
-		INSERT INTO users (id, username, password, created_at, updated_at)
-		VALUES (:id, :username, :password, :created_at, :updated_at)`, user)
+		INSERT INTO users (id, username, email, bio, password, created_at, updated_at)
+		VALUES (:id, :username, :email, :bio, :password, :created_at, :updated_at)`, user)
 	if err != nil {
 		return fmt.Errorf("échec de l'insertion utilisateur : %w", err)
 	}

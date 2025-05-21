@@ -469,6 +469,47 @@ const docTemplate = `{
                 }
             }
         },
+        "/profile_picture/{id}": {
+            "post": {
+                "description": "Uploads a profile picture to an S3 bucket",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "upload"
+                ],
+                "summary": "Upload a profile picture to S3",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Image file to upload",
+                        "name": "image",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created"
+                    },
+                    "400": {
+                        "description": "Bad request or file not found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/register": {
             "post": {
                 "description": "Register a user with username and password",
@@ -520,6 +561,61 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/users/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve user information, including profile picture and preferences",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Get a user by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.UserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing ID in URL params",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -555,6 +651,20 @@ const docTemplate = `{
                 "Valide",
                 "ManqueJoueur"
             ]
+        },
+        "models.Field": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "ranking": {
+                    "type": "integer"
+                },
+                "score": {
+                    "type": "integer"
+                }
+            }
         },
         "models.HelloWorldResponse": {
             "type": "object",
@@ -605,20 +715,8 @@ const docTemplate = `{
                 "date": {
                     "type": "string"
                 },
-                "etat": {
-                    "$ref": "#/definitions/models.EtatMatch"
-                },
                 "lieu": {
                     "type": "string"
-                },
-                "nbre_participant": {
-                    "type": "integer"
-                },
-                "score1": {
-                    "type": "integer"
-                },
-                "score2": {
-                    "type": "integer"
                 },
                 "sport": {
                     "$ref": "#/definitions/models.Sport"
@@ -664,6 +762,50 @@ const docTemplate = `{
                 "Basket",
                 "Foot"
             ]
+        },
+        "models.UserResponse": {
+            "type": "object",
+            "properties": {
+                "bio": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "favoriteCity": {
+                    "type": "string"
+                },
+                "favoriteField": {
+                    "type": "string"
+                },
+                "favoriteSport": {
+                    "$ref": "#/definitions/models.Sport"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Field"
+                    }
+                },
+                "profilePicture": {
+                    "type": "string"
+                },
+                "sports": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Sport"
+                    }
+                },
+                "username": {
+                    "type": "string"
+                },
+                "visitedFields": {
+                    "type": "integer"
+                },
+                "winrate": {
+                    "type": "integer"
+                }
+            }
         }
     }
 }`
