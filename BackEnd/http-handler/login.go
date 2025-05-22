@@ -222,6 +222,17 @@ func (s *Service) ForgetPassword(w http.ResponseWriter, r *http.Request, _ model
 	return httpx.Write(w, http.StatusOK, nil)
 }
 
+// ResetPassword godoc
+// @Summary      Réinitialise le mot de passe d’un utilisateur via un lien sécurisé
+// @Description  Vérifie le token JWT fourni, génère un nouveau mot de passe, l'envoie par email à l'utilisateur et met à jour le mot de passe dans la base de données
+// @Tags         auth
+// @Accept       json
+// @Produce      html
+// @Param        token path string true "Token JWT de réinitialisation"
+// @Success      200 {string} string "HTML indiquant que le mot de passe a été envoyé (même si l'utilisateur n'existe pas pour des raisons de sécurité)"
+// @Failure      400 {object} models.Error "Requête invalide (ex: token manquant)"
+// @Failure      500 {object} models.Error "Erreur interne du serveur (génération du mot de passe, envoi de mail, ou mise à jour en base)"
+// @Router       /reset-password/{token} [get]
 func (s *Service) ResetPassword(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
 	token := chi.URLParam(r, "token")
 	if token == "" {

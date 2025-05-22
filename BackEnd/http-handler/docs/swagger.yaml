@@ -503,6 +503,38 @@ paths:
       summary: Register a new user
       tags:
       - auth
+  /reset-password/{token}:
+    get:
+      consumes:
+      - application/json
+      description: Vérifie le token JWT fourni, génère un nouveau mot de passe, l'envoie
+        par email à l'utilisateur et met à jour le mot de passe dans la base de données
+      parameters:
+      - description: Token JWT de réinitialisation
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML indiquant que le mot de passe a été envoyé (même si l'utilisateur
+            n'existe pas pour des raisons de sécurité)
+          schema:
+            type: string
+        "400":
+          description: 'Requête invalide (ex: token manquant)'
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Erreur interne du serveur (génération du mot de passe, envoi
+            de mail, ou mise à jour en base)
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Réinitialise le mot de passe d’un utilisateur via un lien sécurisé
+      tags:
+      - auth
   /users/{id}:
     get:
       consumes:
