@@ -264,7 +264,7 @@ func (s *Service) ResetPassword(w http.ResponseWriter, r *http.Request, _ models
 		log.Println("Erreur DB au changement de password:", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
-	return httpx.WriteHTMLResponse(w, http.StatusOK, "Mot de passe envoyé", "Un email contenant votre nouveau mot de passe vous a été envoyé à fabien.burguion@epita.fr.")
+	return httpx.WriteHTMLResponse(w, http.StatusOK, "Mot de passe envoyé", "Un email contenant votre nouveau mot de passe vous a été envoyé à "+email+".")
 }
 
 // ChangePassword godoc
