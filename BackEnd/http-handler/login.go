@@ -5,6 +5,8 @@ import (
 	"PLIC/models"
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
+	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -146,6 +148,35 @@ func generatePassword(length int) (string, error) {
 	return string(password), nil
 }
 
+func GenerateResetToken(email string) (string, error) {
+	claims := jwt.MapClaims{
+		"email": email,
+		"exp":   time.Now().Add(15 * time.Minute).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(jwtSecret))
+}
+
+func ParseResetToken(tokenStr string) (string, error) {
+	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+		return []byte(jwtSecret), nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		email, ok := claims["email"].(string)
+		if !ok {
+			return "", jwt.ErrTokenMalformed
+		}
+		return email, nil
+	}
+
+	return "", fmt.Errorf("invalid token claims: %v", token.Claims)
+}
+
 // ForgetPassword godoc
 // @Summary      Request password reset
 // @Description  Generate a new password and send it via email to the user if the account exists
@@ -169,7 +200,7 @@ func (s *Service) ForgetPassword(w http.ResponseWriter, r *http.Request, _ model
 		log.Println("❌ Adresse email invalide :", req.Email)
 		return httpx.WriteError(w, http.StatusBadRequest, "Invalid email address")
 	}
-	user, err := s.db.GetUserByUsername(ctx, req.Email)
+	user, err := s.db.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		log.Println("Erreur DB:", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
@@ -177,6 +208,30 @@ func (s *Service) ForgetPassword(w http.ResponseWriter, r *http.Request, _ model
 	if user == nil {
 		log.Println("User does not exist")
 		return httpx.Write(w, http.StatusOK, nil)
+	}
+	token, err := GenerateResetToken(req.Email)
+	if err != nil {
+		log.Println("Erreur Token:", err)
+		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
+	}
+	err = s.mailer.SendLinkResetPassword(req.Email, "https://gfosd9euua.execute-api.eu-west-3.amazonaws.com/reset-password/"+token)
+	if err != nil {
+		log.Println("Erreur envoi mail:", err)
+		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
+	}
+	return httpx.Write(w, http.StatusOK, nil)
+}
+
+func (s *Service) ResetPassword(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
+	token := chi.URLParam(r, "token")
+	if token == "" {
+		log.Println("Token empty")
+		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
+	}
+	email, err := ParseResetToken(token)
+	if err != nil {
+		log.Println("Erreur Token:", err)
+		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 	newPassword, err := generatePassword(12)
 	if err != nil {
@@ -188,17 +243,17 @@ func (s *Service) ForgetPassword(w http.ResponseWriter, r *http.Request, _ model
 		log.Println("Erreur hash:", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
-	err = s.db.ChangePassword(ctx, req.Email, string(passwordHash))
-	if err != nil {
-		log.Println("Erreur DB au changement de password:", err)
-		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
-	}
-	err = s.mailer.SendPasswordForgotMail(req.Email, newPassword)
+	err = s.mailer.SendPasswordResetMail(email, newPassword)
 	if err != nil {
 		log.Println("Erreur envoi mail:", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
-	return httpx.Write(w, http.StatusOK, nil)
+	err = s.db.ChangePassword(r.Context(), email, string(passwordHash))
+	if err != nil {
+		log.Println("Erreur DB au changement de password:", err)
+		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
+	}
+	return httpx.WriteHTMLResponse(w, http.StatusOK, "Mot de passe envoyé", "Un email contenant votre nouveau mot de passe vous a été envoyé à fabien.burguion@epita.fr.")
 }
 
 // ChangePassword godoc
