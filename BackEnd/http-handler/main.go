@@ -106,10 +106,10 @@ func main() {
 	s.InitService()
 
 	//LOGIN
-	s.POST("/register", s.Register)
-	s.POST("/login", s.Login)
-	s.POST("/forgot-password", s.ForgetPassword)
-	s.GET("/reset-password/{token}", s.ResetPassword)
+	s.POST("/register", withAuthentication(s.Register))
+	s.POST("/login", withAuthentication(s.Login))
+	s.POST("/forgot-password", withAuthentication(s.ForgetPassword))
+	s.GET("/reset-password/{token}", withAuthentication(s.ResetPassword))
 	s.POST("/change-password", withAuthentication(s.ChangePassword))
 
 	// ENDPOINTS FOR TESTING PURPOSE
