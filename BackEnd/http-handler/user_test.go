@@ -182,7 +182,7 @@ func Test_PatchUser(t *testing.T) {
 			expected:     nil,
 		},
 		{
-			name: "Wrong user ID",
+			name: "Wrong param ID",
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{
 					models.NewDBUsersFixture().WithId(userId),
@@ -193,7 +193,7 @@ func Test_PatchUser(t *testing.T) {
 			},
 			authInfo: models.AuthInfo{
 				IsConnected: true,
-				UserID:      "another-user-id",
+				UserID:      "another-param-id",
 			},
 			urlUserId:    userId,
 			expectedCode: 403,

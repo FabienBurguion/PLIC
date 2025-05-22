@@ -92,7 +92,7 @@ func (s *Service) GetS3Image(w http.ResponseWriter, r *http.Request, _ models.Au
 // @Router       /profile_picture/{id} [post]
 func (s *Service) UploadProfilePictureToS3(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
 	ctx := r.Context()
-	bucketName := "user-profil-pictures"
+	bucketName := "param-profil-pictures"
 
 	id := chi.URLParam(r, "id")
 	if id == "" {

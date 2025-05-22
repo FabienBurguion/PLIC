@@ -12,8 +12,8 @@ import (
 )
 
 // GetUserById godoc
-// @Summary      Get a user by ID
-// @Description  Retrieve user information, including profile picture and preferences
+// @Summary      Get a param by ID
+// @Description  Retrieve param information, including profile picture and preferences
 // @Tags         users
 // @Accept       json
 // @Produce      json
@@ -55,12 +55,12 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.A
 	wg.Wait()
 
 	if userErr != nil {
-		log.Println("errored getting user by id:", userErr)
+		log.Println("errored getting param by id:", userErr)
 		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+userErr.Error())
 	}
 
 	if user == nil {
-		return httpx.WriteError(w, http.StatusNotFound, "user not found")
+		return httpx.WriteError(w, http.StatusNotFound, "param not found")
 	}
 
 	if s3Err != nil {
@@ -94,8 +94,8 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.A
 }
 
 // PatchUser godoc
-// @Summary      Patch a user by ID
-// @Description  Patch a user
+// @Summary      Patch a param by ID
+// @Description  Patch a param
 // @Tags         users
 // @Accept       json
 // @Produce      json
@@ -130,7 +130,7 @@ func (s *Service) PatchUser(w http.ResponseWriter, r *http.Request, ai models.Au
 		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
 	}
 	if user == nil {
-		return httpx.WriteError(w, http.StatusNotFound, "user not found")
+		return httpx.WriteError(w, http.StatusNotFound, "param not found")
 	}
 
 	if req.Username != nil {

@@ -10,7 +10,7 @@ import (
 
 // GetTime godoc
 // @Summary      Get current server time
-// @Description  Returns the current server time. If the user is not authenticated, returns a fixed default time.
+// @Description  Returns the current server time. If the param is not authenticated, returns a fixed default time.
 // @Tags         testing
 // @Produce      json
 // @Success      200 {string} string "Current time in RFC3339 format"

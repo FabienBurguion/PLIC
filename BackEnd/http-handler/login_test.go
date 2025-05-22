@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -255,9 +256,8 @@ func TestService_Register(t *testing.T) {
 
 func TestService_ForgetPassword(t *testing.T) {
 	type expected struct {
-		statusCode      int
-		changedPassword bool
-		mailSent        map[string]int
+		statusCode int
+		mailSent   map[string]int
 	}
 
 	type testCase struct {
@@ -268,7 +268,6 @@ func TestService_ForgetPassword(t *testing.T) {
 	}
 
 	userId := uuid.NewString()
-	oldPassword := "oldSecurePassword"
 
 	testCases := []testCase{
 		{
@@ -280,16 +279,14 @@ func TestService_ForgetPassword(t *testing.T) {
 				Users: []models.DBUsers{
 					models.NewDBUsersFixture().
 						WithId(userId).
-						WithUsername("example@gmail.com").
-						WithPassword(oldPassword),
+						WithEmail("example@gmail.com"),
 				},
 			},
 			expected: expected{
 				statusCode: http.StatusOK,
 				mailSent: map[string]int{
-					"password_forgot": 1,
+					"link_reset": 1,
 				},
-				changedPassword: true,
 			},
 		},
 		{
@@ -301,17 +298,15 @@ func TestService_ForgetPassword(t *testing.T) {
 				Users: []models.DBUsers{
 					models.NewDBUsersFixture().
 						WithId(userId).
-						WithUsername("example@gmail.com").
-						WithPassword(oldPassword),
+						WithEmail("example@gmail.com"),
 				},
 			},
 			expected: expected{
-				statusCode:      http.StatusBadRequest,
-				changedPassword: false,
+				statusCode: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "user does not exist",
+			name: "param does not exist",
 			param: models.MailerRequest{
 				Email: "example@gmail.com",
 			},
@@ -321,15 +316,14 @@ func TestService_ForgetPassword(t *testing.T) {
 				},
 			},
 			expected: expected{
-				statusCode:      http.StatusOK,
-				changedPassword: false,
+				statusCode: http.StatusOK,
+				mailSent:   map[string]int{},
 			},
 		},
 	}
 
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
-			ctx := context.Background()
 			t.Parallel()
 			s := &Service{}
 			s.InitServiceTest()
@@ -352,13 +346,105 @@ func TestService_ForgetPassword(t *testing.T) {
 			if c.expected.statusCode != http.StatusOK {
 				return
 			}
-			if !c.expected.changedPassword {
+			require.Equal(t, c.expected.mailSent, mockMailer.SentCounts)
+		})
+	}
+}
+
+func TestService_ResetPassword(t *testing.T) {
+	type expected struct {
+		statusCode int
+		mailSent   map[string]int
+	}
+
+	type testCase struct {
+		name     string
+		param    models.DBUsers
+		expected expected
+	}
+
+	userEmail := "reset@example.com"
+	userId := uuid.NewString()
+
+	testCases := []testCase{
+		{
+			name: "Valid token, password updated, mail sent",
+			param: models.NewDBUsersFixture().
+				WithId(userId).
+				WithEmail(userEmail).
+				WithPassword("old-password-hash"),
+			expected: expected{
+				statusCode: http.StatusOK,
+				mailSent: map[string]int{
+					"password_forgot": 1,
+				},
+			},
+		},
+		{
+			name: "Missing token → 400",
+			param: models.NewDBUsersFixture().
+				WithId(userId).
+				WithEmail(userEmail),
+			expected: expected{
+				statusCode: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "Invalid token → 500",
+			param: models.NewDBUsersFixture().
+				WithId(userId).
+				WithEmail(userEmail),
+			expected: expected{
+				statusCode: http.StatusInternalServerError,
+			},
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			s := &Service{}
+			s.InitServiceTest()
+			mockMailer := mailer.NewMockMailer()
+			s.mailer = mockMailer
+			s.loadFixtures(DBFixtures{
+				Users: []models.DBUsers{c.param},
+			})
+
+			var token string
+			var err error
+			switch c.name {
+			case "Valid token, password updated, mail sent":
+				token, err = GenerateResetToken(userEmail)
+				require.NoError(t, err)
+			case "Invalid token → 500":
+				token = "invalid.token.value"
+			case "Missing token → 400":
+				token = ""
+			}
+
+			req := httptest.NewRequest("GET", "/reset-password/"+token, nil)
+			routeCtx := chi.NewRouteContext()
+			routeCtx.URLParams.Add("token", token)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
+			w := httptest.NewRecorder()
+
+			err = s.ResetPassword(w, req, models.AuthInfo{})
+			require.NoError(t, err)
+
+			resp := w.Result()
+			defer resp.Body.Close()
+			require.Equal(t, c.expected.statusCode, resp.StatusCode)
+
+			if c.expected.statusCode != http.StatusOK {
 				return
 			}
+
 			require.Equal(t, c.expected.mailSent, mockMailer.SentCounts)
-			user, err := s.db.GetUserById(ctx, userId)
+
+			updatedUser, err := s.db.GetUserByEmail(req.Context(), userEmail)
 			require.NoError(t, err)
-			require.NotEqual(t, oldPassword, user.Password)
+			require.NotEqual(t, c.param.Password, updatedUser.Password)
 		})
 	}
 }

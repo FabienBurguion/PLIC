@@ -198,7 +198,7 @@ func TestDatabase_ChangePassword(t *testing.T) {
 		param    string
 	}
 
-	username := "Fabien"
+	email := "email@email.com"
 	oldPassword := "password"
 	newPassword := "<PASSWORD>"
 
@@ -208,7 +208,7 @@ func TestDatabase_ChangePassword(t *testing.T) {
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{
 					models.NewDBUsersFixture().
-						WithUsername(username).
+						WithEmail(email).
 						WithPassword(oldPassword),
 				},
 			},
@@ -228,9 +228,9 @@ func TestDatabase_ChangePassword(t *testing.T) {
 			hash, err := bcrypt.GenerateFromPassword([]byte(c.param), bcrypt.DefaultCost)
 			require.NoError(t, err)
 
-			err = s.db.ChangePassword(ctx, username, string(hash))
+			err = s.db.ChangePassword(ctx, email, string(hash))
 			require.NoError(t, err)
-			user, err := s.db.GetUserByUsername(ctx, username)
+			user, err := s.db.GetUserByEmail(ctx, email)
 			require.NoError(t, err)
 			err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(newPassword))
 			require.NoError(t, err)

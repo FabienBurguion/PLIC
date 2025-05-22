@@ -32,8 +32,8 @@ func GenerateJWT(userID string) (string, error) {
 }
 
 // Login godoc
-// @Summary      Login a user
-// @Description  Authenticate a user with username and password
+// @Summary      Login a param
+// @Description  Authenticate a param with username and password
 // @Tags         auth
 // @Accept       json
 // @Produce      json
@@ -52,11 +52,11 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, _ models.AuthInf
 	}
 	user, err := s.db.GetUserByUsername(ctx, req.Username)
 	if err != nil {
-		log.Println("Error getting the user")
+		log.Println("Error getting the param")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 	if user == nil {
-		log.Println("No user found")
+		log.Println("No param found")
 		return httpx.WriteError(w, http.StatusUnauthorized, httpx.UnauthorizedError)
 	}
 
@@ -73,8 +73,8 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, _ models.AuthInf
 }
 
 // Register godoc
-// @Summary      Register a new user
-// @Description  Register a user with username and password
+// @Summary      Register a new param
+// @Description  Register a param with username and password
 // @Tags         auth
 // @Accept       json
 // @Produce      json
@@ -113,7 +113,7 @@ func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.Auth
 	id := uuid.NewString()
 	newUser := models.DBUsers{
 		Id:        id,
-		Username:  "user" + id,
+		Username:  "param" + id,
 		Email:     req.Email,
 		Bio:       nil,
 		Password:  string(hashedPassword),
@@ -179,12 +179,12 @@ func ParseResetToken(tokenStr string) (string, error) {
 
 // ForgetPassword godoc
 // @Summary      Request password reset
-// @Description  Generate a new password and send it via email to the user if the account exists
+// @Description  Generate a new password and send it via email to the param if the account exists
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        request body models.MailerRequest true "Email of the user"
-// @Success      200 {object} nil "Success even if user does not exist (for security)"
+// @Param        request body models.MailerRequest true "Email of the param"
+// @Success      200 {object} nil "Success even if param does not exist (for security)"
 // @Failure      400 {object} models.Error "Bad request (invalid JSON or email format)"
 // @Failure      500 {object} models.Error "Internal server error"
 // @Router       /forget-password [post]
@@ -268,8 +268,8 @@ func (s *Service) ResetPassword(w http.ResponseWriter, r *http.Request, _ models
 }
 
 // ChangePassword godoc
-// @Summary      Change password for authenticated user
-// @Description  Allows a connected user to change their password
+// @Summary      Change password for authenticated param
+// @Description  Allows a connected param to change their password
 // @Tags         auth
 // @Accept       json
 // @Produce      json
@@ -277,7 +277,7 @@ func (s *Service) ResetPassword(w http.ResponseWriter, r *http.Request, _ models
 // @Param        request body models.ChangePasswordRequest true "New password payload"
 // @Success      200 {object} nil "Password changed successfully"
 // @Failure      400 {object} models.Error "Bad request (invalid JSON)"
-// @Failure      401 {object} models.Error "Unauthorized (not connected or user not found)"
+// @Failure      401 {object} models.Error "Unauthorized (not connected or param not found)"
 // @Failure      500 {object} models.Error "Internal server error"
 // @Router       /change-password [post]
 func (s *Service) ChangePassword(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
@@ -304,7 +304,7 @@ func (s *Service) ChangePassword(w http.ResponseWriter, r *http.Request, ai mode
 		log.Println("Erreur hash:", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
-	err = s.db.ChangePassword(ctx, user.Username, string(passwordHash))
+	err = s.db.ChangePassword(ctx, user.Email, string(passwordHash))
 	if err != nil {
 		log.Println("Erreur DB au changement de password:", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
