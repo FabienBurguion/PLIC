@@ -14,6 +14,7 @@ import (
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
 	"github.com/caarlos0/env/v10"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	"log"
@@ -52,6 +53,11 @@ func (s *Service) InitService() {
 
 	s.db = s.initDb()
 	s.server = chi.NewRouter()
+	s.server.Use(middleware.Logger)
+	s.server.Use(middleware.Recoverer)
+	s.server.Use(middleware.RequestID)
+	s.server.Use(middleware.Timeout(5 * time.Second))
+	s.server.Use(middleware.Heartbeat("/ping"))
 	s.clock = Clock{offset: time.Hour}
 	s.mailer = &mailer.Mailer{
 		LastSentAt:  make(map[string]time.Time),
