@@ -143,7 +143,7 @@ info:
 paths:
   /:
     get:
-      description: Returns the current server time. If the user is not authenticated,
+      description: Returns the current server time. If the param is not authenticated,
         returns a fixed default time.
       produces:
       - application/json
@@ -159,7 +159,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Allows a connected user to change their password
+      description: Allows a connected param to change their password
       parameters:
       - description: New password payload
         in: body
@@ -177,7 +177,7 @@ paths:
           schema:
             $ref: '#/definitions/models.Error'
         "401":
-          description: Unauthorized (not connected or user not found)
+          description: Unauthorized (not connected or param not found)
           schema:
             $ref: '#/definitions/models.Error'
         "500":
@@ -186,7 +186,7 @@ paths:
             $ref: '#/definitions/models.Error'
       security:
       - BearerAuth: []
-      summary: Change password for authenticated user
+      summary: Change password for authenticated param
       tags:
       - auth
   /email:
@@ -221,10 +221,10 @@ paths:
     post:
       consumes:
       - application/json
-      description: Generate a new password and send it via email to the user if the
+      description: Generate a new password and send it via email to the param if the
         account exists
       parameters:
-      - description: Email of the user
+      - description: Email of the param
         in: body
         name: request
         required: true
@@ -234,7 +234,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Success even if user does not exist (for security)
+          description: Success even if param does not exist (for security)
         "400":
           description: Bad request (invalid JSON or email format)
           schema:
@@ -312,7 +312,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Authenticate a user with username and password
+      description: Authenticate a param with username and password
       parameters:
       - description: User credentials
         in: body
@@ -339,7 +339,7 @@ paths:
           description: Internal server error
           schema:
             $ref: '#/definitions/models.Error'
-      summary: Login a user
+      summary: Login a param
       tags:
       - auth
   /match:
@@ -473,7 +473,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Register a user with username and password
+      description: Register a param with username and password
       parameters:
       - description: User credentials
         in: body
@@ -500,7 +500,7 @@ paths:
           description: Internal server error
           schema:
             $ref: '#/definitions/models.Error'
-      summary: Register a new user
+      summary: Register a new param
       tags:
       - auth
   /reset-password/{token}:
@@ -536,10 +536,42 @@ paths:
       tags:
       - auth
   /users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a user
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Missing ID in URL params
+          schema:
+            $ref: '#/definitions/models.Error'
+        "403":
+          description: Incorrect rights
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Delete a user by ID
+      tags:
+      - users
     get:
       consumes:
       - application/json
-      description: Retrieve user information, including profile picture and preferences
+      description: Retrieve param information, including profile picture and preferences
       parameters:
       - description: User ID
         in: path
@@ -567,7 +599,7 @@ paths:
             $ref: '#/definitions/models.Error'
       security:
       - BearerAuth: []
-      summary: Get a user by ID
+      summary: Get a param by ID
       tags:
       - users
     patch:
@@ -591,10 +623,6 @@ paths:
             $ref: '#/definitions/models.Error'
         "403":
           description: Incorrect rights
-          schema:
-            $ref: '#/definitions/models.Error'
-        "404":
-          description: User not found
           schema:
             $ref: '#/definitions/models.Error'
         "500":

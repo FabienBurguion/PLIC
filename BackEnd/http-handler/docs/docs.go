@@ -17,7 +17,7 @@ const docTemplate = `{
     "paths": {
         "/": {
             "get": {
-                "description": "Returns the current server time. If the user is not authenticated, returns a fixed default time.",
+                "description": "Returns the current server time. If the param is not authenticated, returns a fixed default time.",
                 "produces": [
                     "application/json"
                 ],
@@ -42,7 +42,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Allows a connected user to change their password",
+                "description": "Allows a connected param to change their password",
                 "consumes": [
                     "application/json"
                 ],
@@ -52,7 +52,7 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Change password for authenticated user",
+                "summary": "Change password for authenticated param",
                 "parameters": [
                     {
                         "description": "New password payload",
@@ -75,7 +75,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Unauthorized (not connected or user not found)",
+                        "description": "Unauthorized (not connected or param not found)",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -134,7 +134,7 @@ const docTemplate = `{
         },
         "/forget-password": {
             "post": {
-                "description": "Generate a new password and send it via email to the user if the account exists",
+                "description": "Generate a new password and send it via email to the param if the account exists",
                 "consumes": [
                     "application/json"
                 ],
@@ -147,7 +147,7 @@ const docTemplate = `{
                 "summary": "Request password reset",
                 "parameters": [
                     {
-                        "description": "Email of the user",
+                        "description": "Email of the param",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -158,7 +158,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Success even if user does not exist (for security)"
+                        "description": "Success even if param does not exist (for security)"
                     },
                     "400": {
                         "description": "Bad request (invalid JSON or email format)",
@@ -271,7 +271,7 @@ const docTemplate = `{
         },
         "/login": {
             "post": {
-                "description": "Authenticate a user with username and password",
+                "description": "Authenticate a param with username and password",
                 "consumes": [
                     "application/json"
                 ],
@@ -281,7 +281,7 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Login a user",
+                "summary": "Login a param",
                 "parameters": [
                     {
                         "description": "User credentials",
@@ -512,7 +512,7 @@ const docTemplate = `{
         },
         "/register": {
             "post": {
-                "description": "Register a user with username and password",
+                "description": "Register a param with username and password",
                 "consumes": [
                     "application/json"
                 ],
@@ -522,7 +522,7 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Register a new user",
+                "summary": "Register a new param",
                 "parameters": [
                     {
                         "description": "User credentials",
@@ -613,7 +613,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve user information, including profile picture and preferences",
+                "description": "Retrieve param information, including profile picture and preferences",
                 "consumes": [
                     "application/json"
                 ],
@@ -623,7 +623,7 @@ const docTemplate = `{
                 "tags": [
                     "users"
                 ],
-                "summary": "Get a user by ID",
+                "summary": "Get a param by ID",
                 "parameters": [
                     {
                         "type": "string",
@@ -648,6 +648,56 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Delete a user by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Missing ID in URL params",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Incorrect rights",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -698,12 +748,6 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Incorrect rights",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "404": {
-                        "description": "User not found",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
