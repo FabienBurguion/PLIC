@@ -141,6 +141,7 @@ func main() {
 	//ENDPOINTS FOR USERS
 	s.GET("/users/{id}", withAuthentication(s.GetUserById))
 	s.PATCH("/users/{id}", withAuthentication(s.PatchUser))
+	s.DELETE("/users/{id}", withAuthentication(s.DeleteUser))
 
 	if s.configuration.Lambda.FunctionName != "" {
 		fmt.Println("🚀 Démarrage sur AWS Lambda...")

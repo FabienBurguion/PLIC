@@ -94,8 +94,8 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.A
 }
 
 // PatchUser godoc
-// @Summary      Patch a param by ID
-// @Description  Patch a param
+// @Summary      Patch a user by ID
+// @Description  Patch a user
 // @Tags         users
 // @Accept       json
 // @Produce      json
@@ -103,7 +103,6 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.A
 // @Success      200
 // @Failure      400 {object} models.Error "Missing ID in URL params"
 // @Failure      403 {object} models.Error "Incorrect rights"
-// @Failure      404 {object} models.Error "User not found"
 // @Failure      500 {object} models.Error "Internal server error"
 // @Router       /users/{id} [patch]
 // @Security     BearerAuth
@@ -125,27 +124,41 @@ func (s *Service) PatchUser(w http.ResponseWriter, r *http.Request, ai models.Au
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
 
-	user, err := s.db.GetUserById(ctx, id)
+	err := s.db.UpdateUser(ctx, req, id)
+
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
 	}
-	if user == nil {
-		return httpx.WriteError(w, http.StatusNotFound, "param not found")
+
+	return httpx.Write(w, http.StatusOK, nil)
+}
+
+// DeleteUser godoc
+// @Summary      Delete a user by ID
+// @Description  Delete a user
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "User ID"
+// @Success      200
+// @Failure      400 {object} models.Error "Missing ID in URL params"
+// @Failure      403 {object} models.Error "Incorrect rights"
+// @Failure      500 {object} models.Error "Internal server error"
+// @Router       /users/{id} [delete]
+// @Security     BearerAuth
+func (s *Service) DeleteUser(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	ctx := r.Context()
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
 	}
 
-	if req.Username != nil {
-		user.Username = *req.Username
+	if !ai.IsConnected || ai.UserID != id {
+		return httpx.WriteError(w, http.StatusForbidden, "not authorized")
 	}
 
-	if req.Email != nil {
-		user.Email = *req.Email
-	}
-
-	if req.Bio != nil {
-		user.Bio = req.Bio
-	}
-
-	err = s.db.UpdateUser(ctx, req, id)
+	err := s.db.DeleteUser(ctx, id)
 
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())

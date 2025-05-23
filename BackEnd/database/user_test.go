@@ -359,3 +359,44 @@ func TestDatabase_UpdateUser(t *testing.T) {
 		})
 	}
 }
+
+func TestDatabase_DeleteUser(t *testing.T) {
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+	}
+
+	userId := uuid.NewString()
+
+	testCases := []testCase{
+		{
+			name: "Basic test",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userId),
+				},
+			},
+		},
+		{
+			name: "User doesn't exist",
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
+
+			ctx := context.Background()
+
+			err := s.db.DeleteUser(ctx, userId)
+			require.NoError(t, err)
+			user, err := s.db.GetUserById(ctx, userId)
+			require.NoError(t, err)
+			require.Nil(t, user)
+		})
+	}
+}

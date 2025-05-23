@@ -131,3 +131,14 @@ func (db Database) ChangePassword(ctx context.Context, email string, newPassword
 	}
 	return nil
 }
+
+func (db Database) DeleteUser(ctx context.Context, userId string) error {
+	_, err := db.Database.ExecContext(ctx, `
+		DELETE FROM users
+		WHERE id = $1
+	`, userId)
+	if err != nil {
+		return fmt.Errorf("échec de la suppresion du user "+userId+" : %w", err)
+	}
+	return nil
+}

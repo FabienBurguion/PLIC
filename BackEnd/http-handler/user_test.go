@@ -150,7 +150,7 @@ func Test_PatchUser(t *testing.T) {
 		{
 			name: "User not found",
 			fixtures: DBFixtures{
-				Users: []models.DBUsers{}, // pas d’utilisateur
+				Users: []models.DBUsers{},
 			},
 			param: models.UserPatchRequest{
 				Bio: ptr(newBio),
@@ -160,7 +160,7 @@ func Test_PatchUser(t *testing.T) {
 				UserID:      userId,
 			},
 			urlUserId:    userId,
-			expectedCode: 404,
+			expectedCode: 200,
 			expected:     nil,
 		},
 		{
@@ -222,6 +222,7 @@ func Test_PatchUser(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			err = s.PatchUser(w, r, c.authInfo)
+			require.NoError(t, err)
 
 			resp := w.Result()
 			defer resp.Body.Close()
@@ -236,6 +237,112 @@ func Test_PatchUser(t *testing.T) {
 				require.Equal(t, c.expected.Email, updated.Email)
 				require.Equal(t, *c.expected.Bio, *updated.Bio)
 			}
+		})
+	}
+}
+
+func Test_DeleteUser(t *testing.T) {
+	type expected struct {
+		authInfo     models.AuthInfo
+		expectedCode int
+	}
+
+	type testCase struct {
+		name     string
+		param    string
+		fixtures DBFixtures
+		expected expected
+	}
+
+	userId := uuid.NewString()
+
+	testCases := []testCase{
+		{
+			name: "Basic test",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userId),
+				},
+			},
+			param: userId,
+			expected: expected{
+				authInfo: models.AuthInfo{
+					IsConnected: true,
+					UserID:      userId,
+				},
+				expectedCode: 200,
+			},
+		},
+		{
+			name: "No auth info",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userId),
+				},
+			},
+			param: userId,
+			expected: expected{
+				authInfo: models.AuthInfo{
+					IsConnected: false,
+					UserID:      "",
+				},
+				expectedCode: 403,
+			},
+		},
+		{
+			name: "No userId",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userId),
+				},
+			},
+			param: "",
+			expected: expected{
+				authInfo: models.AuthInfo{
+					IsConnected: true,
+					UserID:      userId,
+				},
+				expectedCode: 400,
+			},
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := context.Background()
+			t.Parallel()
+
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
+
+			r := httptest.NewRequest("PATCH", "/users/"+c.param, nil)
+			r.Header.Set("Content-Type", "application/json")
+
+			routeCtx := chi.NewRouteContext()
+			routeCtx.URLParams.Add("id", c.param)
+			r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+
+			w := httptest.NewRecorder()
+
+			err := s.DeleteUser(w, r, c.expected.authInfo)
+			require.NoError(t, err)
+
+			resp := w.Result()
+			defer resp.Body.Close()
+
+			require.Equal(t, c.expected.expectedCode, resp.StatusCode)
+
+			if c.expected.expectedCode != 200 {
+				return
+			}
+
+			user, err := s.db.GetUserById(ctx, c.param)
+			require.NoError(t, err)
+			require.Nil(t, user)
 		})
 	}
 }

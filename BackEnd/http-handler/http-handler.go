@@ -31,3 +31,11 @@ func (s *Service) PATCH(path string, handlerFunc httpHandler) {
 		}
 	})
 }
+
+func (s *Service) DELETE(path string, handlerFunc httpHandler) {
+	s.server.Delete(path, func(w http.ResponseWriter, r *http.Request) {
+		if err := handlerFunc(w, r, models.AuthInfo{}); err != nil {
+			_ = httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+		}
+	})
+}
