@@ -53,7 +53,7 @@ func TestDatabase_GetMatchById(t *testing.T) {
 		Score2:          2,
 	}
 
-	// A TEST
+	// A TEST2
 
 	err := s.db.CreateMatch(ctx, match)
 	require.NoError(t, err)
