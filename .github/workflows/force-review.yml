@@ -1,0 +1,23 @@
+name: Force Assign Reviewers
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+jobs:
+  assign-reviewers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Assign reviewers
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT_REVIEW }}
+          script: |
+            const reviewers = ['melodybast', 'FabienBurguion']; // noms SANS @
+            await github.rest.pulls.requestReviewers({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              reviewers,
+            });
