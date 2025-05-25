@@ -3,10 +3,10 @@ name: Backend Tests
 on:
   push:
     paths:
-      - 'backend/**'
+      - 'BackEnd/**'
   pull_request:
     paths:
-      - 'backend/**'
+      - 'BackEnd/**'
 
 jobs:
   test-backend:
