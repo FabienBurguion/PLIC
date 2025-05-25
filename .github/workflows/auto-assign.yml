@@ -1,0 +1,36 @@
+name: Auto Assign from CODEOWNERS
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+jobs:
+  assign-reviewers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract CODEOWNERS reviewers
+        id: codeowners
+        run: |
+          reviewers=$(grep '^BackEnd/' .github/CODEOWNERS | sed 's|BackEnd/||' | tr -s ' ' | tr '\n' ' ')
+          echo "reviewers=$reviewers" >> "$GITHUB_OUTPUT"
+
+      - name: Assign reviewers to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const reviewers = process.env.REVIEWERS.trim().split(/\s+/).map(r => r.replace(/^@/, ''));
+            if (reviewers.length) {
+              await github.rest.pulls.requestReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                reviewers
+              });
+            }
+        env:
+          REVIEWERS: ${{ steps.codeowners.outputs.reviewers }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
