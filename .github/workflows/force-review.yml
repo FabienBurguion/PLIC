@@ -14,10 +14,18 @@ jobs:
         with:
           github-token: ${{ secrets.PAT_REVIEW }}
           script: |
-            const reviewers = ['melodybast', 'FabienBurguion']; // noms SANS @
-            await github.rest.pulls.requestReviewers({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number,
-              reviewers,
-            });
+            const allReviewers = ['melodybast', 'FabienBurguion'];
+            const author = context.payload.pull_request.user.login;
+
+            const reviewers = allReviewers.filter(r => r !== author);
+
+            if (reviewers.length > 0) {
+              await github.rest.pulls.requestReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                reviewers,
+              });
+            } else {
+              console.log('No reviewers to assign (author is only reviewer).');
+            }
