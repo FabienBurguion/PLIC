@@ -51,3 +51,19 @@ func (u DBUsers) WithBio(bio string) DBUsers {
 	u.Bio = ptr(bio)
 	return u
 }
+
+func (u DBUsers) ToUserResponse() UserResponse {
+	return UserResponse{
+		Username:       u.Username,
+		Bio:            u.Bio,
+		CreatedAt:      u.CreatedAt,
+		ProfilePicture: nil, // Tu peux ajouter ton s3 logic ici si nécessaire
+		VisitedFields:  0,   // TODO
+		Winrate:        nil, // TODO
+		FavoriteCity:   nil, // TODO
+		FavoriteSport:  nil, // TODO
+		FavoriteField:  nil, // TODO
+		Sports:         nil, // TODO
+		Fields:         nil, // TODO
+	}
+}

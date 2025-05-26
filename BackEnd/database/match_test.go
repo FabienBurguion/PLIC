@@ -18,10 +18,10 @@ func TestDatabase_CreateMatch(t *testing.T) {
 	match := models.DBMatches{
 		Id:              id,
 		Sport:           "basket",
-		Lieu:            "Paris",
+		Place:           "Paris",
 		Date:            time.Now(),
-		NbreParticipant: 8,
-		Etat:            "Manque joueur",
+		ParticipantNber: 8,
+		CurrentState:    "Manque joueur",
 		Score1:          0,
 		Score2:          0,
 	}
@@ -33,7 +33,7 @@ func TestDatabase_CreateMatch(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, dbMatch)
 	require.Equal(t, match.Id, dbMatch.Id)
-	require.Equal(t, match.Lieu, dbMatch.Lieu)
+	require.Equal(t, match.Place, dbMatch.Place)
 }
 
 func TestDatabase_GetMatchById(t *testing.T) {
@@ -45,10 +45,10 @@ func TestDatabase_GetMatchById(t *testing.T) {
 	match := models.DBMatches{
 		Id:              id,
 		Sport:           "foot",
-		Lieu:            "Lyon",
+		Place:           "Lyon",
 		Date:            time.Now(),
-		NbreParticipant: 10,
-		Etat:            "Manque joueur",
+		ParticipantNber: 10,
+		CurrentState:    "Manque joueur",
 		Score1:          1,
 		Score2:          2,
 	}
@@ -71,8 +71,8 @@ func TestDatabase_GetAllMatches(t *testing.T) {
 	id1 := uuid.NewString()
 	id2 := uuid.NewString()
 
-	match1 := models.DBMatches{Id: id1, Sport: "foot", Lieu: "Nice", Date: time.Now(), NbreParticipant: 2, Etat: "Manque joueur", Score1: 0, Score2: 0}
-	match2 := models.DBMatches{Id: id2, Sport: "basket", Lieu: "Paris", Date: time.Now(), NbreParticipant: 10, Etat: "Manque joueur", Score1: 0, Score2: 0}
+	match1 := models.DBMatches{Id: id1, Sport: "foot", Place: "Nice", Date: time.Now(), ParticipantNber: 2, CurrentState: "Manque joueur", Score1: 0, Score2: 0}
+	match2 := models.DBMatches{Id: id2, Sport: "basket", Place: "Paris", Date: time.Now(), ParticipantNber: 10, CurrentState: "Manque joueur", Score1: 0, Score2: 0}
 
 	err := s.db.CreateMatch(ctx, match1)
 	require.NoError(t, err)

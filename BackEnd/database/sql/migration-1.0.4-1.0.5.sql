@@ -2,16 +2,15 @@ ALTER TABLE terrain
     ADD COLUMN created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW();
 
 ALTER TABLE matches
-    ADD COLUMN terrain_id terrain_id TEXT REFERENCES terrain(id),
+    ADD COLUMN terrain_id TEXT REFERENCES terrain(id),
     ADD COLUMN created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    ADD COLUMN created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    DROP COLUMN IF EXISTS lieu;
+    ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW();
 
 CREATE TABLE IF NOT EXISTS classement (
                                           user_id TEXT REFERENCES users(id),
     terrain_id TEXT REFERENCES terrain(id),
     elo INTEGER NOT NULL DEFAULT 200,
-    UNIQUE (user_id, terrain_id)
+    UNIQUE (user_id, terrain_id),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
     );
