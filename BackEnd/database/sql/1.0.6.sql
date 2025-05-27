@@ -47,10 +47,10 @@ CREATE TABLE IF NOT EXISTS ranking (
     user_id TEXT REFERENCES users(id),
     court_id TEXT REFERENCES courts(id),
     elo INTEGER NOT NULL DEFAULT 200,
-    UNIQUE (user_id, court_id)
+    UNIQUE (user_id, court_id),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-    )
+    );
 
 CREATE TABLE IF NOT EXISTS user_match (
     user_id TEXT REFERENCES users(id),

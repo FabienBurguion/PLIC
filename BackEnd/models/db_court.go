@@ -11,7 +11,7 @@ type DBCourt struct {
 	Longitude float64   `db:"longitude"`
 	Latitude  float64   `db:"latitude"`
 	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+	//UpdatedAt time.Time `db:"updated_at"`
 }
 
 func NewDBCourtFixture() DBCourt {
@@ -21,7 +21,7 @@ func NewDBCourtFixture() DBCourt {
 		Longitude: 0.0,
 		Latitude:  0.0,
 		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		//	UpdatedAt: time.Now(),
 	}
 }
 
