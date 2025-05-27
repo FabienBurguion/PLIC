@@ -99,11 +99,6 @@ func (s *Service) InitServiceTest() {
 
 func InitDBTest(sqlFile string) (*sqlx.DB, func() error, error) {
 	dockerHost := "localhost"
-	/*
-		if dockerHost == "" {
-			panic("DOCKER_HOST environment variable is not set")
-		}
-	*/
 	adminDsn := "host=" + dockerHost + " port=5433 user=test password=test dbname=postgres sslmode=disable"
 
 	adminDb, err := sql.Open("postgres", adminDsn)
