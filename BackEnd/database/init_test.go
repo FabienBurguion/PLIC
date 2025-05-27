@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"os"
 	"path/filepath"
@@ -99,14 +98,7 @@ func (s *Service) InitServiceTest() {
 }
 
 func InitDBTest(sqlFile string) (*sqlx.DB, func() error, error) {
-	err := godotenv.Load("../.env")
-	if err != nil {
-		panic(err)
-	}
-	dockerHost := os.Getenv("DOCKER_HOST")
-	if dockerHost == "" {
-		panic("DOCKER_HOST environment variable is not set")
-	}
+	dockerHost := "localhost"
 	adminDsn := "host=" + dockerHost + " port=5433 user=test password=test dbname=postgres sslmode=disable"
 
 	adminDb, err := sql.Open("postgres", adminDsn)

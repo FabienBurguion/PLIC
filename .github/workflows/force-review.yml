@@ -1,0 +1,31 @@
+name: Force Assign Reviewers
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+jobs:
+  assign-reviewers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Assign reviewers
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT_REVIEW }}
+          script: |
+            const allReviewers = ['melodybast', 'FabienBurguion'];
+            const author = context.payload.pull_request.user.login;
+
+            const reviewers = allReviewers.filter(r => r !== author);
+
+            if (reviewers.length > 0) {
+              await github.rest.pulls.requestReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                reviewers,
+              });
+            } else {
+              console.log('No reviewers to assign (author is only reviewer).');
+            }

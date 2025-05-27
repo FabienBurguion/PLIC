@@ -113,7 +113,7 @@ func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.Auth
 	id := uuid.NewString()
 	newUser := models.DBUsers{
 		Id:        id,
-		Username:  "param" + id,
+		Username:  "user" + id,
 		Email:     req.Email,
 		Bio:       nil,
 		Password:  string(hashedPassword),
