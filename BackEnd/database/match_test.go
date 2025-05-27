@@ -10,88 +10,178 @@ import (
 )
 
 func TestDatabase_CreateMatch(t *testing.T) {
-	ctx := context.Background()
-	s := &Service{}
-	s.InitServiceTest()
-
-	id := uuid.NewString()
-	match := models.DBMatches{
-		Id:              id,
-		Sport:           "basket",
-		Place:           "Paris",
-		Date:            time.Now(),
-		ParticipantNber: 8,
-		CurrentState:    "Manque joueur",
-		Score1:          0,
-		Score2:          0,
+	type testCase struct {
+		name  string
+		match models.DBMatches
 	}
 
-	err := s.db.CreateMatch(ctx, match)
-	require.NoError(t, err)
+	id := uuid.NewString()
 
-	dbMatch, err := s.db.GetMatchById(ctx, id)
-	require.NoError(t, err)
-	require.NotNil(t, dbMatch)
-	require.Equal(t, match.Id, dbMatch.Id)
-	require.Equal(t, match.Place, dbMatch.Place)
+	testCases := []testCase{
+		{
+			name: "Basic match creation",
+			match: models.DBMatches{
+				Id:              id,
+				Sport:           "basket",
+				Place:           "Paris",
+				Date:            time.Now(),
+				ParticipantNber: 8,
+				CurrentState:    "Manque joueur",
+				Score1:          0,
+				Score2:          0,
+			},
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := context.Background()
+			s := &Service{}
+			s.InitServiceTest()
+
+			err := s.db.CreateMatch(ctx, c.match)
+			require.NoError(t, err)
+
+			dbMatch, err := s.db.GetMatchById(ctx, c.match.Id)
+			require.NoError(t, err)
+			require.NotNil(t, dbMatch)
+			require.Equal(t, c.match.Id, dbMatch.Id)
+			require.Equal(t, c.match.Place, dbMatch.Place)
+		})
+	}
 }
 
 func TestDatabase_GetMatchById(t *testing.T) {
-	ctx := context.Background()
-	s := &Service{}
-	s.InitServiceTest()
-
-	id := uuid.NewString()
-	match := models.DBMatches{
-		Id:              id,
-		Sport:           "foot",
-		Place:           "Lyon",
-		Date:            time.Now(),
-		ParticipantNber: 10,
-		CurrentState:    "Manque joueur",
-		Score1:          1,
-		Score2:          2,
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		matchID  string
+		nilMatch bool
 	}
 
-	err := s.db.CreateMatch(ctx, match)
-	require.NoError(t, err)
+	id := uuid.NewString()
 
-	result, err := s.db.GetMatchById(ctx, id)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	require.Equal(t, match.Id, result.Id)
-	require.Equal(t, match.Score2, result.Score2)
+	testCases := []testCase{
+		{
+			name: "Match exists",
+			fixtures: DBFixtures{
+				Matches: []models.DBMatches{
+					{
+						Id:              id,
+						Sport:           "foot",
+						Place:           "Lyon",
+						Date:            time.Now(),
+						ParticipantNber: 10,
+						CurrentState:    "Manque joueur",
+						Score1:          1,
+						Score2:          2,
+					},
+				},
+			},
+			matchID:  id,
+			nilMatch: false,
+		},
+		{
+			name:     "Match does not exist",
+			matchID:  uuid.NewString(),
+			nilMatch: true,
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := context.Background()
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
+
+			match, err := s.db.GetMatchById(ctx, c.matchID)
+			require.NoError(t, err)
+
+			if c.nilMatch {
+				require.Nil(t, match)
+			} else {
+				require.NotNil(t, match)
+				require.Equal(t, c.matchID, match.Id)
+			}
+		})
+	}
 }
 
 func TestDatabase_GetAllMatches(t *testing.T) {
-	ctx := context.Background()
-	s := &Service{}
-	s.InitServiceTest()
+	type testCase struct {
+		name        string
+		fixtures    DBFixtures
+		expectedIDs []string
+	}
 
 	id1 := uuid.NewString()
 	id2 := uuid.NewString()
 
-	match1 := models.DBMatches{Id: id1, Sport: "foot", Place: "Nice", Date: time.Now(), ParticipantNber: 2, CurrentState: "Manque joueur", Score1: 0, Score2: 0}
-	match2 := models.DBMatches{Id: id2, Sport: "basket", Place: "Paris", Date: time.Now(), ParticipantNber: 10, CurrentState: "Manque joueur", Score1: 0, Score2: 0}
-
-	err := s.db.CreateMatch(ctx, match1)
-	require.NoError(t, err)
-	err = s.db.CreateMatch(ctx, match2)
-	require.NoError(t, err)
-
-	matches, err := s.db.GetAllMatches(ctx)
-	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(matches), 2)
-
-	var found1, found2 bool
-	for _, m := range matches {
-		if m.Id == id1 {
-			found1 = true
-		}
-		if m.Id == id2 {
-			found2 = true
-		}
+	testCases := []testCase{
+		{
+			name: "Two matches exist",
+			fixtures: DBFixtures{
+				Matches: []models.DBMatches{
+					{
+						Id:              id1,
+						Sport:           "foot",
+						Place:           "Nice",
+						Date:            time.Now(),
+						ParticipantNber: 2,
+						CurrentState:    "Manque joueur",
+						Score1:          0,
+						Score2:          0,
+					},
+					{
+						Id:              id2,
+						Sport:           "basket",
+						Place:           "Paris",
+						Date:            time.Now(),
+						ParticipantNber: 10,
+						CurrentState:    "Manque joueur",
+						Score1:          0,
+						Score2:          0,
+					},
+				},
+			},
+			expectedIDs: []string{id1, id2},
+		},
+		{
+			name:        "No matches exist",
+			fixtures:    DBFixtures{},
+			expectedIDs: []string{},
+		},
 	}
-	require.True(t, found1)
-	require.True(t, found2)
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := context.Background()
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
+
+			matches, err := s.db.GetAllMatches(ctx)
+			require.NoError(t, err)
+
+			require.GreaterOrEqual(t, len(matches), len(c.expectedIDs))
+
+			for _, expectedID := range c.expectedIDs {
+				var found bool
+				for _, m := range matches {
+					if m.Id == expectedID {
+						found = true
+						break
+					}
+				}
+				require.True(t, found, "Expected match ID %s not found", expectedID)
+			}
+		})
+	}
 }

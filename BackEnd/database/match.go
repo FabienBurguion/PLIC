@@ -79,30 +79,33 @@ func (db Database) CreateMatch(ctx context.Context, match models.DBMatches) erro
 	return nil
 }
 
-func (db Database) AddUserToMatch(ctx context.Context, userID, matchID string) error {
-	_, err := db.Database.ExecContext(ctx, `
-        INSERT INTO user_match (user_id, match_id)
-        VALUES ($1, $2)
-    `, userID, matchID)
-
+func (db Database) AddUserToMatch(ctx context.Context, um models.DBUserMatch) error {
+	_, err := db.Database.NamedExecContext(ctx, `
+        INSERT INTO user_match (user_id, match_id, created_at)
+        VALUES (:user_id, :match_id, :created_at)
+    `, um)
 	if err != nil {
-		return fmt.Errorf("échec de l'ajout du user %s au match %s : %w", userID, matchID, err)
+		return fmt.Errorf("échec de l'ajout du user au match : %w", err)
 	}
-
 	return nil
 }
 
 func (db Database) IsUserInMatch(ctx context.Context, userID, matchID string) (bool, error) {
-	var count int
-	err := db.Database.GetContext(ctx, &count, `
-        SELECT COUNT(1)
+	var exists struct{}
+	err := db.Database.GetContext(ctx, &exists, `
+        SELECT 1
         FROM user_match
         WHERE user_id = $1 AND match_id = $2
+        LIMIT 1
     `, userID, matchID)
+
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
 		return false, fmt.Errorf("erreur lors de la vérification de user_match: %w", err)
 	}
-	return count > 0, nil
+	return true, nil
 }
 
 func (db Database) IncrementMatchParticipants(ctx context.Context, matchID string) error {

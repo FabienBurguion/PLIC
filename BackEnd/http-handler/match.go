@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 )
 
 // GetMatchByID godoc
@@ -151,7 +152,11 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to create match: "+err.Error())
 	}
 
-	if err := s.db.AddUserToMatch(ctx, auth.UserID, matchDb.Id); err != nil {
+	if err := s.db.AddUserToMatch(ctx, models.DBUserMatch{
+		UserID:    auth.UserID,
+		MatchID:   matchDb.Id,
+		CreatedAt: time.Now(),
+	}); err != nil {
 		log.Println("User creating match:", auth.UserID)
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to associate user to match: "+err.Error())
 	}
@@ -192,7 +197,11 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.
 		return httpx.WriteError(w, http.StatusConflict, "user already joined the match")
 	}
 
-	if err := s.db.AddUserToMatch(ctx, auth.UserID, matchID); err != nil {
+	if err := s.db.AddUserToMatch(ctx, models.DBUserMatch{
+		UserID:    auth.UserID,
+		MatchID:   matchID,
+		CreatedAt: time.Now(),
+	}); err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to join match: "+err.Error())
 	}
 
