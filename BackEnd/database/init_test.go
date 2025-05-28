@@ -22,8 +22,9 @@ type Service struct {
 }
 
 type DBFixtures struct {
-	Users  []models.DBUsers
-	Courts []models.DBCourt
+	Users   []models.DBUsers
+	Courts  []models.DBCourt
+	Matches []models.DBMatches
 }
 
 func findLatestMigrationFile(dir string) (string, error) {
@@ -147,5 +148,8 @@ func (s *Service) loadFixtures(fixtures DBFixtures) {
 		if err != nil {
 			panic(err)
 		}
+	}
+	for _, m := range fixtures.Matches {
+		_ = s.db.CreateMatch(ctx, m)
 	}
 }

@@ -88,7 +88,7 @@ func TestDatabase_GetAllTerrains(t *testing.T) {
 
 			// Insérer un terrain manuellement pour test
 			_, err := s.db.Database.ExecContext(ctx, `
-				INSERT INTO terrain (id, address, longitude, latitude)
+				INSERT INTO courts (id, address, longitude, latitude)
 				VALUES ($1, $2, $3, $4)`,
 				c.expected.Id, c.expected.Address, c.expected.Longitude, c.expected.Latitude,
 			)

@@ -10,7 +10,7 @@ import (
 
 func (db Database) InsertTerrain(ctx context.Context, id string, p models.Place) error {
 	_, err := db.Database.ExecContext(ctx, `
-		INSERT INTO terrain (id, address, longitude, latitude)
+		INSERT INTO courts (id, address, longitude, latitude)
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT DO NOTHING`,
 		id, p.Address, p.Geometry.Location.Lat, p.Geometry.Location.Lng,
@@ -27,7 +27,7 @@ func (db Database) GetTerrainByAddress(ctx context.Context, address string) (*mo
 
 	err := db.Database.GetContext(ctx, &court, `
 		SELECT id, address, longitude, latitude
-		FROM terrain
+		FROM courts
 		WHERE address = $1`, address)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -43,7 +43,7 @@ func (db Database) GetAllTerrains(ctx context.Context) ([]models.DBCourt, error)
 	var terrains []models.DBCourt
 	err := db.Database.SelectContext(ctx, &terrains, `
 		SELECT id, address, longitude, latitude
-		FROM terrain`)
+		FROM courts`)
 	if err != nil {
 		return nil, fmt.Errorf("échec de la récupération des terrains : %w", err)
 	}

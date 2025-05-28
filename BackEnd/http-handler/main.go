@@ -140,6 +140,7 @@ func main() {
 	s.GET("/match/all", withAuthentication(s.GetAllMatches))
 	s.GET("/match/{id}", withAuthentication(s.GetMatchByID))
 	s.POST("/match", withAuthentication(s.CreateMatch))
+	s.POST("/join/match/{id}", withAuthentication(s.JoinMatch))
 
 	//ENDPOINTS FOR USERS
 	s.GET("/users/{id}", withAuthentication(s.GetUserById))

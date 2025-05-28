@@ -22,23 +22,29 @@ const (
 type DBMatches struct {
 	Id              string    `db:"id"`
 	Sport           Sport     `db:"sport"`
-	Lieu            string    `db:"lieu"`
+	Place           string    `db:"place"`
 	Date            time.Time `db:"date"`
-	NbreParticipant int       `db:"nbre_participant"`
-	Etat            EtatMatch `db:"etat"`
+	ParticipantNber int       `db:"participant_nber"`
+	CurrentState    EtatMatch `db:"current_state"`
 	Score1          int       `db:"score1"`
 	Score2          int       `db:"score2"`
 }
 
-func (m DBMatches) ToMatchResponse() MatchResponse {
+func (m DBMatches) ToMatchResponse(users []DBUsers) MatchResponse {
+	userResponses := make([]UserResponse, len(users))
+	for i, u := range users {
+		userResponses[i] = u.ToUserResponse() // crée cette méthode si pas encore existante
+	}
+
 	return MatchResponse{
 		Id:              m.Id,
 		Sport:           m.Sport,
-		Lieu:            m.Lieu,
+		Place:           m.Place,
 		Date:            m.Date,
-		NbreParticipant: m.NbreParticipant,
-		Etat:            m.Etat,
+		ParticipantNber: m.ParticipantNber,
+		CurrentState:    m.CurrentState,
 		Score1:          m.Score1,
 		Score2:          m.Score2,
+		Users:           userResponses,
 	}
 }
