@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"sync"
-	"time"
 )
 
 // GetMatchByID godoc
@@ -218,7 +217,7 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.
 	if err := s.db.AddUserToMatch(ctx, models.DBUserMatch{
 		UserID:    auth.UserID,
 		MatchID:   matchID,
-		CreatedAt: time.Now(),
+		CreatedAt: s.clock.Now(),
 	}); err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to join match: "+err.Error())
 	}
