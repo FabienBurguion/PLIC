@@ -240,7 +240,6 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.
 // @Success      200  {object}  map[string]string "Match supprimé"
 // @Failure      400  {object}  models.Error      "ID manquant"
 // @Failure      401  {object}  models.Error      "Utilisateur non autorisé"
-// @Failure      404  {object}  models.Error      "Match non trouvé"
 // @Failure      500  {object}  models.Error      "Erreur lors de la suppression du match"
 // @Router       /match/{id} [delete]
 func (s *Service) DeleteMatch(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
@@ -254,14 +253,6 @@ func (s *Service) DeleteMatch(w http.ResponseWriter, r *http.Request, auth model
 	}
 
 	ctx := r.Context()
-
-	match, err := s.db.GetMatchById(ctx, matchID)
-	if err != nil {
-		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch match: "+err.Error())
-	}
-	if match == nil {
-		return httpx.WriteError(w, http.StatusNotFound, "match not found")
-	}
 
 	if err := s.db.DeleteMatch(ctx, matchID); err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to delete match: "+err.Error())

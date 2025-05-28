@@ -594,12 +594,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Error"
                         }
                     },
-                    "404": {
-                        "description": "Match non trouvé",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
                     "500": {
                         "description": "Erreur lors de la suppression du match",
                         "schema": {
