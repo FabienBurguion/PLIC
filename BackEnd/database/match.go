@@ -119,3 +119,15 @@ func (db Database) IncrementMatchParticipants(ctx context.Context, matchID strin
 	}
 	return nil
 }
+
+func (db Database) DeleteMatch(ctx context.Context, matchID string) error {
+	_, err := db.Database.ExecContext(ctx, `
+		DELETE FROM matches
+		WHERE id = $1
+	`, matchID)
+
+	if err != nil {
+		return fmt.Errorf("échec de la suppression du match %s : %w", matchID, err)
+	}
+	return nil
+}
