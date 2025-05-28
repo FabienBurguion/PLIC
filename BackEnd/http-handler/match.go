@@ -253,7 +253,6 @@ func (s *Service) DeleteMatch(w http.ResponseWriter, r *http.Request, auth model
 	}
 
 	ctx := r.Context()
-
 	if err := s.db.DeleteMatch(ctx, matchID); err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to delete match: "+err.Error())
 	}
