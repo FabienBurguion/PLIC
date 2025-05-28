@@ -19,6 +19,7 @@ import (
 // @Param        id   path      string  true  "Identifiant du match"
 // @Success      200  {object}  models.MatchResponse "Match trouvé"
 // @Failure      400  {object}  models.Error         "ID manquant ou invalide"
+// @Failure      401   {object}  models.Error       "Utilisateur non autorisé"
 // @Failure      404  {object}  models.Error         "Match non trouvé"
 // @Failure      500  {object}  models.Error         "Erreur serveur ou base de données"
 // @Router       /match/{id} [get]
@@ -77,6 +78,7 @@ func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, auth mode
 // @Tags         match
 // @Produce      json
 // @Success      200  {array}   models.MatchResponse "Liste des matchs"
+// @Failure      401   {object}  models.Error       "Utilisateur non autorisé"
 // @Failure      500  {object}  models.Error          "Erreur serveur lors de la récupération des matchs"
 // @Router       /match/all [get]
 func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
@@ -129,6 +131,7 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, auth mod
 // @Param        match  body      models.MatchRequest  true  "Objet match à créer"
 // @Success      201    {object}  map[string]string    "Match créé avec succès"
 // @Failure      400    {object}  models.Error         "Données invalides ou champ ID manquant"
+// @Failure      401   {object}  models.Error       "Utilisateur non autorisé"
 // @Failure      500    {object}  models.Error         "Erreur lors de la création du match"
 // @Router       /match [post]
 func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
@@ -169,6 +172,19 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 	return httpx.Write(w, http.StatusCreated, response)
 }
 
+// JoinMatch godoc
+// @Summary      Un utilisateur rejoint un match
+// @Description  Permet à un utilisateur authentifié de rejoindre un match existant, si ce n’est pas déjà fait
+// @Tags         match
+// @Produce      json
+// @Param        id    path      string             true  "Identifiant du match"
+// @Success      200   {object}  map[string]string  "Utilisateur a rejoint le match avec succès"
+// @Failure      400   {object}  models.Error       "Identifiant manquant"
+// @Failure      401   {object}  models.Error       "Utilisateur non autorisé"
+// @Failure      404   {object}  models.Error       "Match non trouvé"
+// @Failure      409   {object}  models.Error       "Utilisateur déjà inscrit au match"
+// @Failure      500   {object}  models.Error       "Erreur lors de l'inscription de l'utilisateur au match"
+// @Router       /match/join/{id} [post]
 func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
 	ctx := r.Context()
 
@@ -211,6 +227,48 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.
 
 	return httpx.Write(w, http.StatusOK, map[string]string{
 		"status": "joined match",
+		"id":     matchID,
+	})
+}
+
+// DeleteMatch godoc
+// @Summary      Supprime un match
+// @Description  Supprime un match via son ID
+// @Tags         match
+// @Produce      json
+// @Param        id   path      string  true  "Identifiant du match à supprimer"
+// @Success      200  {object}  map[string]string "Match supprimé"
+// @Failure      400  {object}  models.Error      "ID manquant"
+// @Failure      401  {object}  models.Error      "Utilisateur non autorisé"
+// @Failure      404  {object}  models.Error      "Match non trouvé"
+// @Failure      500  {object}  models.Error      "Erreur lors de la suppression du match"
+// @Router       /match/{id} [delete]
+func (s *Service) DeleteMatch(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
+	if !auth.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
+	matchID := chi.URLParam(r, "id")
+	if matchID == "" {
+		return httpx.WriteError(w, http.StatusBadRequest, "missing match ID")
+	}
+
+	ctx := r.Context()
+
+	match, err := s.db.GetMatchById(ctx, matchID)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch match: "+err.Error())
+	}
+	if match == nil {
+		return httpx.WriteError(w, http.StatusNotFound, "match not found")
+	}
+
+	if err := s.db.DeleteMatch(ctx, matchID); err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to delete match: "+err.Error())
+	}
+
+	return httpx.Write(w, http.StatusOK, map[string]string{
+		"status": "deleted match",
 		"id":     matchID,
 	})
 }

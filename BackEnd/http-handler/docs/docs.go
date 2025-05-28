@@ -89,6 +89,35 @@ const docTemplate = `{
                 }
             }
         },
+        "/court/all": {
+            "get": {
+                "description": "Retourne la liste de tous les terrains enregistrés en base de données",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "terrain"
+                ],
+                "summary": "Liste tous les terrains",
+                "responses": {
+                    "200": {
+                        "description": "Liste des terrains",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.DBCourt"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur lors de la récupération des terrains",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/email": {
             "post": {
                 "description": "Sends a test email to the specified address",
@@ -361,6 +390,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Error"
                         }
                     },
+                    "401": {
+                        "description": "Utilisateur non autorisé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
                     "500": {
                         "description": "Erreur lors de la création du match",
                         "schema": {
@@ -390,8 +425,76 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "401": {
+                        "description": "Utilisateur non autorisé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
                     "500": {
                         "description": "Erreur serveur lors de la récupération des matchs",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/match/join/{id}": {
+            "post": {
+                "description": "Permet à un utilisateur authentifié de rejoindre un match existant, si ce n’est pas déjà fait",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Un utilisateur rejoint un match",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Identifiant du match",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Utilisateur a rejoint le match avec succès",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Identifiant manquant",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Utilisateur non autorisé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Match non trouvé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Utilisateur déjà inscrit au match",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur lors de l'inscription de l'utilisateur au match",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -431,6 +534,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Error"
                         }
                     },
+                    "401": {
+                        "description": "Utilisateur non autorisé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
                     "404": {
                         "description": "Match non trouvé",
                         "schema": {
@@ -439,6 +548,60 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Erreur serveur ou base de données",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Supprime un match via son ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Supprime un match",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Identifiant du match à supprimer",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Match supprimé",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "ID manquant",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Utilisateur non autorisé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Match non trouvé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur lors de la suppression du match",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -771,6 +934,26 @@ const docTemplate = `{
                 }
             }
         },
+        "models.DBCourt": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                }
+            }
+        },
         "models.Error": {
             "type": "object",
             "properties": {
@@ -859,7 +1042,7 @@ const docTemplate = `{
                 "date": {
                     "type": "string"
                 },
-                "lieu": {
+                "place": {
                     "type": "string"
                 },
                 "sport": {
@@ -870,20 +1053,20 @@ const docTemplate = `{
         "models.MatchResponse": {
             "type": "object",
             "properties": {
+                "current_state": {
+                    "$ref": "#/definitions/models.EtatMatch"
+                },
                 "date": {
                     "type": "string"
-                },
-                "etat": {
-                    "$ref": "#/definitions/models.EtatMatch"
                 },
                 "id": {
                     "type": "string"
                 },
-                "lieu": {
-                    "type": "string"
-                },
-                "nbre_participant": {
+                "participant_nber": {
                     "type": "integer"
+                },
+                "place": {
+                    "type": "string"
                 },
                 "score1": {
                     "type": "integer"
@@ -893,6 +1076,12 @@ const docTemplate = `{
                 },
                 "sport": {
                     "$ref": "#/definitions/models.Sport"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.UserResponse"
+                    }
                 }
             }
         },
