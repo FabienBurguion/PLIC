@@ -29,3 +29,5 @@ bootstrap
 
 .idea/
 demo.txt
+
+Makefile
