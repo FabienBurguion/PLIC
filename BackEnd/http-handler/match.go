@@ -160,7 +160,7 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 	if err := s.db.AddUserToMatch(ctx, models.DBUserMatch{
 		UserID:    auth.UserID,
 		MatchID:   matchDb.Id,
-		CreatedAt: time.Now(),
+		CreatedAt: s.clock.Now(),
 	}); err != nil {
 		log.Println("User creating match:", auth.UserID)
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to associate user to match: "+err.Error())
