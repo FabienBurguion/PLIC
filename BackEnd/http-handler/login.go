@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-var tokenDuration = time.Now().Add(24 * time.Hour).Unix()
+var tokenDuration = time.Now().Add(30 * 24 * time.Hour).Unix()
 
 func GenerateJWT(userID string) (string, error) {
 	claims := jwt.MapClaims{
