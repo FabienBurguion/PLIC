@@ -84,9 +84,11 @@ func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, auth mode
 func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
 	ctx := r.Context()
 
-	if !auth.IsConnected {
-		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
-	}
+	/*
+		if !auth.IsConnected {
+			return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+		}
+	*/
 
 	matches, err := s.db.GetAllMatches(ctx)
 	if err != nil {
