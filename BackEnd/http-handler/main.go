@@ -58,7 +58,14 @@ func (s *Service) InitService() {
 	s.server.Use(middleware.RequestID)
 	s.server.Use(middleware.Timeout(5 * time.Second))
 	s.server.Use(middleware.Heartbeat("/ping"))
-	s.clock = Clock{offset: time.Hour}
+
+	parisLocation, err := time.LoadLocation("Europe/Paris")
+	if err != nil {
+		panic(err)
+	}
+
+	s.clock = Clock{location: parisLocation}
+
 	s.mailer = &mailer.Mailer{
 		LastSentAt:  make(map[string]time.Time),
 		AlreadySent: make(map[string]bool),
