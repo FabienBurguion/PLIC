@@ -124,7 +124,7 @@ func (s *Service) PatchUser(w http.ResponseWriter, r *http.Request, ai models.Au
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
 
-	err := s.db.UpdateUser(ctx, req, id)
+	err := s.db.UpdateUser(ctx, req, id, s.clock.Now())
 
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())

@@ -6,7 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
+	"time"
 )
 
 func (db Database) CheckUserExist(ctx context.Context, id string) (bool, error) {
@@ -77,7 +77,7 @@ func (db Database) GetUserById(ctx context.Context, id string) (*models.DBUsers,
 	return &user, nil
 }
 
-func (db Database) UpdateUser(ctx context.Context, data models.UserPatchRequest, userId string) error {
+func (db Database) UpdateUser(ctx context.Context, data models.UserPatchRequest, userId string, now time.Time) error {
 	query := "UPDATE users SET"
 	var args []interface{}
 	argPos := 1
@@ -102,7 +102,10 @@ func (db Database) UpdateUser(ctx context.Context, data models.UserPatchRequest,
 		return nil
 	}
 
-	query = strings.TrimSuffix(query, ",")
+	query += fmt.Sprintf(" updated_at = $%d", argPos)
+	args = append(args, now)
+	argPos++
+
 	query += fmt.Sprintf(" WHERE id = $%d", argPos)
 	args = append(args, userId)
 

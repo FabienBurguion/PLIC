@@ -30,10 +30,10 @@ type DBMatches struct {
 	Score2          int       `db:"score2"`
 }
 
-func (m DBMatches) ToMatchResponse(users []DBUsers) MatchResponse {
+func (m DBMatches) ToMatchResponse(users []DBUsers, profilePictures []string) MatchResponse {
 	userResponses := make([]UserResponse, len(users))
 	for i, u := range users {
-		userResponses[i] = u.ToUserResponse() // crée cette méthode si pas encore existante
+		userResponses[i] = u.ToUserResponse(profilePictures[i])
 	}
 
 	return MatchResponse{

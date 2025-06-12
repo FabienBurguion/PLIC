@@ -240,10 +240,11 @@ func TestDatabase_ChangePassword(t *testing.T) {
 
 func TestDatabase_UpdateUser(t *testing.T) {
 	type testCase struct {
-		name     string
-		fixtures DBFixtures
-		param    models.UserPatchRequest
-		nilUser  bool
+		name          string
+		fixtures      DBFixtures
+		param         models.UserPatchRequest
+		newUpdateTime time.Time
+		nilUser       bool
 	}
 
 	userId := uuid.NewString()
@@ -256,6 +257,8 @@ func TestDatabase_UpdateUser(t *testing.T) {
 	newEmail := "<EMAIL2>"
 	newBio := "A new bio"
 
+	newUpdatedTime := time.Now().UTC().Add(time.Hour)
+
 	testCases := []testCase{
 		{
 			name: "Basic test",
@@ -265,7 +268,8 @@ func TestDatabase_UpdateUser(t *testing.T) {
 						WithId(userId).
 						WithUsername(username).
 						WithEmail(email).
-						WithBio(bio),
+						WithBio(bio).
+						WitUpdatedAt(time.Now()),
 				},
 			},
 			param: models.UserPatchRequest{
@@ -273,7 +277,8 @@ func TestDatabase_UpdateUser(t *testing.T) {
 				Email:    ptr(newEmail),
 				Bio:      ptr(newBio),
 			},
-			nilUser: false,
+			newUpdateTime: newUpdatedTime,
+			nilUser:       false,
 		},
 		{
 			name: "Bio only",
@@ -291,7 +296,8 @@ func TestDatabase_UpdateUser(t *testing.T) {
 				Email:    nil,
 				Bio:      ptr(newBio),
 			},
-			nilUser: false,
+			newUpdateTime: newUpdatedTime,
+			nilUser:       false,
 		},
 		{
 			name: "Username + email",
@@ -309,7 +315,8 @@ func TestDatabase_UpdateUser(t *testing.T) {
 				Email:    ptr(newEmail),
 				Bio:      nil,
 			},
-			nilUser: false,
+			newUpdateTime: newUpdatedTime,
+			nilUser:       false,
 		},
 		{
 			name: "No users",
@@ -318,7 +325,8 @@ func TestDatabase_UpdateUser(t *testing.T) {
 				Email:    ptr(newEmail),
 				Bio:      ptr(newBio),
 			},
-			nilUser: true,
+			newUpdateTime: newUpdatedTime,
+			nilUser:       true,
 		},
 	}
 
@@ -331,7 +339,7 @@ func TestDatabase_UpdateUser(t *testing.T) {
 
 			ctx := context.Background()
 
-			err := s.db.UpdateUser(ctx, c.param, userId)
+			err := s.db.UpdateUser(ctx, c.param, userId, c.newUpdateTime)
 			require.NoError(t, err)
 			user, err := s.db.GetUserById(ctx, userId)
 			require.NoError(t, err)
@@ -340,6 +348,9 @@ func TestDatabase_UpdateUser(t *testing.T) {
 				require.Nil(t, user)
 				return
 			}
+
+			require.WithinDuration(t, c.newUpdateTime, user.UpdatedAt, time.Millisecond,
+				"expected UpdatedAt to be within 1ms of %v, got %v", c.newUpdateTime, user.UpdatedAt)
 
 			if c.param.Username != nil {
 				require.Equal(t, user.Username, newUsername)

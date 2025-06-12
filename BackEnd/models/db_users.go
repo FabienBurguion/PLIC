@@ -52,12 +52,21 @@ func (u DBUsers) WithBio(bio string) DBUsers {
 	return u
 }
 
-func (u DBUsers) ToUserResponse() UserResponse {
+func (u DBUsers) WitUpdatedAt(updatedAt time.Time) DBUsers {
+	u.UpdatedAt = updatedAt
+	return u
+}
+
+func (u DBUsers) ToUserResponse(profilePictureUrl string) UserResponse {
+	var p *string
+	if profilePictureUrl != "" {
+		p = &profilePictureUrl
+	}
 	return UserResponse{
 		Username:       u.Username,
 		Bio:            u.Bio,
 		CreatedAt:      u.CreatedAt,
-		ProfilePicture: nil, // Tu peux ajouter ton s3 logic ici si nécessaire
+		ProfilePicture: p,   // Tu peux ajouter ton s3 logic ici si nécessaire
 		VisitedFields:  0,   // TODO
 		Winrate:        nil, // TODO
 		FavoriteCity:   nil, // TODO
