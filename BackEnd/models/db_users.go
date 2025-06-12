@@ -66,7 +66,7 @@ func (u DBUsers) ToUserResponse(profilePictureUrl string) UserResponse {
 		Username:       u.Username,
 		Bio:            u.Bio,
 		CreatedAt:      u.CreatedAt,
-		ProfilePicture: p,   // Tu peux ajouter ton s3 logic ici si nécessaire
+		ProfilePicture: p,
 		VisitedFields:  0,   // TODO
 		Winrate:        nil, // TODO
 		FavoriteCity:   nil, // TODO
