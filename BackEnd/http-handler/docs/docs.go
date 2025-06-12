@@ -1082,10 +1082,10 @@ const docTemplate = `{
         "models.RegisterRequest": {
             "type": "object",
             "properties": {
-                "password": {
+                "email": {
                     "type": "string"
                 },
-                "username": {
+                "password": {
                     "type": "string"
                 }
             }

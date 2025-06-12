@@ -106,9 +106,9 @@ definitions:
     type: object
   models.RegisterRequest:
     properties:
-      password:
+      email:
         type: string
-      username:
+      password:
         type: string
     type: object
   models.Sport:
