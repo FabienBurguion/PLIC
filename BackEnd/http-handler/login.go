@@ -32,8 +32,8 @@ func GenerateJWT(userID string) (string, error) {
 }
 
 // Login godoc
-// @Summary      Login a param
-// @Description  Authenticate a param with username and password
+// @Summary      Login a user
+// @Description  Authenticate a user with username and password
 // @Tags         auth
 // @Accept       json
 // @Produce      json
@@ -73,8 +73,8 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, _ models.AuthInf
 }
 
 // Register godoc
-// @Summary      Register a new param
-// @Description  Register a param with username and password
+// @Summary      Register a new user
+// @Description  Register a user with username and password
 // @Tags         auth
 // @Accept       json
 // @Produce      json
