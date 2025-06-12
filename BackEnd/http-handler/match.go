@@ -67,17 +67,26 @@ func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, auth mode
 		log.Println("error getting users fom match", usersErr)
 	}
 
-	var profilePictures []string
+	var (
+		profilePictures = make([]string, len(users))
+		wg2             sync.WaitGroup
+	)
 
-	for _, user := range users {
-		profilePicture, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-		if err != nil {
-			log.Println("error getting profile picture:", err)
-			profilePictures = append(profilePictures, "")
-		} else {
-			profilePictures = append(profilePictures, profilePicture.URL)
-		}
+	for i, user := range users {
+		wg2.Add(1)
+		go func(i int, user models.DBUsers) {
+			defer wg2.Done()
+			profilePicture, err := s.s3Service.GetProfilePicture(ctx, user.Id)
+			if err != nil {
+				log.Println("error getting profile picture:", err)
+				profilePictures[i] = ""
+			} else {
+				profilePictures[i] = profilePicture.URL
+			}
+		}(i, user)
 	}
+
+	wg2.Wait()
 
 	response := match.ToMatchResponse(users, profilePictures)
 	return httpx.Write(w, http.StatusOK, response)
@@ -122,17 +131,26 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, auth mod
 				log.Printf("warning: could not fetch users for match %s: %v", match.Id, userErr)
 			}
 
-			var profilePictures []string
+			var (
+				profilePictures = make([]string, len(users))
+				wg              sync.WaitGroup
+			)
 
-			for _, user := range users {
-				profilePicture, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-				if err != nil {
-					log.Println("error getting profile picture:", err)
-					profilePictures = append(profilePictures, "")
-				} else {
-					profilePictures = append(profilePictures, profilePicture.URL)
-				}
+			for i, user := range users {
+				wg.Add(1)
+				go func(i int, user models.DBUsers) {
+					defer wg.Done()
+					profilePicture, err := s.s3Service.GetProfilePicture(ctx, user.Id)
+					if err != nil {
+						log.Println("error getting profile picture:", err)
+						profilePictures[i] = ""
+					} else {
+						profilePictures[i] = profilePicture.URL
+					}
+				}(i, user)
 			}
+
+			wg.Wait()
 
 			mr := match.ToMatchResponse(users, profilePictures)
 
@@ -192,17 +210,26 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch users: "+err.Error())
 	}
-	var profilePictures []string
+	var (
+		profilePictures = make([]string, len(users))
+		wg              sync.WaitGroup
+	)
 
-	for _, user := range users {
-		profilePicture, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-		if err != nil {
-			log.Println("error getting profile picture:", err)
-			profilePictures = append(profilePictures, "")
-		} else {
-			profilePictures = append(profilePictures, profilePicture.URL)
-		}
+	for i, user := range users {
+		wg.Add(1)
+		go func(i int, user models.DBUsers) {
+			defer wg.Done()
+			profilePicture, err := s.s3Service.GetProfilePicture(ctx, user.Id)
+			if err != nil {
+				log.Println("error getting profile picture:", err)
+				profilePictures[i] = ""
+			} else {
+				profilePictures[i] = profilePicture.URL
+			}
+		}(i, user)
 	}
+
+	wg.Wait()
 	response := matchDb.ToMatchResponse(users, profilePictures)
 
 	return httpx.Write(w, http.StatusCreated, response)
