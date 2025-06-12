@@ -348,7 +348,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Authenticate a param with username and password
+      description: Authenticate a user with username and password
       parameters:
       - description: User credentials
         in: body
@@ -375,7 +375,7 @@ paths:
           description: Internal server error
           schema:
             $ref: '#/definitions/models.Error'
-      summary: Login a param
+      summary: Login a user
       tags:
       - auth
   /match:
@@ -595,7 +595,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Register a param with username and password
+      description: Register a user with username and password
       parameters:
       - description: User credentials
         in: body
@@ -622,7 +622,7 @@ paths:
           description: Internal server error
           schema:
             $ref: '#/definitions/models.Error'
-      summary: Register a new param
+      summary: Register a new user
       tags:
       - auth
   /reset-password/{token}:

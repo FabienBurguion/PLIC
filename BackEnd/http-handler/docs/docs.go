@@ -300,7 +300,7 @@ const docTemplate = `{
         },
         "/login": {
             "post": {
-                "description": "Authenticate a param with username and password",
+                "description": "Authenticate a user with username and password",
                 "consumes": [
                     "application/json"
                 ],
@@ -310,7 +310,7 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Login a param",
+                "summary": "Login a user",
                 "parameters": [
                     {
                         "description": "User credentials",
@@ -669,7 +669,7 @@ const docTemplate = `{
         },
         "/register": {
             "post": {
-                "description": "Register a param with username and password",
+                "description": "Register a user with username and password",
                 "consumes": [
                     "application/json"
                 ],
@@ -679,7 +679,7 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Register a new param",
+                "summary": "Register a new user",
                 "parameters": [
                     {
                         "description": "User credentials",
