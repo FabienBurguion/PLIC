@@ -8,9 +8,6 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: BackEnd
 
     steps:
       - name: Checkout code
@@ -23,9 +20,11 @@ jobs:
 
       - name: Install dependencies
         run: go mod download
+        working-directory: BackEnd
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.56
+          working-directory: BackEnd
           args: ./...
