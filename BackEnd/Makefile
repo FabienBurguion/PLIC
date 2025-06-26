@@ -16,7 +16,7 @@ docker-down:
 .PHONY: test
 test:
 	docker compose up -d
-	go test ./... -v
+	go test ./... -v -coverprofile=coverage.out
 	docker compose down -v
 
 .PHONY: zip-windows
