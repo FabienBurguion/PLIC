@@ -8,6 +8,9 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: BackEnd
 
     steps:
       - name: Checkout code
@@ -20,11 +23,11 @@ jobs:
 
       - name: Install dependencies
         run: go mod download
-        working-directory: BackEnd
+
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.56.2
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: v1.56
-          working-directory: BackEnd
-          args: ./...
+        run: golangci-lint run ./...
