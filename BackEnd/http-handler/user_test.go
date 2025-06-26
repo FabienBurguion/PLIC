@@ -73,7 +73,9 @@ func Test_GetUserById(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 
 			bodyBytes, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
@@ -225,7 +227,9 @@ func Test_PatchUser(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 
 			require.Equal(t, c.expectedCode, resp.StatusCode)
 
@@ -332,7 +336,9 @@ func Test_DeleteUser(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 
 			require.Equal(t, c.expected.expectedCode, resp.StatusCode)
 

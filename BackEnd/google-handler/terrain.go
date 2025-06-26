@@ -4,6 +4,7 @@ import (
 	"PLIC/models"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 )
@@ -17,7 +18,9 @@ func GetPlaces(baseUrl string, latitude, longitude float64, apiKey string) ([]mo
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 	var data models.GooglePlacesResponse
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return nil, err

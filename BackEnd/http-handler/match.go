@@ -5,6 +5,7 @@ import (
 	"PLIC/models"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
+	"io"
 	"log"
 	"net/http"
 	"sync"
@@ -181,7 +182,9 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 	var match models.MatchRequest
 
 	decoder := json.NewDecoder(r.Body)
-	defer r.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(r.Body)
 	if err := decoder.Decode(&match); err != nil {
 		return httpx.WriteError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -117,7 +118,9 @@ func TestService_Login(t *testing.T) {
 			err := s.Login(w, req, models.AuthInfo{})
 			require.NoError(t, err)
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 			require.Equal(t, c.expected.code, resp.StatusCode)
 			if c.expected.code != http.StatusOK {
 				return
@@ -139,15 +142,11 @@ func TestService_Login(t *testing.T) {
 }
 
 func TestService_Register(t *testing.T) {
-	type expected struct {
-		code     int
-		response models.LoginResponse
-	}
 	type testCase struct {
 		name     string
 		fixtures DBFixtures
 		param    models.RegisterRequest
-		expected expected
+		expected int
 	}
 
 	userId := uuid.NewString()
@@ -164,9 +163,7 @@ func TestService_Register(t *testing.T) {
 				Email:    email,
 				Password: password,
 			},
-			expected: expected{
-				code: http.StatusCreated,
-			},
+			expected: http.StatusCreated,
 		},
 		{
 			name: "Empty email => bad request",
@@ -177,9 +174,7 @@ func TestService_Register(t *testing.T) {
 				Email:    "",
 				Password: password,
 			},
-			expected: expected{
-				code: http.StatusBadRequest,
-			},
+			expected: http.StatusBadRequest,
 		},
 		{
 			name: "Empty password => bad request",
@@ -190,9 +185,7 @@ func TestService_Register(t *testing.T) {
 				Email:    email,
 				Password: "",
 			},
-			expected: expected{
-				code: http.StatusBadRequest,
-			},
+			expected: http.StatusBadRequest,
 		},
 		{
 			name: "User already exists -> 401",
@@ -207,9 +200,7 @@ func TestService_Register(t *testing.T) {
 				Email:    email,
 				Password: password,
 			},
-			expected: expected{
-				code: http.StatusUnauthorized,
-			},
+			expected: http.StatusUnauthorized,
 		},
 	}
 
@@ -230,10 +221,12 @@ func TestService_Register(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
-			require.Equal(t, c.expected.code, resp.StatusCode)
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
+			require.Equal(t, c.expected, resp.StatusCode)
 
-			if c.expected.code != http.StatusCreated {
+			if c.expected != http.StatusCreated {
 				return
 			}
 
@@ -341,7 +334,9 @@ func TestService_ForgetPassword(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 			require.Equal(t, c.expected.statusCode, resp.StatusCode)
 			if c.expected.statusCode != http.StatusOK {
 				return
@@ -433,7 +428,9 @@ func TestService_ResetPassword(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 			require.Equal(t, c.expected.statusCode, resp.StatusCode)
 
 			if c.expected.statusCode != http.StatusOK {
@@ -552,7 +549,9 @@ func TestService_ChangePassword(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 			require.Equal(t, c.expected.statusCode, resp.StatusCode)
 			if c.expected.statusCode != http.StatusOK {
 				return

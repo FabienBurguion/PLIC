@@ -1,11 +1,6 @@
 package main
 
-import (
-	"PLIC/models"
-	"context"
-	"github.com/stretchr/testify/mock"
-)
-
+/*
 type mockDB struct {
 	mock.Mock
 }
@@ -19,6 +14,7 @@ func (m *mockDB) InsertTerrain(ctx context.Context, id string, place models.Plac
 	args := m.Called(ctx, id, place)
 	return args.Error(0)
 }
+*/
 
 /*func TestService_HandleSyncGooglePlaces(t *testing.T) {
 	mockedDB := new(mockDB)

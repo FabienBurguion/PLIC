@@ -32,7 +32,11 @@ func (s *Service) UploadImageToS3(w http.ResponseWriter, r *http.Request, _ mode
 		log.Printf("fichier non trouvé: %v", err)
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("Erreur lors de la fermeture du fichier : %v", err)
+		}
+	}()
 
 	buf := new(bytes.Buffer)
 	_, err = buf.ReadFrom(file)
@@ -106,7 +110,11 @@ func (s *Service) UploadProfilePictureToS3(w http.ResponseWriter, r *http.Reques
 		log.Printf("fichier non trouvé: %v", err)
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("Erreur lors de la fermeture du fichier : %v", err)
+		}
+	}()
 
 	buf := new(bytes.Buffer)
 	_, err = buf.ReadFrom(file)
