@@ -9,7 +9,7 @@ on:
 jobs:
   security:
     name: Scan de vulnérabilités et audit de sécurité
-    runs-on: ubuntu-latest  # Linux Debian-based par défaut
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout du code
@@ -23,13 +23,13 @@ jobs:
     - name: Installer govulncheck
       run: go install golang.org/x/vuln/cmd/govulncheck@latest
 
-    - name: Scanner les vulnérabilités (govulncheck)
+    - name: Scanner les vulnérabilités
       run: govulncheck ./...
 
     - name: Installer gosec
       run: go install github.com/securego/gosec/v2/cmd/gosec@latest
 
-    - name: Audit du code (gosec) avec rapport HTML
+    - name: Audit du code avec rapport HTML
       run: |
         mkdir -p reports
         gosec -fmt=html -out=reports/gosec-report.html ./...
