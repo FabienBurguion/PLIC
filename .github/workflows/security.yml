@@ -1,0 +1,42 @@
+name: Analyse de sécurité
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  security:
+    name: Scan de vulnérabilités et audit de sécurité
+    runs-on: ubuntu-latest  # Linux Debian-based par défaut
+
+    steps:
+    - name: Checkout du code
+      uses: actions/checkout@v3
+
+    - name: Setup Go 1.24.0
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.24.0'
+
+    - name: Installer govulncheck
+      run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+    - name: Scanner les vulnérabilités (govulncheck)
+      run: govulncheck ./...
+
+    - name: Installer gosec
+      run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+
+    - name: Audit du code (gosec) avec rapport HTML
+      run: |
+        mkdir -p reports
+        gosec -fmt=html -out=reports/gosec-report.html ./...
+
+    - name: Upload du rapport HTML comme artefact
+      uses: actions/upload-artifact@v4
+      with:
+        name: gosec-report
+        path: reports/gosec-report.html
+
