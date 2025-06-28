@@ -24,14 +24,14 @@ jobs:
       run: go install golang.org/x/vuln/cmd/govulncheck@latest
 
     - name: Scanner les vulnérabilités
-      working-directory: ./Backend
+      working-directory: ./BackEnd
       run: govulncheck ./...
 
     - name: Installer gosec
       run: go install github.com/securego/gosec/v2/cmd/gosec@latest
 
     - name: Audit du code avec rapport HTML
-      working-directory: ./Backend
+      working-directory: ./BackEnd
       run: |
         mkdir -p reports
         gosec -fmt=html -out=reports/gosec-report.html ./...
@@ -40,5 +40,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: gosec-report
-        path: reports/gosec-report.html
+        path: BackEnd/reports/gosec-report.html
 
