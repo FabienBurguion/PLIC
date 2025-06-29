@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: BackEnd
+        working-directory: .
 
     steps:
       - name: Checkout code
@@ -32,4 +32,4 @@ jobs:
           go mod download
 
       - name: Run linter
-        run: make lint
+        run: make -C BackEnd lint
