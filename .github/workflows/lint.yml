@@ -16,9 +16,44 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build golangci-lint custom image
-        run: docker build -t golangci-lint-custom .
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24rc3' # ou 1.24 si stable plus tard
 
-      - name: Run golangci-lint in container with Go 1.24
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('BackEnd/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
         run: |
-          docker run --rm -v $(pwd):/app -w /app golangci-lint-custom run ./...
+          go mod tidy
+          go mod download
+
+      - name: Build custom golangci-lint Docker image
+        run: |
+          cat <<EOF > Dockerfile.lint
+          FROM golang:1.24rc3
+
+          RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.56.2
+
+          WORKDIR /app
+          COPY . .
+
+          RUN cd BackEnd && go mod tidy && go mod download
+
+          WORKDIR /app/BackEnd
+          ENTRYPOINT ["golangci-lint"]
+          CMD ["run", "./..."]
+          EOF
+
+          docker build -f Dockerfile.lint -t golangci-lint-custom .
+
+      - name: Run golangci-lint in Docker
+        run: docker run --rm golangci-lint-custom
