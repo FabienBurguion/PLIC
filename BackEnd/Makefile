@@ -38,8 +38,4 @@ generate-swagger:
 
 .PHONY: lint
 lint:
-	docker run --rm \
-		-v $(PWD):/app \
-		-w /app \
-		golangci/golangci-lint:v1.56.2 \
-		golangci-lint run ./...
+	golangci-lint run ./...
