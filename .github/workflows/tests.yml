@@ -2,6 +2,8 @@ name: Run Tests and Coverage
 
 on:
   pull_request:
+    paths:
+      - 'BackEnd/**'
 
 jobs:
   test:
