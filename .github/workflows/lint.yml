@@ -8,9 +8,6 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: BackEnd
 
     steps:
       - name: Checkout code
@@ -32,6 +29,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Install dependencies
+        working-directory: BackEnd
         run: |
           go mod tidy
           go mod download
@@ -42,13 +40,15 @@ jobs:
           FROM golang:1.23
 
           RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.56.2
-          
+
           WORKDIR /app
-          
+
           COPY . .
-          
+
+          WORKDIR /app/BackEnd
+
           RUN go mod tidy && go mod download
-          
+
           ENTRYPOINT ["golangci-lint"]
           CMD ["run", "./..."]
           EOF
