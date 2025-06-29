@@ -35,3 +35,7 @@ clean-windows:
 .PHONY: generate-swagger
 generate-swagger:
 	cd http-handler && swag init --parseDependency --parseInternal
+
+.PHONY: lint
+lint:
+	golangci-lint run
