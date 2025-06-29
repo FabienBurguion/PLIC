@@ -27,6 +27,9 @@ jobs:
       - name: Check go.mod presence
         run: ls -la
 
+      - name: Tidy go.mod
+        run: go mod tidy
+
       - name: Install dependencies
         run: go mod download
 
