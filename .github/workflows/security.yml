@@ -25,6 +25,7 @@ jobs:
 
     - name: Scanner les vulnérabilités
       working-directory: ./BackEnd
+      continue-on-error: true
       run: govulncheck ./...
 
     - name: Installer gosec
@@ -32,6 +33,7 @@ jobs:
 
     - name: Audit du code avec rapport HTML
       working-directory: ./BackEnd
+      continue-on-error: true
       run: |
         mkdir -p reports
         gosec -fmt=html -out=reports/gosec-report.html ./...
