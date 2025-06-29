@@ -39,16 +39,16 @@ jobs:
       - name: Build custom golangci-lint Docker image
         run: |
           cat <<EOF > Dockerfile.lint
-          FROM golang:1.24rc3
+          FROM golang:1.23
 
           RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.56.2
-
+          
           WORKDIR /app
+          
           COPY . .
-
-          RUN cd BackEnd && go mod tidy && go mod download
-
-          WORKDIR /app/BackEnd
+          
+          RUN go mod tidy && go mod download
+          
           ENTRYPOINT ["golangci-lint"]
           CMD ["run", "./..."]
           EOF
