@@ -16,15 +16,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
+      - name: Build golangci-lint custom image
+        run: docker build -t golangci-lint-custom .
 
-      - name: Run golangci-lint via Docker
+      - name: Run golangci-lint in container with Go 1.24
         run: |
-          docker run --rm \
-            -v $(pwd):/app \
-            -w /app \
-            golangci/golangci-lint:v1.56.2 \
-            golangci-lint run ./...
+          docker run --rm -v $(pwd):/app -w /app golangci-lint-custom run ./...
