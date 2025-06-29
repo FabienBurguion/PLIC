@@ -38,4 +38,6 @@ generate-swagger:
 
 .PHONY: lint
 lint:
+	go mod tidy
+	go mod download
 	golangci-lint run ./...
