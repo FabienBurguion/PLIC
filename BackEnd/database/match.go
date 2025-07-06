@@ -58,6 +58,35 @@ func (db Database) GetUsersByMatchId(ctx context.Context, matchId string) ([]mod
 	return users, nil
 }
 
+func (db Database) GetMatchesByUserID(ctx context.Context, userID string) ([]models.GetMatchByUserIdResponses, error) {
+	var dbMatches []models.DBMatchByUserId
+	err := db.Database.SelectContext(ctx, &dbMatches, `
+		SELECT m.id, m.sport, m.place, m.date, m.participant_nber, m.current_state, m.score1, m.score2
+		FROM matches m
+		JOIN user_match um ON m.id = um.match_id
+		WHERE um.user_id = $1
+		ORDER BY m.date DESC
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("error querying matches for user: %w", err)
+	}
+	res := make([]models.GetMatchByUserIdResponses, len(dbMatches))
+	for i, m := range dbMatches {
+		res[i] = models.GetMatchByUserIdResponses{
+			Id:              m.Id,
+			Sport:           m.Sport,
+			Place:           m.Place,
+			Date:            m.Date,
+			ParticipantNber: m.ParticipantNber,
+			CurrentState:    m.CurrentState,
+			Score1:          m.Score1,
+			Score2:          m.Score2,
+		}
+	}
+
+	return res, nil
+}
+
 func (db Database) GetAllMatches(ctx context.Context) ([]models.DBMatches, error) {
 	var matches []models.DBMatches
 	err := db.Database.SelectContext(ctx, &matches, `
@@ -130,4 +159,11 @@ func (db Database) DeleteMatch(ctx context.Context, matchID string) error {
 		return fmt.Errorf("échec de la suppression du match %s : %w", matchID, err)
 	}
 	return nil
+}
+
+func (db Database) CreateUserMatch(ctx context.Context, um models.DBUserMatch) error {
+	_, err := db.Database.ExecContext(ctx,
+		`INSERT INTO user_match (user_id, match_id, created_at) VALUES ($1, $2, $3)`,
+		um.UserID, um.MatchID, um.CreatedAt)
+	return err
 }
