@@ -752,6 +752,62 @@
                 }
             }
         },
+        "/user/matches/{userId}": {
+            "get": {
+                "description": "Retourne les matchs auxquels un utilisateur a participé",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Liste des matchs d’un utilisateur",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Identifiant de l'utilisateur",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.GetMatchByUserIdResponses"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/users/{id}": {
             "get": {
                 "security": [
@@ -973,6 +1029,35 @@
                 },
                 "score": {
                     "type": "integer"
+                }
+            }
+        },
+        "models.GetMatchByUserIdResponses": {
+            "type": "object",
+            "properties": {
+                "current_state": {
+                    "$ref": "#/definitions/models.EtatMatch"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "participant_nber": {
+                    "type": "integer"
+                },
+                "place": {
+                    "type": "string"
+                },
+                "score1": {
+                    "type": "integer"
+                },
+                "score2": {
+                    "type": "integer"
+                },
+                "sport": {
+                    "$ref": "#/definitions/models.Sport"
                 }
             }
         },

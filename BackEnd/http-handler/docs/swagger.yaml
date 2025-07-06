@@ -45,6 +45,25 @@ definitions:
       score:
         type: integer
     type: object
+  models.GetMatchByUserIdResponses:
+    properties:
+      current_state:
+        $ref: '#/definitions/models.EtatMatch'
+      date:
+        type: string
+      id:
+        type: string
+      participant_nber:
+        type: integer
+      place:
+        type: string
+      score1:
+        type: integer
+      score2:
+        type: integer
+      sport:
+        $ref: '#/definitions/models.Sport'
+    type: object
   models.HelloWorldResponse:
     properties:
       response:
@@ -657,6 +676,43 @@ paths:
       summary: Réinitialise le mot de passe d’un utilisateur via un lien sécurisé
       tags:
       - auth
+  /user/matches/{userId}:
+    get:
+      description: Retourne les matchs auxquels un utilisateur a participé
+      parameters:
+      - description: Identifiant de l'utilisateur
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.GetMatchByUserIdResponses'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Liste des matchs d’un utilisateur
+      tags:
+      - match
   /users/{id}:
     delete:
       consumes:
