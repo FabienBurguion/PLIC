@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"github.com/google/uuid"
+	"time"
+)
 
 type Sport string
 
@@ -28,6 +31,19 @@ type DBMatches struct {
 	CurrentState    EtatMatch `db:"current_state"`
 	Score1          int       `db:"score1"`
 	Score2          int       `db:"score2"`
+}
+
+func NewDBMatchesFixture() DBMatches {
+	return DBMatches{
+		Id:              uuid.NewString(),
+		Sport:           "foot",
+		Place:           "Paris",
+		Date:            time.Now(),
+		ParticipantNber: 8,
+		CurrentState:    "Manque joueur",
+		Score1:          0,
+		Score2:          0,
+	}
 }
 
 func (m DBMatches) ToMatchResponse(users []DBUsers, profilePictures []string) MatchResponse {

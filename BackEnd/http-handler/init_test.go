@@ -19,7 +19,9 @@ import (
 )
 
 type DBFixtures struct {
-	Users []models.DBUsers
+	Users       []models.DBUsers
+	Matches     []models.DBMatches
+	UserMatches []models.DBUserMatch
 }
 
 func findLatestMigrationFile(dir string) (string, error) {
@@ -151,6 +153,18 @@ func (s *Service) loadFixtures(fixtures DBFixtures) {
 	ctx := context.Background()
 	for _, u := range fixtures.Users {
 		err := s.db.CreateUser(ctx, u)
+		if err != nil {
+			panic(err)
+		}
+	}
+	for _, u := range fixtures.Matches {
+		err := s.db.CreateMatch(ctx, u)
+		if err != nil {
+			panic(err)
+		}
+	}
+	for _, u := range fixtures.UserMatches {
+		err := s.db.CreateUserMatch(ctx, u)
 		if err != nil {
 			panic(err)
 		}

@@ -92,6 +92,43 @@ func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, auth mode
 	return httpx.Write(w, http.StatusOK, response)
 }
 
+// GetMatchesByUserID godoc
+// @Summary      Liste des matchs d’un utilisateur
+// @Description  Retourne les matchs auxquels un utilisateur a participé
+// @Tags         match
+// @Produce      json
+// @Param        userId   path      string  true  "Identifiant de l'utilisateur"
+// @Success      200  {array}  models.GetMatchByUserIdResponses
+// @Failure      400  {object}  models.Error
+// @Failure      401  {object}  models.Error
+// @Failure      404  {object}  models.Error
+// @Failure      500  {object}  models.Error
+// @Router       /user/matches/{userId} [get]
+func (s *Service) GetMatchesByUserID(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
+	userId := chi.URLParam(r, "userId")
+	if userId == "" {
+		return httpx.WriteError(w, http.StatusBadRequest, "missing userId in url params")
+	}
+
+	if !auth.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
+	ctx := r.Context()
+	var matches []models.GetMatchByUserIdResponses
+	matches, err := s.db.GetMatchesByUserID(ctx, userId)
+	if err != nil {
+		log.Println("error getting matches:", err)
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
+	}
+
+	if len(matches) == 0 {
+		return httpx.WriteError(w, http.StatusNotFound, "no matches found for this user")
+	}
+
+	return httpx.Write(w, http.StatusOK, matches)
+}
+
 // GetAllMatches godoc
 // @Summary      Liste tous les matchs
 // @Description  Retourne la liste complète de tous les matchs stockés en base
