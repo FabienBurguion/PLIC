@@ -185,3 +185,96 @@ func TestDatabase_GetAllMatches(t *testing.T) {
 		})
 	}
 }
+func TestDatabase_GetMatchesByUserID(t *testing.T) {
+
+	type testCase struct {
+		name             string
+		fixtures         DBFixtures
+		userID           string
+		expectedMatchIDs []string
+		expectError      bool
+	}
+
+	matchID1 := uuid.NewString()
+	matchID2 := uuid.NewString()
+	userID := uuid.NewString()
+	bio := "Fan de foot et de basket"
+
+	testCases := []testCase{
+		{
+			name: "User has two matches",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					{
+						Id:        userID,
+						Username:  "john_doe",
+						Email:     "john@example.com",
+						Bio:       &bio,
+						Password:  "hashed-password", // Remplacer par un hash si nécessaire
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+					},
+				},
+				Matches: []models.DBMatches{
+					{
+						Id:              matchID1,
+						Sport:           "foot",
+						Place:           "Lyon",
+						Date:            time.Now(),
+						ParticipantNber: 10,
+						CurrentState:    "Manque joueur",
+						Score1:          1,
+						Score2:          2,
+					},
+					{
+						Id:              matchID2,
+						Sport:           "basket",
+						Place:           "Paris",
+						Date:            time.Now(),
+						ParticipantNber: 5,
+						CurrentState:    "Valide",
+						Score1:          3,
+						Score2:          3,
+					},
+				},
+				UserMatches: []models.DBUserMatch{
+					{UserID: userID, MatchID: matchID1},
+					{UserID: userID, MatchID: matchID2},
+				},
+			},
+			userID:           userID,
+			expectedMatchIDs: []string{matchID1, matchID2},
+			expectError:      false,
+		},
+		{
+			name:             "User has no matches",
+			fixtures:         DBFixtures{}, // Pas de matches ni user_match
+			userID:           uuid.NewString(),
+			expectedMatchIDs: []string{},
+			expectError:      false,
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := context.Background()
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
+
+			matches, err := s.db.GetMatchesByUserID(ctx, c.userID)
+			if c.expectError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			require.Equal(t, len(c.expectedMatchIDs), len(matches))
+			for i, m := range matches {
+				require.Equal(t, c.expectedMatchIDs[i], m.Id)
+			}
+		})
+	}
+}

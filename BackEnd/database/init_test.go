@@ -22,9 +22,10 @@ type Service struct {
 }
 
 type DBFixtures struct {
-	Users   []models.DBUsers
-	Courts  []models.DBCourt
-	Matches []models.DBMatches
+	Users       []models.DBUsers
+	Courts      []models.DBCourt
+	Matches     []models.DBMatches
+	UserMatches []models.DBUserMatch
 }
 
 func findLatestMigrationFile(dir string) (string, error) {
@@ -150,6 +151,13 @@ func (s *Service) loadFixtures(fixtures DBFixtures) {
 		}
 	}
 	for _, m := range fixtures.Matches {
-		_ = s.db.CreateMatch(ctx, m)
+		if err := s.db.CreateMatch(ctx, m); err != nil {
+			panic(fmt.Sprintf("failed to insert match: %v", err))
+		}
+	}
+	for _, m := range fixtures.UserMatches {
+		if err := s.db.CreateUserMatch(ctx, m); err != nil {
+			panic(fmt.Sprintf("failed to insert user_match: %v", err))
+		}
 	}
 }
