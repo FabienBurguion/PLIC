@@ -230,7 +230,6 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 	}
 
 	matchDb := match.ToDBMatches()
-	log.Printf("Match to insert: %+v\n", matchDb)
 
 	if err := s.db.CreateMatch(r.Context(), matchDb); err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to create match: "+err.Error())
