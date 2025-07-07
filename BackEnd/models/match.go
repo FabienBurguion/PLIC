@@ -6,9 +6,10 @@ import (
 )
 
 type MatchRequest struct {
-	Sport Sport     `json:"sport"`
-	Place string    `json:"place"`
-	Date  time.Time `json:"date"`
+	Sport           Sport     `json:"sport"`
+	Place           string    `json:"place"`
+	Date            time.Time `json:"date"`
+	NbreParticipant int       `json:"nbre_participant"`
 }
 
 func (m MatchRequest) ToDBMatches() DBMatches {
@@ -17,7 +18,7 @@ func (m MatchRequest) ToDBMatches() DBMatches {
 		Sport:           m.Sport,
 		Place:           m.Place,
 		Date:            m.Date,
-		ParticipantNber: 1,
+		ParticipantNber: m.NbreParticipant,
 		CurrentState:    ManqueJoueur,
 		Score1:          0,
 		Score2:          0,
