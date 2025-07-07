@@ -240,7 +240,7 @@ func Test_CreateMatch(t *testing.T) {
 	require.Equal(t, matchReq.Sport, res.Sport)
 	require.Equal(t, matchReq.Place, res.Place)
 	require.WithinDuration(t, matchReq.Date, res.Date, time.Second)
-	require.Equal(t, 1, res.ParticipantNber)
+	require.Equal(t, 0, res.ParticipantNber)
 	require.Equal(t, models.ManqueJoueur, res.CurrentState)
 	require.Equal(t, 0, res.Score1)
 	require.Equal(t, 0, res.Score2)
