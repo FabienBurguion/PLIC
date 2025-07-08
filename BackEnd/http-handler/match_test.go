@@ -247,3 +247,60 @@ func Test_CreateMatch(t *testing.T) {
 	require.Len(t, res.Users, 1)
 	require.Equal(t, user.Username, res.Users[0].Username)
 }
+
+func Test_UpdateMatchScore(t *testing.T) {
+	match := models.NewDBMatchesFixture()
+	user := models.NewDBUsersFixture()
+
+	matchID := match.Id
+	userID := user.Id
+
+	updateReq := models.UpdateScoreRequest{
+		Score1: 3,
+		Score2: 2,
+	}
+
+	s := &Service{}
+	s.InitServiceTest()
+	s.loadFixtures(DBFixtures{
+		Matches: []models.DBMatches{match},
+		Users:   []models.DBUsers{user},
+		UserMatches: []models.DBUserMatch{
+			{
+				UserID:    userID,
+				MatchID:   matchID,
+				CreatedAt: time.Now(),
+			},
+		},
+	})
+
+	bodyBytes, err := json.Marshal(updateReq)
+	require.NoError(t, err)
+
+	r := httptest.NewRequest("PATCH", "/score/match/"+matchID, bytes.NewReader(bodyBytes))
+	routeCtx := chi.NewRouteContext()
+	routeCtx.URLParams.Add("id", matchID)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+
+	w := httptest.NewRecorder()
+	err = s.UpdateMatchScore(w, r, models.AuthInfo{
+		IsConnected: true,
+		UserID:      userID,
+	})
+	require.NoError(t, err)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	var res models.MatchResponse
+	err = json.Unmarshal(body, &res)
+	require.NoError(t, err)
+
+	require.Equal(t, updateReq.Score1, res.Score1)
+	require.Equal(t, updateReq.Score2, res.Score2)
+	require.Equal(t, matchID, res.Id)
+}
