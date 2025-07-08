@@ -180,6 +180,8 @@ definitions:
         items:
           $ref: '#/definitions/models.Field'
         type: array
+      nbMatches:
+        type: integer
       profilePicture:
         description: '@nullable'
         type: string

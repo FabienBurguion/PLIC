@@ -150,3 +150,51 @@ func (db Database) DeleteUser(ctx context.Context, userId string) error {
 	}
 	return nil
 }
+
+func (db Database) GetFavoriteFieldByUserID(ctx context.Context, userID string) (*string, error) {
+	var field string
+	err := db.Database.GetContext(ctx, &field, `
+		SELECT m.place
+		FROM user_match um
+		JOIN matches m ON m.id = um.match_id
+		WHERE um.user_id = $1
+		GROUP BY m.place
+		ORDER BY COUNT(*) DESC
+		LIMIT 1
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching favorite field: %w", err)
+	}
+	return &field, nil
+}
+
+func (db Database) GetFavoriteSportByUserID(ctx context.Context, userID string) (*models.Sport, error) {
+	var sport models.Sport
+	err := db.Database.GetContext(ctx, &sport, `
+		SELECT m.sport
+		FROM user_match um
+		JOIN matches m ON m.id = um.match_id
+		WHERE um.user_id = $1
+		GROUP BY m.sport
+		ORDER BY COUNT(*) DESC
+		LIMIT 1
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching favorite sport: %w", err)
+	}
+	return &sport, nil
+}
+
+func (db Database) GetPlayedSportsByUserID(ctx context.Context, userID string) ([]models.Sport, error) {
+	var sports []models.Sport
+	err := db.Database.SelectContext(ctx, &sports, `
+		SELECT DISTINCT m.sport
+		FROM user_match um
+		JOIN matches m ON m.id = um.match_id
+		WHERE um.user_id = $1
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching user sports: %w", err)
+	}
+	return sports, nil
+}

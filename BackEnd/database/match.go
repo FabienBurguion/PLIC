@@ -58,7 +58,7 @@ func (db Database) GetUsersByMatchId(ctx context.Context, matchId string) ([]mod
 	return users, nil
 }
 
-func (db Database) GetMatchesByUserID(ctx context.Context, userID string) ([]models.GetMatchByUserIdResponses, error) {
+func (db Database) GetMatchesByUserID(ctx context.Context, userID string) ([]models.DBMatchByUserId, error) {
 	var dbMatches []models.DBMatchByUserId
 	err := db.Database.SelectContext(ctx, &dbMatches, `
 		SELECT m.id, m.sport, m.place, m.date, m.participant_nber, m.current_state, m.score1, m.score2
@@ -70,21 +70,22 @@ func (db Database) GetMatchesByUserID(ctx context.Context, userID string) ([]mod
 	if err != nil {
 		return nil, fmt.Errorf("error querying matches for user: %w", err)
 	}
-	res := make([]models.GetMatchByUserIdResponses, len(dbMatches))
-	for i, m := range dbMatches {
-		res[i] = models.GetMatchByUserIdResponses{
-			Id:              m.Id,
-			Sport:           m.Sport,
-			Place:           m.Place,
-			Date:            m.Date,
-			ParticipantNber: m.ParticipantNber,
-			CurrentState:    m.CurrentState,
-			Score1:          m.Score1,
-			Score2:          m.Score2,
-		}
-	}
+	return dbMatches, nil
+}
 
-	return res, nil
+func (db Database) GetMatchCountByUserID(ctx context.Context, userID string) (int, error) {
+	var count int
+	err := db.Database.GetContext(ctx, &count, `
+		SELECT COUNT(*) AS match_count
+		FROM user_match um
+		JOIN matches m ON um.match_id = m.id
+		WHERE um.user_id = $1
+		AND m.current_state IN ('Termine', 'Manque Score')
+	`, userID)
+	if err != nil {
+		return 0, fmt.Errorf("error counting finished matches for user: %w", err)
+	}
+	return count, nil
 }
 
 func (db Database) GetAllMatches(ctx context.Context) ([]models.DBMatches, error) {

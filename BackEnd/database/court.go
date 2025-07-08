@@ -50,3 +50,17 @@ func (db Database) GetAllTerrains(ctx context.Context) ([]models.DBCourt, error)
 	}
 	return terrains, nil
 }
+
+func (db Database) GetVisitedFieldCountByUserID(ctx context.Context, userID string) (int, error) {
+	var count int
+	err := db.Database.GetContext(ctx, &count, `
+		SELECT COUNT(DISTINCT m.place)
+		FROM user_match um
+		JOIN matches m ON m.id = um.match_id
+		WHERE um.user_id = $1
+	`, userID)
+	if err != nil {
+		return 0, fmt.Errorf("error counting visited fields: %w", err)
+	}
+	return count, nil
+}

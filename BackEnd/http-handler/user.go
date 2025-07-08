@@ -8,7 +8,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
-	"sync"
 )
 
 // GetUserById godoc
@@ -30,68 +29,85 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.A
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
 	}
 
-	var (
-		user       *models.DBUsers
-		s3Response *v4.PresignedHTTPRequest
-		userErr    error
-		s3Err      error
-	)
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
 	ctx := r.Context()
 
-	go func() {
-		defer wg.Done()
-		user, userErr = s.db.GetUserById(ctx, id)
-	}()
-
-	go func() {
-		defer wg.Done()
-		s3Response, s3Err = s.s3Service.GetProfilePicture(ctx, id)
-	}()
-
-	wg.Wait()
-
-	if userErr != nil {
-		log.Println("errored getting param by id:", userErr)
-		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+userErr.Error())
+	// --- USER ---
+	user, err := s.db.GetUserById(ctx, id)
+	if err != nil {
+		log.Println("error getting user by id:", err)
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
 	}
-
 	if user == nil {
-		return httpx.WriteError(w, http.StatusNotFound, "param not found")
+		return httpx.WriteError(w, http.StatusNotFound, "user not found")
 	}
 
-	if s3Err != nil {
-		log.Println("error getting profile picture:", s3Err)
+	// --- PROFILE PICTURE ---
+	s3Resp, err := s.s3Service.GetProfilePicture(ctx, id)
+	if err != nil {
+		log.Println("error getting profile picture:", err)
+		s3Resp = &v4.PresignedHTTPRequest{URL: ""}
 	}
 
-	res := models.UserResponse{
+	// --- MATCH COUNT ---
+	matchCount, err := s.db.GetMatchCountByUserID(ctx, id)
+	if err != nil {
+		log.Println("error getting match count:", err)
+		matchCount = 0
+	}
+
+	// --- VISITED FIELDS ---
+	visitedFields, err := s.db.GetVisitedFieldCountByUserID(ctx, id)
+	if err != nil {
+		log.Println("error getting visited fields:", err)
+		visitedFields = 0
+	}
+
+	// --- FAVORITE FIELD ---
+	favCity, err := s.db.GetFavoriteFieldByUserID(ctx, id)
+	if err != nil {
+		log.Println("error getting favorite city:", err)
+		favCity = nil
+	}
+
+	// --- FAVORITE SPORT ---
+	favSport, err := s.db.GetFavoriteSportByUserID(ctx, id)
+	if err != nil {
+		log.Println("error getting favorite sport:", err)
+		favSport = nil
+	}
+
+	// --- SPORTS ---
+	sports, err := s.db.GetPlayedSportsByUserID(ctx, id)
+	if err != nil {
+		log.Println("error getting played sports:", err)
+		sports = []models.Sport{}
+	}
+
+	// --- FIELDS ---
+	fields, err := s.db.GetRankedFieldsByUserID(ctx, id)
+	if err != nil {
+		log.Println("error getting ranked fields:", err)
+		fields = []models.Field{}
+	}
+
+	// --- BUILD RESPONSE ---
+	response := models.UserResponse{
 		Username:       user.Username,
-		ProfilePicture: ptr(s3Response.URL),
+		ProfilePicture: ptr(s3Resp.URL),
 		Bio:            user.Bio,
 		CurrentFieldId: user.CurrentFieldId,
 		CreatedAt:      user.CreatedAt,
-		VisitedFields:  0,                        // TODO NO HARDCODE
-		Winrate:        ptr(100),                 // TODO NO HARDCODE
-		FavoriteCity:   ptr("a wonderful city"),  // TODO NO HARDCODE
-		FavoriteSport:  ptr(models.Foot),         // TODO NO HARDCODE
-		FavoriteField:  ptr("a wonderful field"), // TODO NO HARDCODE
-		Sports: []models.Sport{ // TODO NO HARDCODE
-			models.Basket,
-			models.Foot,
-		},
-		Fields: []models.Field{ // TODO NO HARDCODE
-			{
-				Ranking: 1,
-				Name:    "a wonderful field",
-				Score:   1000,
-			},
-		},
+		VisitedFields:  visitedFields,
+		NbMatches:      matchCount,
+		Winrate:        ptr(100), // TODO: calculer
+		FavoriteCity:   nil,
+		FavoriteSport:  favSport,
+		FavoriteField:  favCity,
+		Sports:         sports,
+		Fields:         fields,
 	}
 
-	return httpx.Write(w, http.StatusOK, res)
+	return httpx.Write(w, http.StatusOK, response)
 }
 
 // PatchUser godoc

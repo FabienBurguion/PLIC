@@ -84,18 +84,29 @@ func TestDatabase_GetAllTerrains(t *testing.T) {
 			t.Parallel()
 
 			s := &Service{}
-			s.InitServiceTest() // initialise DB test
+			s.InitServiceTest()
 			ctx := context.Background()
 
-			// Insérer un terrain manuellement pour test
-			_, err := s.db.Database.ExecContext(ctx, `
-				INSERT INTO courts (id, address, longitude, latitude, created_at, name)
-				VALUES ($1, $2, $3, $4, $5, $6)`,
-				c.expected.Id, c.expected.Address, c.expected.Longitude, c.expected.Latitude, c.expected.CreatedAt, c.expected.Name,
-			)
+			err := s.db.InsertTerrain(ctx, c.expected.Id, models.Place{
+				Name:    c.expected.Name,
+				Address: c.expected.Address,
+				Geometry: struct {
+					Location struct {
+						Lat float64 `json:"lat"`
+						Lng float64 `json:"lng"`
+					} `json:"location"`
+				}{
+					Location: struct {
+						Lat float64 `json:"lat"`
+						Lng float64 `json:"lng"`
+					}{
+						Lat: c.expected.Latitude,
+						Lng: c.expected.Longitude,
+					},
+				},
+			}, c.expected.CreatedAt)
 			require.NoError(t, err)
 
-			// Appel de la fonction à tester
 			terrains, err := s.db.GetAllTerrains(ctx)
 			require.NoError(t, err)
 			require.NotEmpty(t, terrains)
@@ -112,6 +123,111 @@ func TestDatabase_GetAllTerrains(t *testing.T) {
 				}
 			}
 			require.True(t, found, "terrain not found in results")
+		})
+	}
+}
+
+func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
+	type testCase struct {
+		name          string
+		fixtures      DBFixtures
+		userID        string
+		expectedCount int
+		expectError   bool
+	}
+
+	userID1 := uuid.NewString()
+	matchID1 := uuid.NewString()
+	matchID2 := uuid.NewString()
+	matchID3 := uuid.NewString()
+
+	testCases := []testCase{
+		{
+			name: "User has matches in different places",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					{Id: userID1, Username: "toto", Email: "toto@example.com", Password: "xxx"},
+				},
+				Matches: []models.DBMatches{
+					{
+						Id:              matchID1,
+						Sport:           models.Foot,
+						Place:           "Paris",
+						Date:            time.Now(),
+						ParticipantNber: 10,
+						CurrentState:    models.Valide,
+						Score1:          1,
+						Score2:          2,
+					},
+					{
+						Id:              matchID2,
+						Sport:           models.Basket,
+						Place:           "Lyon",
+						Date:            time.Now(),
+						ParticipantNber: 8,
+						CurrentState:    models.Termine,
+						Score1:          3,
+						Score2:          3,
+					},
+					{
+						Id:              matchID3,
+						Sport:           models.Foot,
+						Place:           "Paris",
+						Date:            time.Now(),
+						ParticipantNber: 12,
+						CurrentState:    models.Valide,
+						Score1:          0,
+						Score2:          0,
+					},
+				},
+				UserMatches: []models.DBUserMatch{
+					{UserID: userID1, MatchID: matchID1},
+					{UserID: userID1, MatchID: matchID2},
+					{UserID: userID1, MatchID: matchID3},
+				},
+			},
+			userID:        userID1,
+			expectedCount: 2,
+			expectError:   false,
+		},
+		{
+			name: "User has no matches",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					{Id: userID1, Username: "tata", Email: "tata@example.com", Password: "xxx"},
+				},
+			},
+			userID:        userID1,
+			expectedCount: 0,
+			expectError:   false,
+		},
+		{
+			name:          "Unknown user",
+			fixtures:      DBFixtures{},
+			userID:        uuid.NewString(),
+			expectedCount: 0,
+			expectError:   false,
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
+
+			ctx := context.Background()
+			count, err := s.db.GetVisitedFieldCountByUserID(ctx, c.userID)
+
+			if c.expectError {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, c.expectedCount, count)
 		})
 	}
 }

@@ -11,6 +11,7 @@ type UserResponse struct {
 	CurrentFieldId *string   `json:"currentFieldId"`
 	CreatedAt      time.Time `json:"createdAt"`
 	VisitedFields  int       `json:"visitedFields"`
+	NbMatches      int       `json:"nbMatches"`
 	// @nullable
 	Winrate *int `json:"winrate"`
 	// @nullable

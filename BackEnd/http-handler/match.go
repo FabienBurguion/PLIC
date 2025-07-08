@@ -115,18 +115,32 @@ func (s *Service) GetMatchesByUserID(w http.ResponseWriter, r *http.Request, aut
 	}
 
 	ctx := r.Context()
-	var matches []models.GetMatchByUserIdResponses
-	matches, err := s.db.GetMatchesByUserID(ctx, userId)
+
+	dbMatches, err := s.db.GetMatchesByUserID(ctx, userId)
 	if err != nil {
 		log.Println("error getting matches:", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
 	}
 
-	if len(matches) == 0 {
+	if len(dbMatches) == 0 {
 		return httpx.WriteError(w, http.StatusNotFound, "no matches found for this user")
 	}
 
-	return httpx.Write(w, http.StatusOK, matches)
+	res := make([]models.GetMatchByUserIdResponses, len(dbMatches))
+	for i, m := range dbMatches {
+		res[i] = models.GetMatchByUserIdResponses{
+			Id:              m.Id,
+			Sport:           m.Sport,
+			Place:           m.Place,
+			Date:            m.Date,
+			ParticipantNber: m.ParticipantNber,
+			CurrentState:    m.CurrentState,
+			Score1:          m.Score1,
+			Score2:          m.Score2,
+		}
+	}
+
+	return httpx.Write(w, http.StatusOK, res)
 }
 
 // GetAllMatches godoc

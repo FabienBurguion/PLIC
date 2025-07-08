@@ -1257,6 +1257,9 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.Field"
                     }
                 },
+                "nbMatches": {
+                    "type": "integer"
+                },
                 "profilePicture": {
                     "description": "@nullable",
                     "type": "string"

@@ -22,11 +22,11 @@ func TestDatabase_CreateMatch(t *testing.T) {
 			name: "Basic match creation",
 			match: models.DBMatches{
 				Id:              id,
-				Sport:           "basket",
+				Sport:           models.Basket,
 				Place:           "Paris",
 				Date:            time.Now(),
 				ParticipantNber: 8,
-				CurrentState:    "Manque joueur",
+				CurrentState:    models.ManqueJoueur,
 				Score1:          0,
 				Score2:          0,
 			},
@@ -70,11 +70,11 @@ func TestDatabase_GetMatchById(t *testing.T) {
 				Matches: []models.DBMatches{
 					{
 						Id:              id,
-						Sport:           "foot",
+						Sport:           models.Foot,
 						Place:           "Lyon",
 						Date:            time.Now(),
 						ParticipantNber: 10,
-						CurrentState:    "Manque joueur",
+						CurrentState:    models.ManqueJoueur,
 						Score1:          1,
 						Score2:          2,
 					},
@@ -129,21 +129,21 @@ func TestDatabase_GetAllMatches(t *testing.T) {
 				Matches: []models.DBMatches{
 					{
 						Id:              id1,
-						Sport:           "foot",
+						Sport:           models.Foot,
 						Place:           "Nice",
 						Date:            time.Now(),
 						ParticipantNber: 2,
-						CurrentState:    "Manque joueur",
+						CurrentState:    models.ManqueJoueur,
 						Score1:          0,
 						Score2:          0,
 					},
 					{
 						Id:              id2,
-						Sport:           "basket",
+						Sport:           models.Basket,
 						Place:           "Paris",
 						Date:            time.Now(),
 						ParticipantNber: 10,
-						CurrentState:    "Manque joueur",
+						CurrentState:    models.ManqueJoueur,
 						Score1:          0,
 						Score2:          0,
 					},
@@ -210,7 +210,7 @@ func TestDatabase_GetMatchesByUserID(t *testing.T) {
 						Username:  "john_doe",
 						Email:     "john@example.com",
 						Bio:       &bio,
-						Password:  "hashed-password", // Remplacer par un hash si nécessaire
+						Password:  "hashed-password",
 						CreatedAt: time.Now(),
 						UpdatedAt: time.Now(),
 					},
@@ -218,21 +218,21 @@ func TestDatabase_GetMatchesByUserID(t *testing.T) {
 				Matches: []models.DBMatches{
 					{
 						Id:              matchID1,
-						Sport:           "foot",
+						Sport:           models.Foot,
 						Place:           "Lyon",
 						Date:            time.Now(),
 						ParticipantNber: 10,
-						CurrentState:    "Manque joueur",
+						CurrentState:    models.ManqueJoueur,
 						Score1:          1,
 						Score2:          2,
 					},
 					{
 						Id:              matchID2,
-						Sport:           "basket",
+						Sport:           models.Basket,
 						Place:           "Paris",
 						Date:            time.Now(),
 						ParticipantNber: 5,
-						CurrentState:    "Valide",
+						CurrentState:    models.Valide,
 						Score1:          3,
 						Score2:          3,
 					},
@@ -248,7 +248,7 @@ func TestDatabase_GetMatchesByUserID(t *testing.T) {
 		},
 		{
 			name:             "User has no matches",
-			fixtures:         DBFixtures{}, // Pas de matches ni user_match
+			fixtures:         DBFixtures{},
 			userID:           uuid.NewString(),
 			expectedMatchIDs: []string{},
 			expectError:      false,
@@ -275,6 +275,133 @@ func TestDatabase_GetMatchesByUserID(t *testing.T) {
 			for i, m := range matches {
 				require.Equal(t, c.expectedMatchIDs[i], m.Id)
 			}
+		})
+	}
+}
+
+func TestDatabase_GetMatchCountByUserID(t *testing.T) {
+	type testCase struct {
+		name        string
+		fixtures    DBFixtures
+		userID      string
+		expectedCnt int
+		expectError bool
+	}
+
+	userID1 := uuid.NewString()
+	userID2 := uuid.NewString()
+	matchID1 := uuid.NewString()
+	matchID2 := uuid.NewString()
+	matchID3 := uuid.NewString()
+	matchID4 := uuid.NewString()
+	bio := "Sportif"
+
+	testCases := []testCase{
+		{
+			name: "User has two finished matches (Termine, Manque Score)",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					{
+						Id:        userID1,
+						Username:  "jean",
+						Email:     "jean@example.com",
+						Bio:       &bio,
+						Password:  "password",
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+					},
+				},
+				Matches: []models.DBMatches{
+					{
+						Id:              matchID1,
+						Sport:           models.Foot,
+						Place:           "Lyon",
+						Date:            time.Now(),
+						ParticipantNber: 10,
+						CurrentState:    models.Termine,
+						Score1:          2,
+						Score2:          1,
+					},
+					{
+						Id:              matchID2,
+						Sport:           models.Basket,
+						Place:           "Paris",
+						Date:            time.Now(),
+						ParticipantNber: 5,
+						CurrentState:    models.ManqueScore,
+						Score1:          3,
+						Score2:          2,
+					},
+					{
+						Id:              matchID3,
+						Sport:           models.Foot,
+						Place:           "Toulouse",
+						Date:            time.Now(),
+						ParticipantNber: 8,
+						CurrentState:    models.Valide,
+						Score1:          0,
+						Score2:          0,
+					},
+				},
+				UserMatches: []models.DBUserMatch{
+					{UserID: userID1, MatchID: matchID1},
+					{UserID: userID1, MatchID: matchID2},
+					{UserID: userID1, MatchID: matchID3},
+				},
+			},
+			userID:      userID1,
+			expectedCnt: 2,
+			expectError: false,
+		},
+		{
+			name: "User has only non-finished matches",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					{Id: userID2, Username: "marie", Email: "marie@example.com"},
+				},
+				Matches: []models.DBMatches{
+					{
+						Id:              matchID4,
+						Sport:           models.Basket,
+						Place:           "Nice",
+						Date:            time.Now(),
+						ParticipantNber: 6,
+						CurrentState:    models.Valide,
+					},
+				},
+				UserMatches: []models.DBUserMatch{
+					{UserID: userID2, MatchID: matchID4},
+				},
+			},
+			userID:      userID2,
+			expectedCnt: 0,
+			expectError: false,
+		},
+		{
+			name:        "User does not exist",
+			fixtures:    DBFixtures{},
+			userID:      uuid.NewString(),
+			expectedCnt: 0,
+			expectError: false,
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := context.Background()
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
+
+			count, err := s.db.GetMatchCountByUserID(ctx, c.userID)
+			if c.expectError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, c.expectedCnt, count)
 		})
 	}
 }

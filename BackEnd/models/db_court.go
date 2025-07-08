@@ -32,6 +32,11 @@ func (u DBCourt) WithId(id string) DBCourt {
 	return u
 }
 
+func (u DBCourt) WithName(name string) DBCourt {
+	u.Name = name
+	return u
+}
+
 func (u DBCourt) WithLongitude(longitude float64) DBCourt {
 	u.Longitude = longitude
 	return u

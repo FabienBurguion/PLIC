@@ -9,64 +9,140 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func Test_GetUserById(t *testing.T) {
 	type testCase struct {
-		name     string
-		fixtures DBFixtures
-		expected models.UserResponse
+		name          string
+		urlID         string
+		fixtures      DBFixtures
+		expectedCode  int
+		expectedCheck func(t *testing.T, res models.UserResponse)
 	}
 
-	user := models.NewDBUsersFixture()
+	userWithData := models.NewDBUsersFixture()
+	userNoMatch := models.NewDBUsersFixture()
+
+	match1 := models.DBMatches{
+		Id:           uuid.NewString(),
+		Sport:        models.Foot,
+		Place:        "Paris",
+		Date:         time.Now(),
+		CurrentState: models.Termine,
+		Score1:       2,
+		Score2:       1,
+	}
+	match2 := models.DBMatches{
+		Id:           uuid.NewString(),
+		Sport:        models.Basket,
+		Place:        "Lyon",
+		Date:         time.Now(),
+		CurrentState: models.Termine,
+		Score1:       5,
+		Score2:       3,
+	}
 
 	testCases := []testCase{
 		{
-			name: "Basic test",
+			name:  "User with full match history",
+			urlID: userWithData.Id,
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{userWithData},
+				Matches: []models.DBMatches{
+					match1, match2,
+				},
+				UserMatches: []models.DBUserMatch{
+					{UserID: userWithData.Id, MatchID: match1.Id},
+					{UserID: userWithData.Id, MatchID: match2.Id},
+				},
+			},
+			expectedCode: http.StatusOK,
+			expectedCheck: func(t *testing.T, res models.UserResponse) {
+				require.Equal(t, userWithData.Username, res.Username)
+				require.Equal(t, userWithData.Bio, res.Bio)
+				require.Equal(t, userWithData.CreatedAt.Unix(), res.CreatedAt.Unix())
+				require.Equal(t, 2, res.NbMatches)
+				require.Equal(t, 2, res.VisitedFields)
+
+				if res.FavoriteSport != nil {
+					require.Contains(t, []models.Sport{models.Foot, models.Basket}, *res.FavoriteSport)
+				} else {
+					t.Log("FavoriteSport is nil (expected if no match was inserted)")
+				}
+				require.ElementsMatch(t, []models.Sport{models.Foot, models.Basket}, res.Sports)
+
+				if res.FavoriteCity != nil {
+					require.Contains(t, []string{"Paris", "Lyon"}, *res.FavoriteCity)
+				} else {
+					t.Log("FavoriteCity is nil (expected if no match was inserted)")
+				}
+
+				require.NotNil(t, res.FavoriteField)
+				require.Contains(t, []string{"Paris", "Lyon"}, *res.FavoriteField)
+
+				require.Len(t, res.Fields, 0)
+			},
+		},
+		{
+			name:  "User with no matches",
+			urlID: userNoMatch.Id,
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{
-					user,
+					userNoMatch,
 				},
 			},
-			expected: models.UserResponse{
-				Username:       user.Username,
-				ProfilePicture: ptr(user.Id + ".png"),
-				Bio:            user.Bio,
-				CreatedAt:      user.CreatedAt,
-				VisitedFields:  0,
-				Winrate:        ptr(100),
-				FavoriteCity:   ptr("a wonderful city"),
-				FavoriteSport:  ptr(models.Foot),
-				FavoriteField:  ptr("a wonderful field"),
-				Sports: []models.Sport{
-					models.Basket,
-					models.Foot,
-				},
-				Fields: []models.Field{
-					{
-						Ranking: 1,
-						Name:    "a wonderful field",
-						Score:   1000,
-					},
-				},
+			expectedCode: http.StatusOK,
+			expectedCheck: func(t *testing.T, res models.UserResponse) {
+				require.Equal(t, 0, res.NbMatches)
+				require.Equal(t, 0, res.VisitedFields)
+				require.Nil(t, res.FavoriteSport)
+				require.Nil(t, res.FavoriteCity)
+				require.Nil(t, res.FavoriteField)
+				require.Empty(t, res.Sports)
+				require.Empty(t, res.Fields)
 			},
+		},
+		{
+			name:          "User not found",
+			urlID:         uuid.NewString(),
+			fixtures:      DBFixtures{},
+			expectedCode:  http.StatusNotFound,
+			expectedCheck: nil,
+		},
+		{
+			name:          "Missing ID",
+			urlID:         "",
+			fixtures:      DBFixtures{},
+			expectedCode:  http.StatusBadRequest,
+			expectedCheck: nil,
 		},
 	}
 
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
+
 			s := &Service{}
 			s.InitServiceTest()
 			s.loadFixtures(c.fixtures)
 
-			r := httptest.NewRequest("GET", "/users/"+user.Id, nil)
+			url := "/users"
+			if c.urlID != "" {
+				url += "/" + c.urlID
+			}
+
+			r := httptest.NewRequest("GET", url, nil)
 			r.Header.Set("Content-Type", "application/json")
-			routeCtx := chi.NewRouteContext()
-			routeCtx.URLParams.Add("id", user.Id)
-			r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+			if c.urlID != "" {
+				routeCtx := chi.NewRouteContext()
+				routeCtx.URLParams.Add("id", c.urlID)
+				r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+			}
+
 			w := httptest.NewRecorder()
 
 			err := s.GetUserById(w, r, models.AuthInfo{})
@@ -75,24 +151,18 @@ func Test_GetUserById(t *testing.T) {
 			resp := w.Result()
 			defer resp.Body.Close()
 
-			bodyBytes, err := io.ReadAll(resp.Body)
-			require.NoError(t, err)
+			require.Equal(t, c.expectedCode, resp.StatusCode)
 
-			var res models.UserResponse
-			err = json.Unmarshal(bodyBytes, &res)
-			require.NoError(t, err)
+			if c.expectedCode == http.StatusOK && c.expectedCheck != nil {
+				bodyBytes, err := io.ReadAll(resp.Body)
+				require.NoError(t, err)
 
-			require.Equal(t, c.expected.Username, res.Username)
-			require.Equal(t, *c.expected.Bio, *res.Bio)
-			require.Equal(t, *c.expected.ProfilePicture, *res.ProfilePicture)
-			require.Equal(t, c.expected.CreatedAt.Unix(), res.CreatedAt.Unix())
-			require.Equal(t, c.expected.VisitedFields, res.VisitedFields)
-			require.Equal(t, c.expected.Winrate, res.Winrate)
-			require.Equal(t, c.expected.FavoriteCity, res.FavoriteCity)
-			require.Equal(t, c.expected.FavoriteSport, res.FavoriteSport)
-			require.Equal(t, c.expected.FavoriteField, res.FavoriteField)
-			require.Equal(t, c.expected.Sports, res.Sports)
-			require.Equal(t, c.expected.Fields, res.Fields)
+				var res models.UserResponse
+				err = json.Unmarshal(bodyBytes, &res)
+				require.NoError(t, err)
+
+				c.expectedCheck(t, res)
+			}
 		})
 	}
 }

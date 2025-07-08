@@ -435,3 +435,95 @@ func TestDatabase_DeleteUser(t *testing.T) {
 		})
 	}
 }
+
+func TestDatabase_GetFavoriteFieldByUserID(t *testing.T) {
+	s := &Service{}
+	s.InitServiceTest()
+
+	userID := uuid.NewString()
+	matchID1 := uuid.NewString()
+	matchID2 := uuid.NewString()
+
+	fixtures := DBFixtures{
+		Users: []models.DBUsers{
+			{Id: userID, Username: "user", Email: "user@example.com", Password: "pwd"},
+		},
+		Matches: []models.DBMatches{
+			{Id: matchID1, Sport: models.Foot, Place: "Paris", Date: time.Now(), CurrentState: models.Termine},
+			{Id: matchID2, Sport: models.Foot, Place: "Paris", Date: time.Now(), CurrentState: models.Termine},
+		},
+		UserMatches: []models.DBUserMatch{
+			{UserID: userID, MatchID: matchID1},
+			{UserID: userID, MatchID: matchID2},
+		},
+	}
+	s.loadFixtures(fixtures)
+
+	ctx := context.Background()
+	field, err := s.db.GetFavoriteFieldByUserID(ctx, userID)
+
+	require.NoError(t, err)
+	require.NotNil(t, field)
+	require.Equal(t, "Paris", *field)
+}
+
+func TestDatabase_GetFavoriteSportByUserID(t *testing.T) {
+	s := &Service{}
+	s.InitServiceTest()
+
+	userID := uuid.NewString()
+	matchID1 := uuid.NewString()
+	matchID2 := uuid.NewString()
+
+	fixtures := DBFixtures{
+		Users: []models.DBUsers{
+			{Id: userID, Username: "sporty", Email: "sporty@example.com", Password: "pwd"},
+		},
+		Matches: []models.DBMatches{
+			{Id: matchID1, Sport: models.Basket, Place: "Nice", Date: time.Now(), CurrentState: models.Termine},
+			{Id: matchID2, Sport: models.Basket, Place: "Nice", Date: time.Now(), CurrentState: models.Termine},
+		},
+		UserMatches: []models.DBUserMatch{
+			{UserID: userID, MatchID: matchID1},
+			{UserID: userID, MatchID: matchID2},
+		},
+	}
+	s.loadFixtures(fixtures)
+
+	ctx := context.Background()
+	sport, err := s.db.GetFavoriteSportByUserID(ctx, userID)
+
+	require.NoError(t, err)
+	require.NotNil(t, sport)
+	require.Equal(t, models.Basket, *sport)
+}
+
+func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
+	s := &Service{}
+	s.InitServiceTest()
+
+	userID := uuid.NewString()
+	matchID1 := uuid.NewString()
+	matchID2 := uuid.NewString()
+
+	fixtures := DBFixtures{
+		Users: []models.DBUsers{
+			{Id: userID, Username: "multi", Email: "multi@example.com", Password: "pwd"},
+		},
+		Matches: []models.DBMatches{
+			{Id: matchID1, Sport: models.Foot, Place: "Paris", Date: time.Now(), CurrentState: models.Termine},
+			{Id: matchID2, Sport: models.Basket, Place: "Lyon", Date: time.Now(), CurrentState: models.Termine},
+		},
+		UserMatches: []models.DBUserMatch{
+			{UserID: userID, MatchID: matchID1},
+			{UserID: userID, MatchID: matchID2},
+		},
+	}
+	s.loadFixtures(fixtures)
+
+	ctx := context.Background()
+	sports, err := s.db.GetPlayedSportsByUserID(ctx, userID)
+
+	require.NoError(t, err)
+	require.ElementsMatch(t, []models.Sport{models.Foot, models.Basket}, sports)
+}
