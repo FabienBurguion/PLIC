@@ -88,9 +88,9 @@ func TestDatabase_GetAllTerrains(t *testing.T) {
 
 			// Insérer un terrain manuellement pour test
 			_, err := s.db.Database.ExecContext(ctx, `
-				INSERT INTO courts (id, address, longitude, latitude)
-				VALUES ($1, $2, $3, $4)`,
-				c.expected.Id, c.expected.Address, c.expected.Longitude, c.expected.Latitude,
+				INSERT INTO courts (id, address, longitude, latitude, name)
+				VALUES ($1, $2, $3, $4, $5)`,
+				c.expected.Id, c.expected.Address, c.expected.Longitude, c.expected.Latitude, c.expected.Name,
 			)
 			require.NoError(t, err)
 
@@ -105,6 +105,7 @@ func TestDatabase_GetAllTerrains(t *testing.T) {
 					require.Equal(t, c.expected.Address, terr.Address)
 					require.Equal(t, c.expected.Longitude, terr.Longitude)
 					require.Equal(t, c.expected.Latitude, terr.Latitude)
+					require.Equal(t, c.expected.Name, terr.Name)
 					found = true
 					break
 				}

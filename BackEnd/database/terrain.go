@@ -10,10 +10,10 @@ import (
 
 func (db Database) InsertTerrain(ctx context.Context, id string, p models.Place) error {
 	_, err := db.Database.ExecContext(ctx, `
-		INSERT INTO courts (id, address, longitude, latitude)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO courts (id, address, longitude, latitude, name)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT DO NOTHING`,
-		id, p.Address, p.Geometry.Location.Lat, p.Geometry.Location.Lng,
+		id, p.Address, p.Geometry.Location.Lng, p.Geometry.Location.Lat, p.Name,
 	)
 	if err != nil {
 		return fmt.Errorf("échec de l'insertion du terrain : %w", err)
@@ -26,7 +26,7 @@ func (db Database) GetTerrainByAddress(ctx context.Context, address string) (*mo
 	var court models.DBCourt
 
 	err := db.Database.GetContext(ctx, &court, `
-		SELECT id, address, longitude, latitude
+		SELECT id, address, longitude, latitude, name
 		FROM courts
 		WHERE address = $1`, address)
 	if err != nil {
@@ -42,7 +42,7 @@ func (db Database) GetTerrainByAddress(ctx context.Context, address string) (*mo
 func (db Database) GetAllTerrains(ctx context.Context) ([]models.DBCourt, error) {
 	var terrains []models.DBCourt
 	err := db.Database.SelectContext(ctx, &terrains, `
-		SELECT id, address, longitude, latitude
+		SELECT id, address, longitude, latitude, name
 		FROM courts`)
 	if err != nil {
 		return nil, fmt.Errorf("échec de la récupération des terrains : %w", err)
