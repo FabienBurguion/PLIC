@@ -10,7 +10,7 @@ import (
 
 func GetPlaces(baseUrl string, latitude, longitude float64, apiKey string) ([]models.Place, error) {
 	url := fmt.Sprintf(
-		"%s/json?location=%f,%f&radius=1000&type=sports_complex&key=%s",
+		"%s/json?location=%f,%f&radius=50000&type=sports_complex&keyword=terrain&key=%s",
 		baseUrl, latitude, longitude, apiKey)
 	log.Println(url)
 	resp, err := http.Get(url)
