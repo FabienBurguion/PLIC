@@ -5,6 +5,7 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"sort"
 	"testing"
 	"time"
 )
@@ -19,16 +20,21 @@ func TestDatabase_GetRankedFieldsByUserID(t *testing.T) {
 	}
 
 	userID := uuid.NewString()
+	otherUser1 := uuid.NewString()
+	otherUser2 := uuid.NewString()
+
 	courtID1 := uuid.NewString()
 	courtID2 := uuid.NewString()
 	courtID3 := uuid.NewString()
 
 	testCases := []testCase{
 		{
-			name: "User has rankings on multiple courts",
+			name: "User has rankings on multiple courts with different local ranks",
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{
 					{Id: userID, Username: "user", Email: "user@example.com", Password: "pwd"},
+					{Id: otherUser1, Username: "other1", Email: "o1@example.com", Password: "pwd"},
+					{Id: otherUser2, Username: "other2", Email: "o2@example.com", Password: "pwd"},
 				},
 				Courts: []models.DBCourt{
 					{Id: courtID1, Name: "Central Park", Address: "NY", Latitude: 0.0, Longitude: 0.0},
@@ -36,16 +42,26 @@ func TestDatabase_GetRankedFieldsByUserID(t *testing.T) {
 					{Id: courtID3, Name: "Playground", Address: "Paris", Latitude: 0.0, Longitude: 0.0},
 				},
 				Rankings: []models.DBRanking{
+					// Court 1
 					{UserID: userID, CourtID: courtID1, Elo: 1200},
+					{UserID: otherUser1, CourtID: courtID1, Elo: 1300},
+					{UserID: otherUser2, CourtID: courtID1, Elo: 1250},
+
+					// Court 2
 					{UserID: userID, CourtID: courtID2, Elo: 1300},
+					{UserID: otherUser1, CourtID: courtID2, Elo: 1000},
+
+					// Court 3
 					{UserID: userID, CourtID: courtID3, Elo: 1250},
+					{UserID: otherUser1, CourtID: courtID3, Elo: 1250},
+					{UserID: otherUser2, CourtID: courtID3, Elo: 1100},
 				},
 			},
 			userID: userID,
 			expectedFields: []models.Field{
-				{Ranking: 1, Name: "Stade de Lyon", Score: 1300},
-				{Ranking: 2, Name: "Playground", Score: 1250},
 				{Ranking: 3, Name: "Central Park", Score: 1200},
+				{Ranking: 1, Name: "Stade de Lyon", Score: 1300},
+				{Ranking: 1, Name: "Playground", Score: 1250},
 			},
 			expectError: false,
 		},
@@ -87,8 +103,16 @@ func TestDatabase_GetRankedFieldsByUserID(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Equal(t, len(c.expectedFields), len(fields))
+
+			sort.Slice(fields, func(i, j int) bool {
+				return fields[i].Name < fields[j].Name
+			})
+			sort.Slice(c.expectedFields, func(i, j int) bool {
+				return c.expectedFields[i].Name < c.expectedFields[j].Name
+			})
+
 			for i := range fields {
-				require.Equal(t, c.expectedFields[i].Ranking, fields[i].Ranking)
+				require.Equal(t, c.expectedFields[i].Ranking, fields[i].Ranking, "wrong ranking for %s", fields[i].Name)
 				require.Equal(t, c.expectedFields[i].Name, fields[i].Name)
 				require.Equal(t, c.expectedFields[i].Score, fields[i].Score)
 			}
