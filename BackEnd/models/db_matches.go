@@ -57,7 +57,7 @@ func (m DBMatches) ToMatchResponse(users []DBUsers, profilePictures []string) Ma
 		Sport:           m.Sport,
 		Place:           m.Place,
 		Date:            m.Date,
-		ParticipantNber: m.ParticipantNber,
+		NbreParticipant: m.ParticipantNber,
 		CurrentState:    m.CurrentState,
 		Score1:          m.Score1,
 		Score2:          m.Score2,

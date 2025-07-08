@@ -30,7 +30,7 @@ type MatchResponse struct {
 	Sport           Sport          `json:"sport"`
 	Place           string         `json:"place"`
 	Date            time.Time      `json:"date"`
-	ParticipantNber int            `json:"participant_nber"`
+	NbreParticipant int            `json:"nbre_participant"`
 	CurrentState    EtatMatch      `json:"current_state"`
 	Score1          int            `json:"score1"`
 	Score2          int            `json:"score2"`
