@@ -7,6 +7,7 @@ import (
 
 type DBCourt struct {
 	Id        string    `db:"id"`
+	Name      string    `db:"name"`
 	Address   string    `db:"address"`
 	Longitude float64   `db:"longitude"`
 	Latitude  float64   `db:"latitude"`
@@ -17,6 +18,7 @@ type DBCourt struct {
 func NewDBCourtFixture() DBCourt {
 	return DBCourt{
 		Id:        uuid.NewString(),
+		Name:      uuid.NewString(),
 		Address:   "address",
 		Longitude: 0.0,
 		Latitude:  0.0,

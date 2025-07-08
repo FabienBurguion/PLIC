@@ -19,7 +19,7 @@ func (s *Service) SyncGooglePlaces(ctx context.Context, latitude, longitude floa
 
 	for _, place := range places {
 		id := uuid.NewString()
-		err := s.db.InsertTerrain(ctx, id, place)
+		err := s.db.InsertTerrain(ctx, id, place, s.clock.Now())
 		if err != nil {
 			log.Printf("Erreur lors de l'insertion du terrain \"%s\": %v", place.Name, err)
 		}
