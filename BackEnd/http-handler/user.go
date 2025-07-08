@@ -101,6 +101,7 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.A
 // @Accept       json
 // @Produce      json
 // @Param        id path string true "User ID"
+// @Param        body body models.UserPatchRequest true "User fields to update"
 // @Success      200
 // @Failure      400 {object} models.Error "Missing ID in URL params"
 // @Failure      403 {object} models.Error "Incorrect rights"

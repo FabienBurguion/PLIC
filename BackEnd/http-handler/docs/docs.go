@@ -947,6 +947,15 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "User fields to update",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UserPatchRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -1001,6 +1010,9 @@ const docTemplate = `{
                 },
                 "longitude": {
                     "type": "number"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },
@@ -1121,6 +1133,9 @@ const docTemplate = `{
                 "date": {
                     "type": "string"
                 },
+                "nbre_participant": {
+                    "type": "integer"
+                },
                 "place": {
                     "type": "string"
                 },
@@ -1141,7 +1156,7 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
-                "participant_nber": {
+                "nbre_participant": {
                     "type": "integer"
                 },
                 "place": {
@@ -1186,6 +1201,27 @@ const docTemplate = `{
                 "Foot"
             ]
         },
+        "models.UserPatchRequest": {
+            "type": "object",
+            "properties": {
+                "bio": {
+                    "description": "@nullable",
+                    "type": "string"
+                },
+                "currentFieldId": {
+                    "description": "@nullable",
+                    "type": "string"
+                },
+                "email": {
+                    "description": "@nullable",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "@nullable",
+                    "type": "string"
+                }
+            }
+        },
         "models.UserResponse": {
             "type": "object",
             "properties": {
@@ -1194,6 +1230,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "createdAt": {
+                    "type": "string"
+                },
+                "currentFieldId": {
                     "type": "string"
                 },
                 "favoriteCity": {
