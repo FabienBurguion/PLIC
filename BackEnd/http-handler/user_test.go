@@ -116,6 +116,7 @@ func Test_PatchUser(t *testing.T) {
 	newUsername := "New username"
 	newEmail := "<EMAIL2>"
 	newBio := "A new bio"
+	newCurrentFieldId := "a-new-current-field-id"
 
 	testCases := []testCase{
 		{
@@ -199,6 +200,30 @@ func Test_PatchUser(t *testing.T) {
 			expectedCode: 403,
 			expected:     nil,
 		},
+		{
+			name: "Current field id",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().WithId(userId),
+				},
+			},
+			param: models.UserPatchRequest{
+				CurrentFieldId: ptr(newCurrentFieldId),
+			},
+			authInfo: models.AuthInfo{
+				IsConnected: true,
+				UserID:      userId,
+			},
+			urlUserId:    userId,
+			expectedCode: 200,
+			expected: &models.DBUsers{
+				Id:             userId,
+				Username:       "username",
+				Email:          "an email",
+				Bio:            ptr("a bio"),
+				CurrentFieldId: &newCurrentFieldId,
+			},
+		},
 	}
 
 	for _, c := range testCases {
@@ -236,6 +261,9 @@ func Test_PatchUser(t *testing.T) {
 				require.Equal(t, c.expected.Username, updated.Username)
 				require.Equal(t, c.expected.Email, updated.Email)
 				require.Equal(t, *c.expected.Bio, *updated.Bio)
+				if c.expected.CurrentFieldId != nil {
+					require.Equal(t, *c.expected.CurrentFieldId, *updated.CurrentFieldId)
+				}
 			}
 		})
 	}

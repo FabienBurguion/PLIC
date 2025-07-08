@@ -71,6 +71,7 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.A
 		Username:       user.Username,
 		ProfilePicture: ptr(s3Response.URL),
 		Bio:            user.Bio,
+		CurrentFieldId: user.CurrentFieldId,
 		CreatedAt:      user.CreatedAt,
 		VisitedFields:  0,                        // TODO NO HARDCODE
 		Winrate:        ptr(100),                 // TODO NO HARDCODE

@@ -64,7 +64,7 @@ func (db Database) GetUserById(ctx context.Context, id string) (*models.DBUsers,
 	var user models.DBUsers
 
 	err := db.Database.GetContext(ctx, &user, `
-		SELECT id, username, email, bio, password, created_at, updated_at
+		SELECT id, username, email, bio, current_field_id, password, created_at, updated_at
 		FROM users
 		WHERE id = $1`, id)
 	if err != nil {
@@ -95,6 +95,11 @@ func (db Database) UpdateUser(ctx context.Context, data models.UserPatchRequest,
 	if data.Email != nil {
 		query += fmt.Sprintf(" email = $%d,", argPos)
 		args = append(args, *data.Email)
+		argPos++
+	}
+	if data.CurrentFieldId != nil {
+		query += fmt.Sprintf(" current_field_id = $%d,", argPos)
+		args = append(args, *data.CurrentFieldId)
 		argPos++
 	}
 

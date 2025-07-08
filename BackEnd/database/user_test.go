@@ -257,6 +257,8 @@ func TestDatabase_UpdateUser(t *testing.T) {
 	newEmail := "<EMAIL2>"
 	newBio := "A new bio"
 
+	newFieldId := uuid.NewString()
+
 	newUpdatedTime := time.Now().UTC().Add(time.Hour)
 
 	testCases := []testCase{
@@ -328,6 +330,23 @@ func TestDatabase_UpdateUser(t *testing.T) {
 			newUpdateTime: newUpdatedTime,
 			nilUser:       true,
 		},
+		{
+			name: "Current field id",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userId).
+						WithUsername(username).
+						WithEmail(email).
+						WithBio(bio),
+				},
+			},
+			param: models.UserPatchRequest{
+				CurrentFieldId: ptr(newFieldId),
+			},
+			newUpdateTime: newUpdatedTime,
+			nilUser:       false,
+		},
 	}
 
 	for _, c := range testCases {
@@ -366,6 +385,11 @@ func TestDatabase_UpdateUser(t *testing.T) {
 				require.Equal(t, *user.Bio, newBio)
 			} else {
 				require.Equal(t, *user.Bio, bio)
+			}
+			if c.param.CurrentFieldId != nil {
+				require.Equal(t, *user.CurrentFieldId, newFieldId)
+			} else {
+				require.Nil(t, user.CurrentFieldId)
 			}
 		})
 	}
