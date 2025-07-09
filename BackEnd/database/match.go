@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 )
 
 func (db Database) CheckMatchExist(ctx context.Context, id string) (bool, error) {
@@ -167,4 +168,18 @@ func (db Database) CreateUserMatch(ctx context.Context, um models.DBUserMatch) e
 		`INSERT INTO user_match (user_id, match_id, created_at) VALUES ($1, $2, $3)`,
 		um.UserID, um.MatchID, um.CreatedAt)
 	return err
+}
+
+func (db Database) UpdateMatchScore(ctx context.Context, id string, score1, score2 int, updatedTime time.Time) error {
+	_, err := db.Database.ExecContext(ctx, `
+		UPDATE matches 
+		SET score1 = $1, score2 = $2, current_state = $3, updated_at = $4
+		WHERE id = $5
+	`, score1, score2, models.Termine, updatedTime, id)
+
+	if err != nil {
+		return fmt.Errorf("échec mise à jour du score: %w", err)
+	}
+
+	return nil
 }
