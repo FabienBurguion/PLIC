@@ -159,18 +159,6 @@ func (db Database) IsUserInMatch(ctx context.Context, userID, matchID string) (b
 	return true, nil
 }
 
-func (db Database) IncrementMatchParticipants(ctx context.Context, matchID string) error {
-	_, err := db.Database.ExecContext(ctx, `
-        UPDATE matches
-        SET participant_nber = participant_nber + 1
-        WHERE id = $1
-    `, matchID)
-	if err != nil {
-		return fmt.Errorf("erreur lors de l'incrémentation du nombre de participants: %w", err)
-	}
-	return nil
-}
-
 func (db Database) DeleteMatch(ctx context.Context, matchID string) error {
 	_, err := db.Database.ExecContext(ctx, `
 		DELETE FROM matches
