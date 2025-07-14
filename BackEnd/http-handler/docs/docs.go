@@ -118,6 +118,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/court/{id}": {
+            "get": {
+                "description": "Retourne les informations d’un terrain (court) en fonction de son identifiant passé dans l’URL",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "terrain"
+                ],
+                "summary": "Récupère un terrain par son ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Identifiant du terrain",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Terrain trouvé",
+                        "schema": {
+                            "$ref": "#/definitions/models.DBCourt"
+                        }
+                    },
+                    "400": {
+                        "description": "ID manquant ou invalide",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Terrain non trouvé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur serveur ou base de données",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/email": {
             "post": {
                 "description": "Sends a test email to the specified address",
@@ -440,6 +487,62 @@ const docTemplate = `{
                 }
             }
         },
+        "/match/court/{courtId}": {
+            "get": {
+                "description": "Retourne les matchs associés à un terrain (court) via son ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Liste des matchs pour un court",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Identifiant du terrain",
+                        "name": "courtId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.GetMatchByCourtIdResponses"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "ID manquant",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Utilisateur non autorisé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Aucun match trouvé pour ce terrain",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur interne serveur ou base",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/match/join/{id}": {
             "post": {
                 "description": "Permet à un utilisateur authentifié de rejoindre un match existant, si ce n’est pas déjà fait",
@@ -596,6 +699,71 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Erreur lors de la suppression du match",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/match/{id}/score": {
+            "patch": {
+                "description": "Met à jour les scores (score1 et score2) d’un match via son ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Met à jour le score d’un match",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID du match",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Nouveaux scores",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UpdateScoreRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.MatchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -1055,6 +1223,35 @@ const docTemplate = `{
                 }
             }
         },
+        "models.GetMatchByCourtIdResponses": {
+            "type": "object",
+            "properties": {
+                "current_state": {
+                    "$ref": "#/definitions/models.EtatMatch"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "participant_nber": {
+                    "type": "integer"
+                },
+                "place": {
+                    "type": "string"
+                },
+                "score1": {
+                    "type": "integer"
+                },
+                "score2": {
+                    "type": "integer"
+                },
+                "sport": {
+                    "$ref": "#/definitions/models.Sport"
+                }
+            }
+        },
         "models.GetMatchByUserIdResponses": {
             "type": "object",
             "properties": {
@@ -1130,14 +1327,14 @@ const docTemplate = `{
         "models.MatchRequest": {
             "type": "object",
             "properties": {
+                "court_id": {
+                    "type": "string"
+                },
                 "date": {
                     "type": "string"
                 },
                 "nbre_participant": {
                     "type": "integer"
-                },
-                "place": {
-                    "type": "string"
                 },
                 "sport": {
                     "$ref": "#/definitions/models.Sport"
@@ -1200,6 +1397,17 @@ const docTemplate = `{
                 "Basket",
                 "Foot"
             ]
+        },
+        "models.UpdateScoreRequest": {
+            "type": "object",
+            "properties": {
+                "score1": {
+                    "type": "integer"
+                },
+                "score2": {
+                    "type": "integer"
+                }
+            }
         },
         "models.UserPatchRequest": {
             "type": "object",

@@ -149,7 +149,7 @@ func (s *Service) GetMatchesByUserID(w http.ResponseWriter, r *http.Request, aut
 // @Tags         match
 // @Produce      json
 // @Param        courtId   path      string  true  "Identifiant du terrain"
-// @Success      200  {array}  models.GetMatchByTerrainIdResponses
+// @Success      200  {array}  models.GetMatchByCourtIdResponses
 // @Failure      400  {object}  models.Error  "ID manquant"
 // @Failure      401  {object}  models.Error  "Utilisateur non autorisé"
 // @Failure      404  {object}  models.Error  "Aucun match trouvé pour ce terrain"
