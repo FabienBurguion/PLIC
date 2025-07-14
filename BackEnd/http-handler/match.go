@@ -379,10 +379,6 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to join match: "+err.Error())
 	}
 
-	if err := s.db.IncrementMatchParticipants(ctx, matchID); err != nil {
-		return httpx.WriteError(w, http.StatusInternalServerError, "failed to update participant count: "+err.Error())
-	}
-
 	return httpx.Write(w, http.StatusOK, map[string]string{
 		"status": "joined match",
 		"id":     matchID,
