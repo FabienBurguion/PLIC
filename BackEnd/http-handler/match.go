@@ -143,6 +143,41 @@ func (s *Service) GetMatchesByUserID(w http.ResponseWriter, r *http.Request, aut
 	return httpx.Write(w, http.StatusOK, res)
 }
 
+// GetMatchesByCourtId godoc
+// @Summary      Liste des matchs pour un court
+// @Description  Retourne les matchs associés à un terrain (court) via son ID
+// @Tags         match
+// @Produce      json
+// @Param        courtId   path      string  true  "Identifiant du terrain"
+// @Success      200  {array}  models.GetMatchByCourtIdResponses
+// @Failure      400  {object}  models.Error  "ID manquant"
+// @Failure      401  {object}  models.Error  "Utilisateur non autorisé"
+// @Failure      404  {object}  models.Error  "Aucun match trouvé pour ce terrain"
+// @Failure      500  {object}  models.Error  "Erreur interne serveur ou base"
+// @Router       /match/court/{courtId} [get]
+func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
+	courtID := chi.URLParam(r, "courtId")
+	if courtID == "" {
+		return httpx.WriteError(w, http.StatusBadRequest, "missing courtId in url params")
+	}
+
+	if !auth.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
+	ctx := r.Context()
+	matches, err := s.db.GetMatchesByCourtId(ctx, courtID)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
+	}
+
+	if len(matches) == 0 {
+		return httpx.WriteError(w, http.StatusNotFound, "no matches found for this court")
+	}
+
+	return httpx.Write(w, http.StatusOK, matches)
+}
+
 // GetAllMatches godoc
 // @Summary      Liste tous les matchs
 // @Description  Retourne la liste complète de tous les matchs stockés en base
@@ -243,9 +278,18 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
-	matchDb := match.ToDBMatches()
+	court, err := s.db.GetCourtByID(ctx, match.CourtID)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch court: "+err.Error())
+	}
+	if court == nil {
+		return httpx.WriteError(w, http.StatusBadRequest, "court not found")
+	}
 
-	if err := s.db.CreateMatch(r.Context(), matchDb); err != nil {
+	matchDb := match.ToDBMatches()
+	matchDb.Place = court.Address
+
+	if err := s.db.CreateMatch(ctx, matchDb); err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to create match: "+err.Error())
 	}
 

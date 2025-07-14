@@ -59,7 +59,7 @@ func TestDatabase_InsertTerrain(t *testing.T) {
 	}
 }
 
-func TestDatabase_GetAllTerrains(t *testing.T) {
+func TestDatabase_GetAllCourts(t *testing.T) {
 	type testCase struct {
 		name     string
 		expected models.DBCourt
@@ -107,7 +107,7 @@ func TestDatabase_GetAllTerrains(t *testing.T) {
 			}, c.expected.CreatedAt)
 			require.NoError(t, err)
 
-			terrains, err := s.db.GetAllTerrains(ctx)
+			terrains, err := s.db.GetAllCourts(ctx)
 			require.NoError(t, err)
 			require.NotEmpty(t, terrains)
 
@@ -137,6 +137,8 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 	}
 
 	userID1 := uuid.NewString()
+	court1 := models.NewDBCourtFixture()
+	court2 := models.NewDBCourtFixture()
 	matchID1 := uuid.NewString()
 	matchID2 := uuid.NewString()
 	matchID3 := uuid.NewString()
@@ -145,6 +147,7 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 		{
 			name: "User has matches in different places",
 			fixtures: DBFixtures{
+				Courts: []models.DBCourt{court1, court2},
 				Users: []models.DBUsers{
 					{Id: userID1, Username: "toto", Email: "toto@example.com", Password: "xxx"},
 				},
@@ -158,6 +161,7 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 						CurrentState:    models.Valide,
 						Score1:          1,
 						Score2:          2,
+						CourtID:         court1.Id,
 					},
 					{
 						Id:              matchID2,
@@ -168,6 +172,7 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 						CurrentState:    models.Termine,
 						Score1:          3,
 						Score2:          3,
+						CourtID:         court2.Id,
 					},
 					{
 						Id:              matchID3,
@@ -178,6 +183,7 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 						CurrentState:    models.Valide,
 						Score1:          0,
 						Score2:          0,
+						CourtID:         court1.Id,
 					},
 				},
 				UserMatches: []models.DBUserMatch{
@@ -187,7 +193,7 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 				},
 			},
 			userID:        userID1,
-			expectedCount: 2,
+			expectedCount: 2, // Paris and Lyon (two distinct Place fields)
 			expectError:   false,
 		},
 		{

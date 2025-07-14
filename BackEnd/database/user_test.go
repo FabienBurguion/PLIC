@@ -443,14 +443,27 @@ func TestDatabase_GetFavoriteFieldByUserID(t *testing.T) {
 	userID := uuid.NewString()
 	matchID1 := uuid.NewString()
 	matchID2 := uuid.NewString()
+	courtID := uuid.NewString()
+
+	courts := []models.DBCourt{
+		{
+			Id:        courtID,
+			Name:      "Court central",
+			Address:   "1 rue des sports",
+			Longitude: 4.8357,
+			Latitude:  45.7640,
+			CreatedAt: time.Now(),
+		},
+	}
 
 	fixtures := DBFixtures{
 		Users: []models.DBUsers{
 			{Id: userID, Username: "user", Email: "user@example.com", Password: "pwd"},
 		},
+		Courts: courts,
 		Matches: []models.DBMatches{
-			{Id: matchID1, Sport: models.Foot, Place: "Paris", Date: time.Now(), CurrentState: models.Termine},
-			{Id: matchID2, Sport: models.Foot, Place: "Paris", Date: time.Now(), CurrentState: models.Termine},
+			{Id: matchID1, Sport: models.Foot, Place: "Paris", Date: time.Now(), CurrentState: models.Termine, CourtID: courtID}, // Ajout CourtID
+			{Id: matchID2, Sport: models.Foot, Place: "Paris", Date: time.Now(), CurrentState: models.Termine, CourtID: courtID}, // Ajout CourtID
 		},
 		UserMatches: []models.DBUserMatch{
 			{UserID: userID, MatchID: matchID1},
@@ -474,14 +487,27 @@ func TestDatabase_GetFavoriteSportByUserID(t *testing.T) {
 	userID := uuid.NewString()
 	matchID1 := uuid.NewString()
 	matchID2 := uuid.NewString()
+	courtID := uuid.NewString()
+
+	courts := []models.DBCourt{
+		{
+			Id:        courtID,
+			Name:      "Court central",
+			Address:   "10 avenue des sports",
+			Longitude: 7.1234,
+			Latitude:  43.5678,
+			CreatedAt: time.Now(),
+		},
+	}
 
 	fixtures := DBFixtures{
 		Users: []models.DBUsers{
 			{Id: userID, Username: "sporty", Email: "sporty@example.com", Password: "pwd"},
 		},
+		Courts: courts,
 		Matches: []models.DBMatches{
-			{Id: matchID1, Sport: models.Basket, Place: "Nice", Date: time.Now(), CurrentState: models.Termine},
-			{Id: matchID2, Sport: models.Basket, Place: "Nice", Date: time.Now(), CurrentState: models.Termine},
+			{Id: matchID1, Sport: models.Basket, Place: "Nice", Date: time.Now(), CurrentState: models.Termine, CourtID: courtID},
+			{Id: matchID2, Sport: models.Basket, Place: "Nice", Date: time.Now(), CurrentState: models.Termine, CourtID: courtID},
 		},
 		UserMatches: []models.DBUserMatch{
 			{UserID: userID, MatchID: matchID1},
@@ -505,14 +531,41 @@ func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
 	userID := uuid.NewString()
 	matchID1 := uuid.NewString()
 	matchID2 := uuid.NewString()
+	courtID := uuid.NewString()
+
+	courts := []models.DBCourt{
+		{
+			Id:        courtID,
+			Name:      "Court central",
+			Address:   "10 avenue des sports",
+			Longitude: 4.8357,
+			Latitude:  45.7640,
+			CreatedAt: time.Now(),
+		},
+	}
 
 	fixtures := DBFixtures{
 		Users: []models.DBUsers{
 			{Id: userID, Username: "multi", Email: "multi@example.com", Password: "pwd"},
 		},
+		Courts: courts,
 		Matches: []models.DBMatches{
-			{Id: matchID1, Sport: models.Foot, Place: "Paris", Date: time.Now(), CurrentState: models.Termine},
-			{Id: matchID2, Sport: models.Basket, Place: "Lyon", Date: time.Now(), CurrentState: models.Termine},
+			{
+				Id:           matchID1,
+				Sport:        models.Foot,
+				Place:        "Paris",
+				Date:         time.Now(),
+				CurrentState: models.Termine,
+				CourtID:      courtID,
+			},
+			{
+				Id:           matchID2,
+				Sport:        models.Basket,
+				Place:        "Lyon",
+				Date:         time.Now(),
+				CurrentState: models.Termine,
+				CourtID:      courtID,
+			},
 		},
 		UserMatches: []models.DBUserMatch{
 			{UserID: userID, MatchID: matchID1},
