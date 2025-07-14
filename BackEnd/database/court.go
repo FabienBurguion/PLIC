@@ -40,7 +40,7 @@ func (db Database) GetTerrainByAddress(ctx context.Context, address string) (*mo
 	return &court, nil
 }
 
-func (db Database) GetAllTerrains(ctx context.Context) ([]models.DBCourt, error) {
+func (db Database) GetAllCourts(ctx context.Context) ([]models.DBCourt, error) {
 	var terrains []models.DBCourt
 	err := db.Database.SelectContext(ctx, &terrains, `
 		SELECT id, address, longitude, latitude, created_at, name

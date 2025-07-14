@@ -141,7 +141,7 @@ func main() {
 	s.POST("/place", withAuthentication(s.HandleSyncGooglePlaces))
 
 	// ENDPOINTS FOR TERRAINS
-	s.GET("/court/all", withAuthentication(s.GetAllTerrains))
+	s.GET("/court/all", withAuthentication(s.GetAllCourts))
 	s.GET("/court/{id}", withAuthentication(s.GetCourtByID))
 
 	// ENDPOINTS FOR MATCHES

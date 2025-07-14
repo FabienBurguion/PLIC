@@ -59,7 +59,7 @@ func TestDatabase_InsertTerrain(t *testing.T) {
 	}
 }
 
-func TestDatabase_GetAllTerrains(t *testing.T) {
+func TestDatabase_GetAllCourts(t *testing.T) {
 	type testCase struct {
 		name     string
 		expected models.DBCourt
@@ -107,7 +107,7 @@ func TestDatabase_GetAllTerrains(t *testing.T) {
 			}, c.expected.CreatedAt)
 			require.NoError(t, err)
 
-			terrains, err := s.db.GetAllTerrains(ctx)
+			terrains, err := s.db.GetAllCourts(ctx)
 			require.NoError(t, err)
 			require.NotEmpty(t, terrains)
 
