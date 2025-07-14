@@ -30,7 +30,7 @@ func (db Database) GetMatchById(ctx context.Context, id string) (*models.DBMatch
 	var match models.DBMatches
 
 	err := db.Database.GetContext(ctx, &match, `
-        SELECT id, sport, place, date, participant_nber, current_state, score1, score2
+        SELECT id, sport, place, date, participant_nber, current_state, score1, score2, court_id
         FROM matches
         WHERE id = $1`, id)
 
@@ -74,6 +74,22 @@ func (db Database) GetMatchesByUserID(ctx context.Context, userID string) ([]mod
 	return dbMatches, nil
 }
 
+func (db Database) GetMatchesByCourtId(ctx context.Context, courtID string) ([]models.GetMatchByCourtIdResponses, error) {
+	var dbMatches []models.DBMatches
+
+	err := db.Database.SelectContext(ctx, &dbMatches, `
+        SELECT id, sport, place, date, participant_nber, current_state, score1, score2
+        FROM matches
+        WHERE court_id = $1
+        ORDER BY date DESC
+    `, courtID)
+	if err != nil {
+		return nil, fmt.Errorf("échec de la récupération des matchs pour le court %s : %w", courtID, err)
+	}
+
+	return models.ConvertDBMatchesToGetMatchResponses(dbMatches), nil
+}
+
 func (db Database) GetMatchCountByUserID(ctx context.Context, userID string) (int, error) {
 	var count int
 	err := db.Database.GetContext(ctx, &count, `
@@ -102,8 +118,12 @@ func (db Database) GetAllMatches(ctx context.Context) ([]models.DBMatches, error
 
 func (db Database) CreateMatch(ctx context.Context, match models.DBMatches) error {
 	_, err := db.Database.NamedExecContext(ctx, `
-        INSERT INTO matches (id, sport, place, date, participant_nber, current_state, score1, score2)
-        VALUES (:id, :sport, :place, :date, :participant_nber, :current_state, :score1, :score2)`, match)
+    INSERT INTO matches (
+        id, sport, place, date, participant_nber, current_state, score1, score2, court_id
+    ) VALUES (
+        :id, :sport, :place, :date, :participant_nber, :current_state, :score1, :score2, :court_id
+    )`, match)
+
 	if err != nil {
 		return fmt.Errorf("échec de l'insertion match : %w", err)
 	}

@@ -16,12 +16,13 @@ import (
 )
 
 func Test_GetUserById(t *testing.T) {
-	type testCase struct {
-		name          string
-		urlID         string
-		fixtures      DBFixtures
-		expectedCode  int
-		expectedCheck func(t *testing.T, res models.UserResponse)
+	court1 := models.NewDBCourtFixture()
+	if court1.Id == "" {
+		court1.Id = uuid.NewString()
+	}
+	court2 := models.NewDBCourtFixture()
+	if court2.Id == "" {
+		court2.Id = uuid.NewString()
 	}
 
 	userWithData := models.NewDBUsersFixture()
@@ -35,6 +36,7 @@ func Test_GetUserById(t *testing.T) {
 		CurrentState: models.Termine,
 		Score1:       2,
 		Score2:       1,
+		CourtID:      court1.Id,
 	}
 	match2 := models.DBMatches{
 		Id:           uuid.NewString(),
@@ -44,6 +46,15 @@ func Test_GetUserById(t *testing.T) {
 		CurrentState: models.Termine,
 		Score1:       5,
 		Score2:       3,
+		CourtID:      court2.Id,
+	}
+
+	type testCase struct {
+		name          string
+		urlID         string
+		fixtures      DBFixtures
+		expectedCode  int
+		expectedCheck func(t *testing.T, res models.UserResponse)
 	}
 
 	testCases := []testCase{
@@ -51,10 +62,9 @@ func Test_GetUserById(t *testing.T) {
 			name:  "User with full match history",
 			urlID: userWithData.Id,
 			fixtures: DBFixtures{
-				Users: []models.DBUsers{userWithData},
-				Matches: []models.DBMatches{
-					match1, match2,
-				},
+				Users:   []models.DBUsers{userWithData},
+				Courts:  []models.DBCourt{court1, court2},
+				Matches: []models.DBMatches{match1, match2},
 				UserMatches: []models.DBUserMatch{
 					{UserID: userWithData.Id, MatchID: match1.Id},
 					{UserID: userWithData.Id, MatchID: match2.Id},

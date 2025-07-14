@@ -153,24 +153,6 @@ func InitDBTest(sqlFile string) (*sqlx.DB, func() error, error) {
 
 func (s *Service) loadFixtures(fixtures DBFixtures) {
 	ctx := context.Background()
-	for _, u := range fixtures.Users {
-		err := s.db.CreateUser(ctx, u)
-		if err != nil {
-			panic(err)
-		}
-	}
-	for _, u := range fixtures.Matches {
-		err := s.db.CreateMatch(ctx, u)
-		if err != nil {
-			panic(err)
-		}
-	}
-	for _, u := range fixtures.UserMatches {
-		err := s.db.CreateUserMatch(ctx, u)
-		if err != nil {
-			panic(err)
-		}
-	}
 	for _, c := range fixtures.Courts {
 		if err := s.db.InsertTerrain(ctx, c.Id, models.Place{
 			Name:    c.Name,
@@ -191,6 +173,24 @@ func (s *Service) loadFixtures(fixtures DBFixtures) {
 			},
 		}, time.Now()); err != nil {
 			panic(fmt.Sprintf("failed to insert terrain: %v", err))
+		}
+	}
+	for _, u := range fixtures.Users {
+		err := s.db.CreateUser(ctx, u)
+		if err != nil {
+			panic(err)
+		}
+	}
+	for _, u := range fixtures.Matches {
+		err := s.db.CreateMatch(ctx, u)
+		if err != nil {
+			panic(err)
+		}
+	}
+	for _, u := range fixtures.UserMatches {
+		err := s.db.CreateUserMatch(ctx, u)
+		if err != nil {
+			panic(err)
 		}
 	}
 

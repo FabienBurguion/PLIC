@@ -31,6 +31,7 @@ type DBMatches struct {
 	CurrentState    EtatMatch `db:"current_state"`
 	Score1          int       `db:"score1"`
 	Score2          int       `db:"score2"`
+	CourtID         string    `db:"court_id"`
 }
 
 func NewDBMatchesFixture() DBMatches {
@@ -63,4 +64,25 @@ func (m DBMatches) ToMatchResponse(users []DBUsers, profilePictures []string) Ma
 		Score2:          m.Score2,
 		Users:           userResponses,
 	}
+}
+
+func (m DBMatches) ToGetMatchByCourtIdResponse() GetMatchByCourtIdResponses {
+	return GetMatchByCourtIdResponses{
+		Id:              m.Id,
+		Sport:           m.Sport,
+		Place:           m.Place,
+		Date:            m.Date,
+		ParticipantNber: m.ParticipantNber,
+		CurrentState:    m.CurrentState,
+		Score1:          m.Score1,
+		Score2:          m.Score2,
+	}
+}
+
+func ConvertDBMatchesToGetMatchResponses(matches []DBMatches) []GetMatchByCourtIdResponses {
+	responses := make([]GetMatchByCourtIdResponses, len(matches))
+	for i, m := range matches {
+		responses[i] = m.ToGetMatchByCourtIdResponse()
+	}
+	return responses
 }

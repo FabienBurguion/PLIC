@@ -64,3 +64,39 @@ func (db Database) GetVisitedFieldCountByUserID(ctx context.Context, userID stri
 	}
 	return count, nil
 }
+
+func (db Database) GetCourtByID(ctx context.Context, id string) (*models.DBCourt, error) {
+	var court models.DBCourt
+	err := db.Database.GetContext(ctx, &court, `
+		SELECT id, address, name, longitude, latitude, created_at
+		FROM courts
+		WHERE id = $1
+	`, id)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to fetch court: %w", err)
+	}
+	return &court, nil
+}
+
+func (db Database) InsertCourtForTest(ctx context.Context, court models.DBCourt) error {
+	_, err := db.Database.NamedExecContext(ctx, `
+		INSERT INTO courts (id, name, address, latitude, longitude, created_at)
+		VALUES (:id, :name, :address, :latitude, :longitude, :created_at)`, court)
+	return err
+}
+
+func (d *Database) CreateCourt(ctx context.Context, court models.DBCourt) error {
+	_, err := d.Database.ExecContext(ctx, `
+		INSERT INTO courts (id, name, address, longitude, latitude, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, court.Id, court.Name, court.Address, court.Longitude, court.Latitude, court.CreatedAt)
+
+	if err != nil {
+		return fmt.Errorf("échec de l'insertion court : %w", err)
+	}
+	return nil
+}

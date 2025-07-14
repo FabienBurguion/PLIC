@@ -142,11 +142,13 @@ func main() {
 
 	// ENDPOINTS FOR TERRAINS
 	s.GET("/court/all", withAuthentication(s.GetAllTerrains))
+	s.GET("/court/{id}", withAuthentication(s.GetCourtByID))
 
 	// ENDPOINTS FOR MATCHES
 	s.GET("/match/all", withAuthentication(s.GetAllMatches))
 	s.GET("/match/{id}", withAuthentication(s.GetMatchByID))
 	s.GET("/user/matches/{userId}", withAuthentication(s.GetMatchesByUserID))
+	s.GET("/matches/court/{courtId}", withAuthentication(s.GetMatchesByCourtId))
 	s.POST("/match", withAuthentication(s.CreateMatch))
 	s.POST("/join/match/{id}", withAuthentication(s.JoinMatch))
 	s.PATCH("/score/match/{id}", withAuthentication(s.UpdateMatchScore))
