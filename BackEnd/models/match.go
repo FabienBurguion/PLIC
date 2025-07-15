@@ -12,7 +12,7 @@ type MatchRequest struct {
 	NbreParticipant int       `json:"nbre_participant"`
 }
 
-func (m MatchRequest) ToDBMatches() DBMatches {
+func (m MatchRequest) ToDBMatches(now time.Time) DBMatches {
 	return DBMatches{
 		Id:              uuid.NewString(),
 		Sport:           m.Sport,
@@ -23,6 +23,8 @@ func (m MatchRequest) ToDBMatches() DBMatches {
 		Score1:          0,
 		Score2:          0,
 		CourtID:         m.CourtID,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 }
 
@@ -36,4 +38,5 @@ type MatchResponse struct {
 	Score1          int            `json:"score1"`
 	Score2          int            `json:"score2"`
 	Users           []UserResponse `json:"users"`
+	CreatedAt       time.Time      `json:"created_at"`
 }

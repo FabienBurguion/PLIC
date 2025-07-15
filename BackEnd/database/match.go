@@ -13,7 +13,7 @@ func (db Database) CheckMatchExist(ctx context.Context, id string) (bool, error)
 	var match models.DBMatches
 
 	err := db.Database.GetContext(ctx, &match, `
-		SELECT id, sport, place, date, participant_nber, current_state, score1, score2
+		SELECT id, sport, place, date, participant_nber, current_state, score1, score2, created_at, updated_at
 		FROM matches
 		WHERE id = $1`, id)
 	if err != nil {
@@ -30,7 +30,7 @@ func (db Database) GetMatchById(ctx context.Context, id string) (*models.DBMatch
 	var match models.DBMatches
 
 	err := db.Database.GetContext(ctx, &match, `
-        SELECT id, sport, place, date, participant_nber, current_state, score1, score2, court_id
+        SELECT id, sport, place, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
         FROM matches
         WHERE id = $1`, id)
 
@@ -78,7 +78,7 @@ func (db Database) GetMatchesByCourtId(ctx context.Context, courtID string) ([]m
 	var dbMatches []models.DBMatches
 
 	err := db.Database.SelectContext(ctx, &dbMatches, `
-        SELECT id, sport, place, date, participant_nber, current_state, score1, score2, court_id
+        SELECT id, sport, place, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
         FROM matches
         WHERE court_id = $1
         ORDER BY date DESC
@@ -108,7 +108,7 @@ func (db Database) GetMatchCountByUserID(ctx context.Context, userID string) (in
 func (db Database) GetAllMatches(ctx context.Context) ([]models.DBMatches, error) {
 	var matches []models.DBMatches
 	err := db.Database.SelectContext(ctx, &matches, `
-        SELECT id, sport, place, date, participant_nber, current_state, score1, score2
+        SELECT id, sport, place, date, participant_nber, current_state, score1, score2, created_at, updated_at
         FROM matches`)
 	if err != nil {
 		return nil, fmt.Errorf("échec de la récupération des matchs : %w", err)
@@ -119,9 +119,9 @@ func (db Database) GetAllMatches(ctx context.Context) ([]models.DBMatches, error
 func (db Database) CreateMatch(ctx context.Context, match models.DBMatches) error {
 	_, err := db.Database.NamedExecContext(ctx, `
     INSERT INTO matches (
-        id, sport, place, date, participant_nber, current_state, score1, score2, court_id
+        id, sport, place, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
     ) VALUES (
-        :id, :sport, :place, :date, :participant_nber, :current_state, :score1, :score2, :court_id
+        :id, :sport, :place, :date, :participant_nber, :current_state, :score1, :score2, :court_id, :created_at, :updated_at
     )`, match)
 
 	if err != nil {

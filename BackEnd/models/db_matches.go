@@ -32,6 +32,8 @@ type DBMatches struct {
 	Score1          int       `db:"score1"`
 	Score2          int       `db:"score2"`
 	CourtID         string    `db:"court_id"`
+	CreatedAt       time.Time `db:"created_at"`
+	UpdatedAt       time.Time `db:"updated_at"`
 }
 
 func NewDBMatchesFixture() DBMatches {
@@ -63,6 +65,7 @@ func (m DBMatches) ToMatchResponse(users []DBUsers, profilePictures []string) Ma
 		Score1:          m.Score1,
 		Score2:          m.Score2,
 		Users:           userResponses,
+		CreatedAt:       m.CreatedAt,
 	}
 }
 

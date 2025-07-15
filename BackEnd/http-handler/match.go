@@ -286,7 +286,7 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 		return httpx.WriteError(w, http.StatusBadRequest, "court not found")
 	}
 
-	matchDb := match.ToDBMatches()
+	matchDb := match.ToDBMatches(s.clock.Now())
 	matchDb.Place = court.Address
 
 	if err := s.db.CreateMatch(ctx, matchDb); err != nil {
