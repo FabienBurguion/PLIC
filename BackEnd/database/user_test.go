@@ -531,6 +531,7 @@ func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
 	userID := uuid.NewString()
 	matchID1 := uuid.NewString()
 	matchID2 := uuid.NewString()
+	matchID3 := uuid.NewString()
 	courtID := uuid.NewString()
 
 	courts := []models.DBCourt{
@@ -566,10 +567,19 @@ func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
 				CurrentState: models.Termine,
 				CourtID:      courtID,
 			},
+			{
+				Id:           matchID3,
+				Sport:        models.PingPong,
+				Place:        "Lyon",
+				Date:         time.Now(),
+				CurrentState: models.Termine,
+				CourtID:      courtID,
+			},
 		},
 		UserMatches: []models.DBUserMatch{
 			{UserID: userID, MatchID: matchID1},
 			{UserID: userID, MatchID: matchID2},
+			{UserID: userID, MatchID: matchID3},
 		},
 	}
 	s.loadFixtures(fixtures)
@@ -578,5 +588,5 @@ func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
 	sports, err := s.db.GetPlayedSportsByUserID(ctx, userID)
 
 	require.NoError(t, err)
-	require.ElementsMatch(t, []models.Sport{models.Foot, models.Basket}, sports)
+	require.ElementsMatch(t, []models.Sport{models.Foot, models.Basket, models.PingPong}, sports)
 }

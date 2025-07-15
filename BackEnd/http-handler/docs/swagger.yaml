@@ -157,10 +157,12 @@ definitions:
     enum:
     - basket
     - foot
+    - ping-pong
     type: string
     x-enum-varnames:
     - Basket
     - Foot
+    - PingPong
   models.UpdateScoreRequest:
     properties:
       score1:

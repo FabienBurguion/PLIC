@@ -8,8 +8,9 @@ import (
 type Sport string
 
 const (
-	Basket Sport = "basket"
-	Foot   Sport = "foot"
+	Basket   Sport = "basket"
+	Foot     Sport = "foot"
+	PingPong Sport = "ping-pong"
 )
 
 type EtatMatch string
