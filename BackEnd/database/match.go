@@ -86,7 +86,9 @@ func (db Database) GetMatchesByCourtId(ctx context.Context, courtID string) ([]m
         ORDER BY date DESC
     `, courtID)
 	if err != nil {
-		return nil, fmt.Errorf("échec de la récupération des matchs pour le court %s : %w", courtID, err)
+		msg := fmt.Sprintf("error querying matches for court %s: %w", courtID, err)
+		log.Println(msg)
+		return nil, fmt.Errorf(msg)
 	}
 
 	return dbMatches, nil
