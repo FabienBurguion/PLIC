@@ -30,7 +30,7 @@ type Service struct {
 	db            database.Database
 	server        *chi.Mux
 	clock         Clock
-	mailer        mailer.MailerInterface
+	mailer        mailer.MailSender
 	s3Service     s3_management.S3Service
 	configuration *models.Configuration
 }

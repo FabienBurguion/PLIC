@@ -57,23 +57,3 @@ func (u DBUsers) WitUpdatedAt(updatedAt time.Time) DBUsers {
 	u.UpdatedAt = updatedAt
 	return u
 }
-
-func (u DBUsers) ToUserResponse(profilePictureUrl string) UserResponse {
-	var p *string
-	if profilePictureUrl != "" {
-		p = &profilePictureUrl
-	}
-	return UserResponse{
-		Username:       u.Username,
-		Bio:            u.Bio,
-		CreatedAt:      u.CreatedAt,
-		ProfilePicture: p,
-		VisitedFields:  0,   // TODO
-		Winrate:        nil, // TODO
-		FavoriteCity:   nil, // TODO
-		FavoriteSport:  nil, // TODO
-		FavoriteField:  nil, // TODO
-		Sports:         nil, // TODO
-		Fields:         nil, // TODO
-	}
-}

@@ -89,7 +89,7 @@ func (db Database) InsertCourtForTest(ctx context.Context, court models.DBCourt)
 	return err
 }
 
-func (db *Database) CreateCourt(ctx context.Context, court models.DBCourt) error {
+func (db Database) CreateCourt(ctx context.Context, court models.DBCourt) error {
 	_, err := db.Database.ExecContext(ctx, `
 		INSERT INTO courts (id, name, address, longitude, latitude, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6)

@@ -82,7 +82,9 @@ func Test_GetMatchByID(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 			require.Equal(t, c.expectedCode, resp.StatusCode)
 
 			if c.expectFound {
@@ -166,7 +168,9 @@ func Test_GetMatchesByUserID(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 			require.Equal(t, c.expectedCode, resp.StatusCode)
 
 			if c.expectFound {
@@ -281,7 +285,9 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 
 			require.Equal(t, c.expectedCode, resp.StatusCode)
 
@@ -342,7 +348,9 @@ func Test_GetAllMatches(t *testing.T) {
 	require.NoError(t, err)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 	require.Equal(t, 200, resp.StatusCode)
 
 	body, err := io.ReadAll(resp.Body)
@@ -394,7 +402,9 @@ func Test_CreateMatch(t *testing.T) {
 	require.NoError(t, err)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
 
 	body, err := io.ReadAll(resp.Body)
@@ -464,7 +474,9 @@ func Test_UpdateMatchScore(t *testing.T) {
 	require.NoError(t, err)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	body, err := io.ReadAll(resp.Body)

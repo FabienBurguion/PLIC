@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -65,7 +66,9 @@ func TestService_SendTestMail(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 			require.Equal(t, c.expected.statusCode, resp.StatusCode)
 			if c.expected.statusCode != http.StatusOK {
 				return

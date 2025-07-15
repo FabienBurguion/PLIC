@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -117,7 +118,9 @@ func TestService_Login(t *testing.T) {
 			err := s.Login(w, req, models.AuthInfo{})
 			require.NoError(t, err)
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 			require.Equal(t, c.expected.code, resp.StatusCode)
 			if c.expected.code != http.StatusOK {
 				return
@@ -230,7 +233,9 @@ func TestService_Register(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 			require.Equal(t, c.expected.code, resp.StatusCode)
 
 			if c.expected.code != http.StatusCreated {
@@ -341,7 +346,9 @@ func TestService_ForgetPassword(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 			require.Equal(t, c.expected.statusCode, resp.StatusCode)
 			if c.expected.statusCode != http.StatusOK {
 				return
@@ -433,7 +440,9 @@ func TestService_ResetPassword(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 			require.Equal(t, c.expected.statusCode, resp.StatusCode)
 
 			if c.expected.statusCode != http.StatusOK {
@@ -552,7 +561,9 @@ func TestService_ChangePassword(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 			require.Equal(t, c.expected.statusCode, resp.StatusCode)
 			if c.expected.statusCode != http.StatusOK {
 				return

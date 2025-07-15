@@ -3,6 +3,7 @@ package main
 import (
 	"PLIC/httpx"
 	"PLIC/models"
+	"context"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"io"
@@ -10,6 +11,26 @@ import (
 	"net/http"
 	"sync"
 )
+
+func (s *Service) BuildMatchResponse(ctx context.Context, match models.DBMatches, users []models.DBUsers, profilePictures []string) models.MatchResponse {
+	userResponses := make([]models.UserResponse, len(users))
+	for i, u := range users {
+		userResponses[i] = s.BuildUserResponse(ctx, u, profilePictures[i])
+	}
+
+	return models.MatchResponse{
+		Id:              match.Id,
+		Sport:           match.Sport,
+		Place:           match.Place,
+		Date:            match.Date,
+		NbreParticipant: match.ParticipantNber,
+		CurrentState:    match.CurrentState,
+		Score1:          match.Score1,
+		Score2:          match.Score2,
+		Users:           userResponses,
+		CreatedAt:       match.CreatedAt,
+	}
+}
 
 // GetMatchByID godoc
 // @Summary      Récupère un match par son ID
@@ -89,7 +110,7 @@ func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, auth mode
 
 	wg2.Wait()
 
-	response := match.ToMatchResponse(users, profilePictures)
+	response := s.BuildMatchResponse(r.Context(), *match, users, profilePictures)
 	return httpx.Write(w, http.StatusOK, response)
 }
 
@@ -227,7 +248,7 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 
 			innerWg.Wait()
 
-			mr := match.ToMatchResponse(users, profilePictures)
+			mr := s.BuildMatchResponse(r.Context(), match, users, profilePictures)
 
 			mu.Lock()
 			res[i] = mr
@@ -312,7 +333,7 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, _ models
 
 			innerWg.Wait()
 
-			mr := match.ToMatchResponse(users, profilePictures)
+			mr := s.BuildMatchResponse(r.Context(), match, users, profilePictures)
 
 			mu.Lock()
 			res[i] = mr
@@ -401,7 +422,7 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 	}
 
 	wg.Wait()
-	response := matchDb.ToMatchResponse(users, profilePictures)
+	response := s.BuildMatchResponse(r.Context(), matchDb, users, profilePictures)
 
 	return httpx.Write(w, http.StatusCreated, response)
 }
@@ -576,6 +597,6 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, auth 
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to retrieve updated match")
 	}
 
-	resp := updatedMatch.ToMatchResponse(users, profilePictures)
+	resp := s.BuildMatchResponse(r.Context(), *updatedMatch, users, profilePictures)
 	return httpx.Write(w, http.StatusOK, resp)
 }

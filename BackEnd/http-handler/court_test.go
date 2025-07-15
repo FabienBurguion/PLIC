@@ -81,7 +81,9 @@ func Test_GetCourtByID(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 
 			require.Equal(t, c.expectedCode, resp.StatusCode)
 

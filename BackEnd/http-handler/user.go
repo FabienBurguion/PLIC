@@ -3,12 +3,59 @@ package main
 import (
 	"PLIC/httpx"
 	"PLIC/models"
+	"context"
 	"encoding/json"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
 )
+
+func (s *Service) BuildUserResponse(ctx context.Context, user models.DBUsers, profilePictureUrl string) models.UserResponse {
+	var (
+		visitedFields int
+		matchCount    int
+		favSport      *models.Sport
+		favField      *string
+		sports        []models.Sport
+		fields        []models.Field
+	)
+
+	if n, err := s.db.GetMatchCountByUserID(ctx, user.Id); err == nil {
+		matchCount = n
+	}
+	if n, err := s.db.GetVisitedFieldCountByUserID(ctx, user.Id); err == nil {
+		visitedFields = n
+	}
+	if c, err := s.db.GetFavoriteFieldByUserID(ctx, user.Id); err == nil {
+		favField = c
+	}
+	if spt, err := s.db.GetFavoriteSportByUserID(ctx, user.Id); err == nil {
+		favSport = spt
+	}
+	if lst, err := s.db.GetPlayedSportsByUserID(ctx, user.Id); err == nil {
+		sports = lst
+	}
+	if lst, err := s.db.GetRankedFieldsByUserID(ctx, user.Id); err == nil {
+		fields = lst
+	}
+
+	return models.UserResponse{
+		Username:       user.Username,
+		Bio:            user.Bio,
+		CreatedAt:      user.CreatedAt,
+		ProfilePicture: ptr(profilePictureUrl),
+		CurrentFieldId: user.CurrentFieldId,
+		VisitedFields:  visitedFields,
+		NbMatches:      matchCount,
+		Winrate:        ptr(100), // TODO
+		FavoriteCity:   nil,
+		FavoriteSport:  favSport,
+		FavoriteField:  favField,
+		Sports:         sports,
+		Fields:         fields,
+	}
+}
 
 // GetUserById godoc
 // @Summary      Get a param by ID

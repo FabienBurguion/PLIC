@@ -49,23 +49,3 @@ func NewDBMatchesFixture() DBMatches {
 		Score2:          0,
 	}
 }
-
-func (m DBMatches) ToMatchResponse(users []DBUsers, profilePictures []string) MatchResponse {
-	userResponses := make([]UserResponse, len(users))
-	for i, u := range users {
-		userResponses[i] = u.ToUserResponse(profilePictures[i])
-	}
-
-	return MatchResponse{
-		Id:              m.Id,
-		Sport:           m.Sport,
-		Place:           m.Place,
-		Date:            m.Date,
-		NbreParticipant: m.ParticipantNber,
-		CurrentState:    m.CurrentState,
-		Score1:          m.Score1,
-		Score2:          m.Score2,
-		Users:           userResponses,
-		CreatedAt:       m.CreatedAt,
-	}
-}
