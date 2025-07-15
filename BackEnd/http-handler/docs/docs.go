@@ -280,71 +280,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/image": {
-            "get": {
-                "description": "Retrieves a pre-signed URL to access an image stored in S3",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "upload"
-                ],
-                "summary": "Get image URL from S3",
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/models.ImageUrl"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Uploads an image file to an S3 bucket",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "upload"
-                ],
-                "summary": "Upload an image to S3",
-                "parameters": [
-                    {
-                        "type": "file",
-                        "description": "Image file to upload",
-                        "name": "image",
-                        "in": "formData",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created"
-                    },
-                    "400": {
-                        "description": "Bad request or file not found",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
         "/login": {
             "post": {
                 "description": "Authenticate a user with username and password",
@@ -1256,14 +1191,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "response": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.ImageUrl": {
-            "type": "object",
-            "properties": {
-                "url": {
                     "type": "string"
                 }
             }

@@ -71,11 +71,6 @@ definitions:
       response:
         type: string
     type: object
-  models.ImageUrl:
-    properties:
-      url:
-        type: string
-    type: object
   models.LoginRequest:
     properties:
       password:
@@ -386,49 +381,6 @@ paths:
       summary: Say Hello
       tags:
       - testing
-  /image:
-    get:
-      description: Retrieves a pre-signed URL to access an image stored in S3
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/models.ImageUrl'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/models.Error'
-      summary: Get image URL from S3
-      tags:
-      - upload
-    post:
-      consumes:
-      - multipart/form-data
-      description: Uploads an image file to an S3 bucket
-      parameters:
-      - description: Image file to upload
-        in: formData
-        name: image
-        required: true
-        type: file
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-        "400":
-          description: Bad request or file not found
-          schema:
-            $ref: '#/definitions/models.Error'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/models.Error'
-      summary: Upload an image to S3
-      tags:
-      - upload
   /login:
     post:
       consumes:
