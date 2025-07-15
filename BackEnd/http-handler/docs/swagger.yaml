@@ -47,27 +47,6 @@ definitions:
       score:
         type: integer
     type: object
-  models.GetMatchByCourtIdResponses:
-    properties:
-      court_id:
-        type: string
-      current_state:
-        $ref: '#/definitions/models.EtatMatch'
-      date:
-        type: string
-      id:
-        type: string
-      participant_nber:
-        type: integer
-      place:
-        type: string
-      score1:
-        type: integer
-      score2:
-        type: integer
-      sport:
-        $ref: '#/definitions/models.Sport'
-    type: object
   models.GetMatchByUserIdResponses:
     properties:
       current_state:
@@ -671,7 +650,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.GetMatchByCourtIdResponses'
+              $ref: '#/definitions/models.MatchResponse'
             type: array
         "400":
           description: ID manquant

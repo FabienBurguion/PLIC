@@ -512,7 +512,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.GetMatchByCourtIdResponses"
+                                "$ref": "#/definitions/models.MatchResponse"
                             }
                         }
                     },
@@ -1220,38 +1220,6 @@ const docTemplate = `{
                 },
                 "score": {
                     "type": "integer"
-                }
-            }
-        },
-        "models.GetMatchByCourtIdResponses": {
-            "type": "object",
-            "properties": {
-                "court_id": {
-                    "type": "string"
-                },
-                "current_state": {
-                    "$ref": "#/definitions/models.EtatMatch"
-                },
-                "date": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "participant_nber": {
-                    "type": "integer"
-                },
-                "place": {
-                    "type": "string"
-                },
-                "score1": {
-                    "type": "integer"
-                },
-                "score2": {
-                    "type": "integer"
-                },
-                "sport": {
-                    "$ref": "#/definitions/models.Sport"
                 }
             }
         },
