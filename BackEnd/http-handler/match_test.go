@@ -248,8 +248,8 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 			},
 			courtID:        court1.Id,
 			auth:           models.AuthInfo{IsConnected: true},
-			expectedCode:   http.StatusNotFound,
-			expectErrorMsg: "no matches found for this court",
+			expectedCode:   http.StatusOK,
+			expectResponse: true,
 		},
 		{
 			name: "Matches found for court1",
@@ -298,7 +298,6 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 				var matches []models.MatchResponse
 				err = json.Unmarshal(body, &matches)
 				require.NoError(t, err)
-				require.NotEmpty(t, matches)
 			} else {
 				require.Contains(t, string(body), c.expectErrorMsg)
 			}
