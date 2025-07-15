@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 )
 
 func (s *Service) BuildMatchResponse(ctx context.Context, match models.DBMatches, users []models.DBUsers, profilePictures []string) models.MatchResponse {
@@ -194,7 +195,8 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
-	ctx := r.Context()
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
 	matches, err := s.db.GetMatchesByCourtId(ctx, courtID)
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())

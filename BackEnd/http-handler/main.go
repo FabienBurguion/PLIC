@@ -63,7 +63,7 @@ func (s *Service) InitService() {
 	})
 	s.server.Use(middleware.Recoverer)
 	s.server.Use(middleware.RequestID)
-	s.server.Use(middleware.Timeout(5 * time.Second))
+	s.server.Use(middleware.Timeout(10 * time.Second))
 	s.server.Use(middleware.Heartbeat("/ping"))
 
 	parisLocation, err := time.LoadLocation("Europe/Paris")
@@ -110,6 +110,9 @@ func (s *Service) initDb() database.Database {
 		panic(err)
 	}
 	fmt.Printf("version=%s\n", version)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetMaxIdleConns(10)
+	db.SetMaxOpenConns(20)
 	return database.Database{
 		Database: sqlx.NewDb(db, "postgres"),
 	}

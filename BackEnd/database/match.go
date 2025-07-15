@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -77,7 +78,7 @@ func (db Database) GetMatchesByUserID(ctx context.Context, userID string) ([]mod
 
 func (db Database) GetMatchesByCourtId(ctx context.Context, courtID string) ([]models.DBMatches, error) {
 	var dbMatches []models.DBMatches
-
+	log.Printf("🟡 Requête pour court %s à %v", courtID, time.Now())
 	err := db.Database.SelectContext(ctx, &dbMatches, `
         SELECT id, sport, place, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
         FROM matches
