@@ -187,7 +187,7 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 // @Failure      401   {object}  models.Error       "Utilisateur non autorisé"
 // @Failure      500  {object}  models.Error          "Erreur serveur lors de la récupération des matchs"
 // @Router       /match/all [get]
-func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
+func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
 	ctx := r.Context()
 
 	matches, err := s.db.GetAllMatches(ctx)
