@@ -190,11 +190,9 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 		return httpx.WriteError(w, http.StatusBadRequest, "missing courtId in url params")
 	}
 
-	/*
-		if !auth.IsConnected {
-			return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
-		}
-	*/
+	if !auth.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
 
 	ctx := r.Context()
 	matches, err := s.db.GetMatchesByCourtId(ctx, courtID)
@@ -204,6 +202,7 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 
 	res := make([]models.MatchResponse, 0, len(matches))
 	profilePictureMap := make(map[string]string)
+	userResponseCache := make(map[string]models.UserResponse)
 
 	for _, match := range matches {
 		users, userErr := s.db.GetUsersByMatchId(ctx, match.Id)
@@ -212,25 +211,48 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 			continue
 		}
 
-		profilePictures := make([]string, len(users))
+		var (
+			userResponses   = make([]models.UserResponse, len(users))
+			profilePictures = make([]string, len(users))
+		)
+
 		for j, user := range users {
+			if cached, ok := userResponseCache[user.Id]; ok {
+				userResponses[j] = cached
+				continue
+			}
+
 			if url, ok := profilePictureMap[user.Id]; ok {
 				profilePictures[j] = url
-				continue
+			} else {
+				pic, err := s.s3Service.GetProfilePicture(ctx, user.Id)
+				if err != nil {
+					log.Printf("error getting profile picture for user %s: %v", user.Id, err)
+					profilePictures[j] = ""
+				} else {
+					profilePictures[j] = pic.URL
+					profilePictureMap[user.Id] = pic.URL
+				}
 			}
 
-			profilePicture, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-			if err != nil {
-				log.Printf("error getting profile picture for user %s: %v", user.Id, err)
-				profilePictures[j] = ""
-				continue
-			}
-
-			profilePictures[j] = profilePicture.URL
-			profilePictureMap[user.Id] = profilePicture.URL
+			userResp := s.BuildUserResponse(ctx, &user, profilePictures[j])
+			userResponses[j] = userResp
+			userResponseCache[user.Id] = userResp
 		}
 
-		matchResponse := s.BuildMatchResponse(ctx, match, users, profilePictures)
+		matchResponse := models.MatchResponse{
+			Id:              match.Id,
+			Sport:           match.Sport,
+			Place:           match.Place,
+			Date:            match.Date,
+			NbreParticipant: match.ParticipantNber,
+			CurrentState:    match.CurrentState,
+			Score1:          match.Score1,
+			Score2:          match.Score2,
+			Users:           userResponses,
+			CreatedAt:       match.CreatedAt,
+		}
+
 		res = append(res, matchResponse)
 	}
 
@@ -255,34 +277,55 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, _ models
 	}
 
 	res := make([]models.MatchResponse, 0, len(matches))
-	profilePictureMap := make(map[string]string) // cache des photos déjà chargées
+	profilePictureMap := make(map[string]string)
+	userResponseCache := make(map[string]models.UserResponse)
 
 	for _, match := range matches {
 		users, userErr := s.db.GetUsersByMatchId(ctx, match.Id)
 		if userErr != nil {
 			log.Printf("warning: could not fetch users for match %s: %v", match.Id, userErr)
-			continue // on saute ce match
+			continue
 		}
 
+		userResponses := make([]models.UserResponse, len(users))
 		profilePictures := make([]string, len(users))
+
 		for j, user := range users {
-			if url, found := profilePictureMap[user.Id]; found {
+			if ur, ok := userResponseCache[user.Id]; ok {
+				userResponses[j] = ur
+				continue
+			}
+
+			if url, ok := profilePictureMap[user.Id]; ok {
 				profilePictures[j] = url
-				continue
+			} else {
+				pic, err := s.s3Service.GetProfilePicture(ctx, user.Id)
+				if err != nil {
+					log.Printf("error getting profile picture for user %s: %v", user.Id, err)
+					profilePictures[j] = ""
+				} else {
+					profilePictures[j] = pic.URL
+					profilePictureMap[user.Id] = pic.URL
+				}
 			}
 
-			profilePicture, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-			if err != nil {
-				log.Printf("error getting profile picture for user %s: %v", user.Id, err)
-				profilePictures[j] = ""
-				continue
-			}
-
-			profilePictures[j] = profilePicture.URL
-			profilePictureMap[user.Id] = profilePicture.URL
+			userResp := s.BuildUserResponse(ctx, &user, profilePictures[j])
+			userResponses[j] = userResp
+			userResponseCache[user.Id] = userResp
 		}
 
-		matchResponse := s.BuildMatchResponse(ctx, match, users, profilePictures)
+		matchResponse := models.MatchResponse{
+			Id:              match.Id,
+			Sport:           match.Sport,
+			Place:           match.Place,
+			Date:            match.Date,
+			NbreParticipant: match.ParticipantNber,
+			CurrentState:    match.CurrentState,
+			Score1:          match.Score1,
+			Score2:          match.Score2,
+			Users:           userResponses,
+			CreatedAt:       match.CreatedAt,
+		}
 		res = append(res, matchResponse)
 	}
 
