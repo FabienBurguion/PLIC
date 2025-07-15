@@ -68,25 +68,3 @@ func (m DBMatches) ToMatchResponse(users []DBUsers, profilePictures []string) Ma
 		CreatedAt:       m.CreatedAt,
 	}
 }
-
-func (m DBMatches) ToGetMatchByCourtIdResponse() GetMatchByCourtIdResponses {
-	return GetMatchByCourtIdResponses{
-		Id:              m.Id,
-		Sport:           m.Sport,
-		Place:           m.Place,
-		Date:            m.Date,
-		ParticipantNber: m.ParticipantNber,
-		CurrentState:    m.CurrentState,
-		Score1:          m.Score1,
-		Score2:          m.Score2,
-		CourtID:         m.CourtID,
-	}
-}
-
-func ConvertDBMatchesToGetMatchResponses(matches []DBMatches) []GetMatchByCourtIdResponses {
-	responses := make([]GetMatchByCourtIdResponses, len(matches))
-	for i, m := range matches {
-		responses[i] = m.ToGetMatchByCourtIdResponse()
-	}
-	return responses
-}

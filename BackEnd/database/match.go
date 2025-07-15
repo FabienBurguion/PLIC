@@ -74,7 +74,7 @@ func (db Database) GetMatchesByUserID(ctx context.Context, userID string) ([]mod
 	return dbMatches, nil
 }
 
-func (db Database) GetMatchesByCourtId(ctx context.Context, courtID string) ([]models.GetMatchByCourtIdResponses, error) {
+func (db Database) GetMatchesByCourtId(ctx context.Context, courtID string) ([]models.DBMatches, error) {
 	var dbMatches []models.DBMatches
 
 	err := db.Database.SelectContext(ctx, &dbMatches, `
@@ -87,7 +87,7 @@ func (db Database) GetMatchesByCourtId(ctx context.Context, courtID string) ([]m
 		return nil, fmt.Errorf("échec de la récupération des matchs pour le court %s : %w", courtID, err)
 	}
 
-	return models.ConvertDBMatchesToGetMatchResponses(dbMatches), nil
+	return dbMatches, nil
 }
 
 func (db Database) GetMatchCountByUserID(ctx context.Context, userID string) (int, error) {

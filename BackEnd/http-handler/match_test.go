@@ -289,7 +289,7 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 			require.NoError(t, err)
 
 			if c.expectResponse {
-				var matches []models.GetMatchByCourtIdResponses
+				var matches []models.MatchResponse
 				err = json.Unmarshal(body, &matches)
 				require.NoError(t, err)
 				require.NotEmpty(t, matches)
