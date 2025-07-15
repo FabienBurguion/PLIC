@@ -11,7 +11,7 @@ import (
 	"net/http"
 )
 
-func (s *Service) BuildUserResponse(ctx context.Context, user models.DBUsers, profilePictureUrl string) models.UserResponse {
+func (s *Service) BuildUserResponse(ctx context.Context, user *models.DBUsers, profilePictureUrl string) models.UserResponse {
 	var (
 		visitedFields int
 		matchCount    int
@@ -95,64 +95,8 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.A
 		s3Resp = &v4.PresignedHTTPRequest{URL: ""}
 	}
 
-	// --- MATCH COUNT ---
-	matchCount, err := s.db.GetMatchCountByUserID(ctx, id)
-	if err != nil {
-		log.Println("error getting match count:", err)
-		matchCount = 0
-	}
-
-	// --- VISITED FIELDS ---
-	visitedFields, err := s.db.GetVisitedFieldCountByUserID(ctx, id)
-	if err != nil {
-		log.Println("error getting visited fields:", err)
-		visitedFields = 0
-	}
-
-	// --- FAVORITE FIELD ---
-	favCity, err := s.db.GetFavoriteFieldByUserID(ctx, id)
-	if err != nil {
-		log.Println("error getting favorite city:", err)
-		favCity = nil
-	}
-
-	// --- FAVORITE SPORT ---
-	favSport, err := s.db.GetFavoriteSportByUserID(ctx, id)
-	if err != nil {
-		log.Println("error getting favorite sport:", err)
-		favSport = nil
-	}
-
-	// --- SPORTS ---
-	sports, err := s.db.GetPlayedSportsByUserID(ctx, id)
-	if err != nil {
-		log.Println("error getting played sports:", err)
-		sports = []models.Sport{}
-	}
-
-	// --- FIELDS ---
-	fields, err := s.db.GetRankedFieldsByUserID(ctx, id)
-	if err != nil {
-		log.Println("error getting ranked fields:", err)
-		fields = []models.Field{}
-	}
-
-	// --- BUILD RESPONSE ---
-	response := models.UserResponse{
-		Username:       user.Username,
-		ProfilePicture: ptr(s3Resp.URL),
-		Bio:            user.Bio,
-		CurrentFieldId: user.CurrentFieldId,
-		CreatedAt:      user.CreatedAt,
-		VisitedFields:  visitedFields,
-		NbMatches:      matchCount,
-		Winrate:        ptr(100), // TODO: calculer
-		FavoriteCity:   nil,
-		FavoriteSport:  favSport,
-		FavoriteField:  favCity,
-		Sports:         sports,
-		Fields:         fields,
-	}
+	// --- BUILD FULL RESPONSE ---
+	response := s.BuildUserResponse(ctx, user, s3Resp.URL)
 
 	return httpx.Write(w, http.StatusOK, response)
 }

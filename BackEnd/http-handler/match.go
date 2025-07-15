@@ -15,7 +15,7 @@ import (
 func (s *Service) BuildMatchResponse(ctx context.Context, match models.DBMatches, users []models.DBUsers, profilePictures []string) models.MatchResponse {
 	userResponses := make([]models.UserResponse, len(users))
 	for i, u := range users {
-		userResponses[i] = s.BuildUserResponse(ctx, u, profilePictures[i])
+		userResponses[i] = s.BuildUserResponse(ctx, &u, profilePictures[i])
 	}
 
 	return models.MatchResponse{
@@ -110,7 +110,7 @@ func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, auth mode
 
 	wg2.Wait()
 
-	response := s.BuildMatchResponse(r.Context(), *match, users, profilePictures)
+	response := s.BuildMatchResponse(ctx, *match, users, profilePictures)
 	return httpx.Write(w, http.StatusOK, response)
 }
 
@@ -248,7 +248,7 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 
 			innerWg.Wait()
 
-			mr := s.BuildMatchResponse(r.Context(), match, users, profilePictures)
+			mr := s.BuildMatchResponse(ctx, match, users, profilePictures)
 
 			mu.Lock()
 			res[i] = mr
@@ -333,7 +333,7 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, _ models
 
 			innerWg.Wait()
 
-			mr := s.BuildMatchResponse(r.Context(), match, users, profilePictures)
+			mr := s.BuildMatchResponse(ctx, match, users, profilePictures)
 
 			mu.Lock()
 			res[i] = mr
@@ -422,7 +422,7 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 	}
 
 	wg.Wait()
-	response := s.BuildMatchResponse(r.Context(), matchDb, users, profilePictures)
+	response := s.BuildMatchResponse(ctx, matchDb, users, profilePictures)
 
 	return httpx.Write(w, http.StatusCreated, response)
 }
@@ -597,6 +597,6 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, auth 
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to retrieve updated match")
 	}
 
-	resp := s.BuildMatchResponse(r.Context(), *updatedMatch, users, profilePictures)
+	resp := s.BuildMatchResponse(ctx, *updatedMatch, users, profilePictures)
 	return httpx.Write(w, http.StatusOK, resp)
 }
