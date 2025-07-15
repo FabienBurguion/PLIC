@@ -54,7 +54,7 @@ func (db Database) GetAllCourts(ctx context.Context) ([]models.DBCourt, error) {
 func (db Database) GetVisitedFieldCountByUserID(ctx context.Context, userID string) (int, error) {
 	var count int
 	err := db.Database.GetContext(ctx, &count, `
-		SELECT COUNT(DISTINCT m.place)
+		SELECT COALESCE(COUNT(DISTINCT m.place), 0) AS count
 		FROM user_match um
 		JOIN matches m ON m.id = um.match_id
 		WHERE um.user_id = $1

@@ -47,12 +47,13 @@ func (db Database) GetMatchById(ctx context.Context, id string) (*models.DBMatch
 func (db Database) GetUsersByMatchId(ctx context.Context, matchId string) ([]models.DBUsers, error) {
 	var users []models.DBUsers
 	err := db.Database.SelectContext(ctx, &users, `
-        SELECT u.id, u.username, u.email, u.bio, u.password, u.created_at, u.updated_at
+        SELECT u.id, u.username, u.email, u.bio, u.current_field_id, u.password, u.created_at, u.updated_at
         FROM user_match um
         JOIN users u ON um.user_id = u.id
         WHERE um.match_id = $1`, matchId)
 
 	if err != nil {
+		fmt.Println("error is here")
 		return nil, fmt.Errorf("échec de la récupération des utilisateurs du match %s : %w", matchId, err)
 	}
 

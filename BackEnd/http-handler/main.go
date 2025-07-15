@@ -56,7 +56,7 @@ func (s *Service) InitService() {
 	s.server.Use(middleware.Logger)
 	s.server.Use(middleware.Recoverer)
 	s.server.Use(middleware.RequestID)
-	s.server.Use(middleware.Timeout(5 * time.Second))
+	//s.server.Use(middleware.Timeout(5 * time.Second))
 	s.server.Use(middleware.Heartbeat("/ping"))
 
 	parisLocation, err := time.LoadLocation("Europe/Paris")

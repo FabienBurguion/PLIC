@@ -15,7 +15,14 @@ import (
 func (s *Service) BuildMatchResponse(ctx context.Context, match models.DBMatches, users []models.DBUsers, profilePictures []string) models.MatchResponse {
 	userResponses := make([]models.UserResponse, len(users))
 	for i, u := range users {
-		userResponses[i] = s.BuildUserResponse(ctx, &u, profilePictures[i])
+		var profilePicture string
+		if i >= len(profilePictures) {
+			log.Printf("profilePictures index out of range: i=%d, len=%d", i, len(profilePictures))
+			profilePicture = ""
+		} else {
+			profilePicture = profilePictures[i]
+		}
+		userResponses[i] = s.BuildUserResponse(ctx, &u, profilePicture)
 	}
 
 	return models.MatchResponse{
@@ -183,9 +190,11 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 		return httpx.WriteError(w, http.StatusBadRequest, "missing courtId in url params")
 	}
 
-	if !auth.IsConnected {
-		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
-	}
+	/*
+		if !auth.IsConnected {
+			return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+		}
+	*/
 
 	ctx := r.Context()
 	matches, err := s.db.GetMatchesByCourtId(ctx, courtID)
@@ -193,70 +202,37 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
 	}
 
-	res := make([]models.MatchResponse, len(matches))
+	res := make([]models.MatchResponse, 0, len(matches))
+	profilePictureMap := make(map[string]string)
 
-	var (
-		wg                sync.WaitGroup
-		mu                sync.Mutex
-		profilePictureMap = make(map[string]string)
-		cacheMu           sync.Mutex
-	)
+	for _, match := range matches {
+		users, userErr := s.db.GetUsersByMatchId(ctx, match.Id)
+		if userErr != nil {
+			log.Printf("warning: could not fetch users for match %s: %v", match.Id, userErr)
+			continue
+		}
 
-	wg.Add(len(matches))
-
-	for i, match := range matches {
-		go func(i int, match models.DBMatches) {
-			defer wg.Done()
-
-			users, userErr := s.db.GetUsersByMatchId(ctx, match.Id)
-			if userErr != nil {
-				log.Printf("warning: could not fetch users for match %s: %v", match.Id, userErr)
+		profilePictures := make([]string, len(users))
+		for j, user := range users {
+			if url, ok := profilePictureMap[user.Id]; ok {
+				profilePictures[j] = url
+				continue
 			}
 
-			profilePictures := make([]string, len(users))
-			var innerWg sync.WaitGroup
-
-			for j, user := range users {
-				innerWg.Add(1)
-
-				go func(j int, user models.DBUsers) {
-					defer innerWg.Done()
-
-					cacheMu.Lock()
-					url, found := profilePictureMap[user.Id]
-					cacheMu.Unlock()
-
-					if found {
-						profilePictures[j] = url
-						return
-					}
-
-					profilePicture, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-					if err != nil {
-						log.Println("error getting profile picture:", err)
-						profilePictures[j] = ""
-						return
-					}
-
-					cacheMu.Lock()
-					profilePictureMap[user.Id] = profilePicture.URL
-					cacheMu.Unlock()
-
-					profilePictures[j] = profilePicture.URL
-				}(j, user)
+			profilePicture, err := s.s3Service.GetProfilePicture(ctx, user.Id)
+			if err != nil {
+				log.Printf("error getting profile picture for user %s: %v", user.Id, err)
+				profilePictures[j] = ""
+				continue
 			}
 
-			innerWg.Wait()
+			profilePictures[j] = profilePicture.URL
+			profilePictureMap[user.Id] = profilePicture.URL
+		}
 
-			mr := s.BuildMatchResponse(ctx, match, users, profilePictures)
-
-			mu.Lock()
-			res[i] = mr
-			mu.Unlock()
-		}(i, match)
+		matchResponse := s.BuildMatchResponse(ctx, match, users, profilePictures)
+		res = append(res, matchResponse)
 	}
-
-	wg.Wait()
 
 	return httpx.Write(w, http.StatusOK, res)
 }
@@ -278,70 +254,37 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, _ models
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch matches: "+err.Error())
 	}
 
-	res := make([]models.MatchResponse, len(matches))
+	res := make([]models.MatchResponse, 0, len(matches))
+	profilePictureMap := make(map[string]string) // cache des photos déjà chargées
 
-	var (
-		wg                sync.WaitGroup
-		mu                sync.Mutex
-		profilePictureMap = make(map[string]string)
-		cacheMu           sync.Mutex
-	)
+	for _, match := range matches {
+		users, userErr := s.db.GetUsersByMatchId(ctx, match.Id)
+		if userErr != nil {
+			log.Printf("warning: could not fetch users for match %s: %v", match.Id, userErr)
+			continue // on saute ce match
+		}
 
-	wg.Add(len(matches))
-
-	for i, match := range matches {
-		go func(i int, match models.DBMatches) {
-			defer wg.Done()
-
-			users, userErr := s.db.GetUsersByMatchId(ctx, match.Id)
-			if userErr != nil {
-				log.Printf("warning: could not fetch users for match %s: %v", match.Id, userErr)
+		profilePictures := make([]string, len(users))
+		for j, user := range users {
+			if url, found := profilePictureMap[user.Id]; found {
+				profilePictures[j] = url
+				continue
 			}
 
-			profilePictures := make([]string, len(users))
-			var innerWg sync.WaitGroup
-
-			for j, user := range users {
-				innerWg.Add(1)
-
-				go func(j int, user models.DBUsers) {
-					defer innerWg.Done()
-
-					cacheMu.Lock()
-					url, found := profilePictureMap[user.Id]
-					cacheMu.Unlock()
-
-					if found {
-						profilePictures[j] = url
-						return
-					}
-
-					profilePicture, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-					if err != nil {
-						log.Println("error getting profile picture:", err)
-						profilePictures[j] = ""
-						return
-					}
-
-					cacheMu.Lock()
-					profilePictureMap[user.Id] = profilePicture.URL
-					cacheMu.Unlock()
-
-					profilePictures[j] = profilePicture.URL
-				}(j, user)
+			profilePicture, err := s.s3Service.GetProfilePicture(ctx, user.Id)
+			if err != nil {
+				log.Printf("error getting profile picture for user %s: %v", user.Id, err)
+				profilePictures[j] = ""
+				continue
 			}
 
-			innerWg.Wait()
+			profilePictures[j] = profilePicture.URL
+			profilePictureMap[user.Id] = profilePicture.URL
+		}
 
-			mr := s.BuildMatchResponse(ctx, match, users, profilePictures)
-
-			mu.Lock()
-			res[i] = mr
-			mu.Unlock()
-		}(i, match)
+		matchResponse := s.BuildMatchResponse(ctx, match, users, profilePictures)
+		res = append(res, matchResponse)
 	}
-
-	wg.Wait()
 
 	return httpx.Write(w, http.StatusOK, res)
 }
