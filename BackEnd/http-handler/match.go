@@ -201,7 +201,6 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 	}
 
 	res := make([]models.MatchResponse, 0, len(matches))
-	profilePictureMap := make(map[string]string)
 	userResponseCache := make(map[string]models.UserResponse)
 
 	for _, match := range matches {
@@ -211,10 +210,7 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 			continue
 		}
 
-		var (
-			userResponses   = make([]models.UserResponse, len(users))
-			profilePictures = make([]string, len(users))
-		)
+		userResponses := make([]models.UserResponse, len(users))
 
 		for j, user := range users {
 			if cached, ok := userResponseCache[user.Id]; ok {
@@ -222,20 +218,15 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 				continue
 			}
 
-			if url, ok := profilePictureMap[user.Id]; ok {
-				profilePictures[j] = url
+			pic, err := s.s3Service.GetProfilePicture(ctx, user.Id)
+			picURL := ""
+			if err != nil {
+				log.Printf("error getting profile picture for user %s: %v", user.Id, err)
 			} else {
-				pic, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-				if err != nil {
-					log.Printf("error getting profile picture for user %s: %v", user.Id, err)
-					profilePictures[j] = ""
-				} else {
-					profilePictures[j] = pic.URL
-					profilePictureMap[user.Id] = pic.URL
-				}
+				picURL = pic.URL
 			}
 
-			userResp := s.BuildUserResponse(ctx, &user, profilePictures[j])
+			userResp := s.BuildUserResponse(ctx, &user, picURL)
 			userResponses[j] = userResp
 			userResponseCache[user.Id] = userResp
 		}
@@ -252,7 +243,6 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 			Users:           userResponses,
 			CreatedAt:       match.CreatedAt,
 		}
-
 		res = append(res, matchResponse)
 	}
 
@@ -277,7 +267,6 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, _ models
 	}
 
 	res := make([]models.MatchResponse, 0, len(matches))
-	profilePictureMap := make(map[string]string)
 	userResponseCache := make(map[string]models.UserResponse)
 
 	for _, match := range matches {
@@ -288,28 +277,22 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, _ models
 		}
 
 		userResponses := make([]models.UserResponse, len(users))
-		profilePictures := make([]string, len(users))
 
 		for j, user := range users {
-			if ur, ok := userResponseCache[user.Id]; ok {
-				userResponses[j] = ur
+			if cached, ok := userResponseCache[user.Id]; ok {
+				userResponses[j] = cached
 				continue
 			}
 
-			if url, ok := profilePictureMap[user.Id]; ok {
-				profilePictures[j] = url
+			pic, err := s.s3Service.GetProfilePicture(ctx, user.Id)
+			picURL := ""
+			if err != nil {
+				log.Printf("error getting profile picture for user %s: %v", user.Id, err)
 			} else {
-				pic, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-				if err != nil {
-					log.Printf("error getting profile picture for user %s: %v", user.Id, err)
-					profilePictures[j] = ""
-				} else {
-					profilePictures[j] = pic.URL
-					profilePictureMap[user.Id] = pic.URL
-				}
+				picURL = pic.URL
 			}
 
-			userResp := s.BuildUserResponse(ctx, &user, profilePictures[j])
+			userResp := s.BuildUserResponse(ctx, &user, picURL)
 			userResponses[j] = userResp
 			userResponseCache[user.Id] = userResp
 		}
