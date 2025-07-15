@@ -61,7 +61,7 @@ func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, auth mode
 		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+matchErr.Error())
 	}
 	if match == nil {
-		return httpx.WriteError(w, http.StatusNotFound, "param not found")
+		return httpx.WriteError(w, http.StatusNotFound, "match not found")
 	}
 	if usersErr != nil {
 		log.Println("error getting users fom match", usersErr)

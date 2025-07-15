@@ -78,7 +78,7 @@ func (db Database) GetMatchesByCourtId(ctx context.Context, courtID string) ([]m
 	var dbMatches []models.DBMatches
 
 	err := db.Database.SelectContext(ctx, &dbMatches, `
-        SELECT id, sport, place, date, participant_nber, current_state, score1, score2
+        SELECT id, sport, place, date, participant_nber, current_state, score1, score2, court_id
         FROM matches
         WHERE court_id = $1
         ORDER BY date DESC

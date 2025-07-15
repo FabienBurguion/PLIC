@@ -1226,6 +1226,9 @@ const docTemplate = `{
         "models.GetMatchByCourtIdResponses": {
             "type": "object",
             "properties": {
+                "court_id": {
+                    "type": "string"
+                },
                 "current_state": {
                     "$ref": "#/definitions/models.EtatMatch"
                 },

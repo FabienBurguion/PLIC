@@ -76,6 +76,7 @@ func (m DBMatches) ToGetMatchByCourtIdResponse() GetMatchByCourtIdResponses {
 		CurrentState:    m.CurrentState,
 		Score1:          m.Score1,
 		Score2:          m.Score2,
+		CourtID:         m.CourtID,
 	}
 }
 

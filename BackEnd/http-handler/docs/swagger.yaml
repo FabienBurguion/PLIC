@@ -49,6 +49,8 @@ definitions:
     type: object
   models.GetMatchByCourtIdResponses:
     properties:
+      court_id:
+        type: string
       current_state:
         $ref: '#/definitions/models.EtatMatch'
       date:
