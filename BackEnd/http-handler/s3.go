@@ -11,74 +11,6 @@ import (
 	"net/http"
 )
 
-// UploadImageToS3 godoc
-// @Summary      Upload an image to S3
-// @Description  Uploads an image file to an S3 bucket
-// @Tags         upload
-// @Accept       multipart/form-data
-// @Produce      json
-// @Param        image formData file true "Image file to upload"
-// @Success      201
-// @Failure      400 {object} models.Error "Bad request or file not found"
-// @Failure      500 {object} models.Error "Internal server error"
-// @Router       /image [post]
-func (s *Service) UploadImageToS3(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
-	ctx := r.Context()
-	bucketName := "test-plic"
-	objectKey := bucketName + "file.png"
-
-	file, _, err := r.FormFile("image")
-	if err != nil {
-		log.Printf("fichier non trouvé: %v", err)
-		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
-	}
-	defer file.Close()
-
-	buf := new(bytes.Buffer)
-	_, err = buf.ReadFrom(file)
-	if err != nil {
-		log.Printf("lecture fichier: %v", err)
-		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
-	}
-
-	err = s.s3Service.PutObject(ctx, bucketName, objectKey, buf)
-	if err != nil {
-		var oe *smithy.OperationError
-		if errors.As(err, &oe) {
-			log.Printf("🛑 OperationError: service=%s, operation=%s, err=%v\n", oe.Service(), oe.Operation(), oe.Unwrap())
-		}
-		log.Printf("🛑 Erreur détaillée upload S3: %#v\n", err)
-		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
-	}
-
-	return httpx.Write(w, http.StatusCreated, nil)
-}
-
-// GetS3Image godoc
-// @Summary      Get image URL from S3
-// @Description  Retrieves a pre-signed URL to access an image stored in S3
-// @Tags         upload
-// @Produce      json
-// @Success      201 {object} models.ImageUrl
-// @Failure      500 {object} models.Error "Internal server error"
-// @Router       /image [get]
-func (s *Service) GetS3Image(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
-	ctx := r.Context()
-	bucketName := "test-plic"
-
-	objectKey := bucketName + "file.png"
-	resp, err := s.s3Service.GetObject(ctx, bucketName, objectKey)
-
-	if err != nil {
-		log.Println(err)
-		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
-	}
-
-	return httpx.Write(w, http.StatusCreated, models.ImageUrl{
-		Url: resp.URL,
-	})
-}
-
 // UploadProfilePictureToS3 godoc
 // @Summary      Upload a profile picture to S3
 // @Description  Uploads a profile picture to an S3 bucket
@@ -90,13 +22,17 @@ func (s *Service) GetS3Image(w http.ResponseWriter, r *http.Request, _ models.Au
 // @Failure      400 {object} models.Error "Bad request or file not found"
 // @Failure      500 {object} models.Error "Internal server error"
 // @Router       /profile_picture/{id} [post]
-func (s *Service) UploadProfilePictureToS3(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
+func (s *Service) UploadProfilePictureToS3(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
 	ctx := r.Context()
 	bucketName := "param-profil-pictures"
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
+	}
+
+	if !ai.IsConnected || ai.UserID != id {
+		return httpx.WriteError(w, http.StatusForbidden, "not authorized")
 	}
 
 	objectKey := id + ".png"

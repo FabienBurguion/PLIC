@@ -119,26 +119,24 @@ func main() {
 	s.InitService()
 
 	//LOGIN
-	s.POST("/register", withAuthentication(s.Register))
-	s.POST("/login", withAuthentication(s.Login))
-	s.POST("/forgot-password", withAuthentication(s.ForgetPassword))
-	s.GET("/reset-password/{token}", withAuthentication(s.ResetPassword))
+	s.POST("/register", s.Register)
+	s.POST("/login", s.Login)
+	s.POST("/forgot-password", s.ForgetPassword)
+	s.GET("/reset-password/{token}", s.ResetPassword)
 	s.POST("/change-password", withAuthentication(s.ChangePassword))
 
 	// ENDPOINTS FOR TESTING PURPOSE
 	s.GET("/", withAuthentication(s.GetTime))
-	s.GET("/hello_world", withAuthentication(s.GetHelloWorld))
+	s.GET("/hello_world", s.GetHelloWorld)
 
 	// ENDPOINTS FOR EMAIL - TESTING
 	s.POST("/email", withAuthentication(s.SendMail))
 
 	// ENDPOINTS FOR S3
-	s.POST("/image", withAuthentication(s.UploadImageToS3))
-	s.GET("/image", withAuthentication(s.GetS3Image))
 	s.POST("/profile_picture/{id}", withAuthentication(s.UploadProfilePictureToS3))
 
 	// GOOGLE
-	s.POST("/place", withAuthentication(s.HandleSyncGooglePlaces))
+	s.POST("/place", s.HandleSyncGooglePlaces)
 
 	// ENDPOINTS FOR TERRAINS
 	s.GET("/court/all", withAuthentication(s.GetAllCourts))

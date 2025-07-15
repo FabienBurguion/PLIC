@@ -20,7 +20,11 @@ import (
 // @Failure      400 {object} models.Error "Invalid email address or bad request"
 // @Failure      500 {object} models.Error "Internal server error"
 // @Router       /email [post]
-func (s *Service) SendMail(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
+func (s *Service) SendMail(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected {
+		return httpx.WriteError(w, http.StatusForbidden, "not authorized")
+	}
+
 	var req models.MailerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Println("Erreur JSON:", err)
