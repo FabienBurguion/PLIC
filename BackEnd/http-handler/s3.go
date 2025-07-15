@@ -31,8 +31,12 @@ func (s *Service) UploadProfilePictureToS3(w http.ResponseWriter, r *http.Reques
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
 	}
 
-	if !ai.IsConnected || ai.UserID != id {
+	if !ai.IsConnected {
 		return httpx.WriteError(w, http.StatusForbidden, "not authorized")
+	}
+
+	if ai.UserID != id {
+		return httpx.WriteError(w, http.StatusBadRequest, "bad request")
 	}
 
 	objectKey := id + ".png"
