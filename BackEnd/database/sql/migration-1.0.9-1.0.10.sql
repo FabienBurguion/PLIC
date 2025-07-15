@@ -1,0 +1,1 @@
+ALTER TYPE sport ADD VALUE 'ping-pong';

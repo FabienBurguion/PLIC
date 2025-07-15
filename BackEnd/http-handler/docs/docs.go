@@ -1397,11 +1397,13 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "basket",
-                "foot"
+                "foot",
+                "ping-pong"
             ],
             "x-enum-varnames": [
                 "Basket",
-                "Foot"
+                "Foot",
+                "PingPong"
             ]
         },
         "models.UpdateScoreRequest": {

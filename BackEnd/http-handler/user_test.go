@@ -48,6 +48,16 @@ func Test_GetUserById(t *testing.T) {
 		Score2:       3,
 		CourtID:      court2.Id,
 	}
+	match3 := models.DBMatches{
+		Id:           uuid.NewString(),
+		Sport:        models.PingPong,
+		Place:        "Marseille",
+		Date:         time.Now(),
+		CurrentState: models.Termine,
+		Score1:       3,
+		Score2:       0,
+		CourtID:      court1.Id,
+	}
 
 	type testCase struct {
 		name          string
@@ -64,10 +74,11 @@ func Test_GetUserById(t *testing.T) {
 			fixtures: DBFixtures{
 				Users:   []models.DBUsers{userWithData},
 				Courts:  []models.DBCourt{court1, court2},
-				Matches: []models.DBMatches{match1, match2},
+				Matches: []models.DBMatches{match1, match2, match3},
 				UserMatches: []models.DBUserMatch{
 					{UserID: userWithData.Id, MatchID: match1.Id},
 					{UserID: userWithData.Id, MatchID: match2.Id},
+					{UserID: userWithData.Id, MatchID: match3.Id},
 				},
 			},
 			expectedCode: http.StatusOK,
@@ -75,15 +86,15 @@ func Test_GetUserById(t *testing.T) {
 				require.Equal(t, userWithData.Username, res.Username)
 				require.Equal(t, userWithData.Bio, res.Bio)
 				require.Equal(t, userWithData.CreatedAt.Unix(), res.CreatedAt.Unix())
-				require.Equal(t, 2, res.NbMatches)
-				require.Equal(t, 2, res.VisitedFields)
+				require.Equal(t, 3, res.NbMatches)
+				require.Equal(t, 3, res.VisitedFields)
 
 				if res.FavoriteSport != nil {
-					require.Contains(t, []models.Sport{models.Foot, models.Basket}, *res.FavoriteSport)
+					require.Contains(t, []models.Sport{models.Foot, models.Basket, models.PingPong}, *res.FavoriteSport)
 				} else {
 					t.Log("FavoriteSport is nil (expected if no match was inserted)")
 				}
-				require.ElementsMatch(t, []models.Sport{models.Foot, models.Basket}, res.Sports)
+				require.ElementsMatch(t, []models.Sport{models.Foot, models.Basket, models.PingPong}, res.Sports)
 
 				if res.FavoriteCity != nil {
 					require.Contains(t, []string{"Paris", "Lyon"}, *res.FavoriteCity)
