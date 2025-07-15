@@ -65,7 +65,7 @@ func TestGetPlaces(t *testing.T) {
 		},
 	}
 	mux.HandleFunc("/json", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(models.GooglePlacesResponse{
+		_ = json.NewEncoder(w).Encode(models.GooglePlacesResponse{
 			Results: []models.Place{place},
 		})
 	})
