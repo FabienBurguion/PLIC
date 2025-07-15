@@ -190,12 +190,6 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
 	ctx := r.Context()
 
-	/*
-		if !auth.IsConnected {
-			return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
-		}
-	*/
-
 	matches, err := s.db.GetAllMatches(ctx)
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch matches: "+err.Error())
@@ -203,10 +197,14 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, auth mod
 
 	res := make([]models.MatchResponse, len(matches))
 
-	var wg sync.WaitGroup
-	wg.Add(len(matches))
+	var (
+		wg                sync.WaitGroup
+		mu                sync.Mutex
+		profilePictureMap = make(map[string]string)
+		cacheMu           sync.Mutex
+	)
 
-	var mu sync.Mutex
+	wg.Add(len(matches))
 
 	for i, match := range matches {
 		go func(i int, match models.DBMatches) {
@@ -217,26 +215,40 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, auth mod
 				log.Printf("warning: could not fetch users for match %s: %v", match.Id, userErr)
 			}
 
-			var (
-				profilePictures = make([]string, len(users))
-				wg              sync.WaitGroup
-			)
+			profilePictures := make([]string, len(users))
+			var innerWg sync.WaitGroup
 
-			for i, user := range users {
-				wg.Add(1)
-				go func(i int, user models.DBUsers) {
-					defer wg.Done()
+			for j, user := range users {
+				innerWg.Add(1)
+
+				go func(j int, user models.DBUsers) {
+					defer innerWg.Done()
+
+					cacheMu.Lock()
+					url, found := profilePictureMap[user.Id]
+					cacheMu.Unlock()
+
+					if found {
+						profilePictures[j] = url
+						return
+					}
+
 					profilePicture, err := s.s3Service.GetProfilePicture(ctx, user.Id)
 					if err != nil {
 						log.Println("error getting profile picture:", err)
-						profilePictures[i] = ""
-					} else {
-						profilePictures[i] = profilePicture.URL
+						profilePictures[j] = ""
+						return
 					}
-				}(i, user)
+
+					cacheMu.Lock()
+					profilePictureMap[user.Id] = profilePicture.URL
+					cacheMu.Unlock()
+
+					profilePictures[j] = profilePicture.URL
+				}(j, user)
 			}
 
-			wg.Wait()
+			innerWg.Wait()
 
 			mr := match.ToMatchResponse(users, profilePictures)
 

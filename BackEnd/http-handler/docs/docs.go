@@ -1347,6 +1347,9 @@ const docTemplate = `{
         "models.MatchResponse": {
             "type": "object",
             "properties": {
+                "created_at": {
+                    "type": "string"
+                },
                 "current_state": {
                     "$ref": "#/definitions/models.EtatMatch"
                 },

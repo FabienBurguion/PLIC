@@ -127,6 +127,8 @@ definitions:
     type: object
   models.MatchResponse:
     properties:
+      created_at:
+        type: string
       current_state:
         $ref: '#/definitions/models.EtatMatch'
       date:
