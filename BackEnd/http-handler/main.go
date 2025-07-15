@@ -54,6 +54,13 @@ func (s *Service) InitService() {
 	s.db = s.initDb()
 	s.server = chi.NewRouter()
 	s.server.Use(middleware.Logger)
+	s.server.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			rw := &models.ResponseWriter{ResponseWriter: w, StatusCode: http.StatusOK}
+			next.ServeHTTP(rw, r)
+			log.Printf("➡️ %s %s - %d", r.Method, r.URL.Path, rw.StatusCode)
+		})
+	})
 	s.server.Use(middleware.Recoverer)
 	s.server.Use(middleware.RequestID)
 	s.server.Use(middleware.Timeout(5 * time.Second))
