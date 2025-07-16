@@ -48,7 +48,7 @@ func (s *Service) BuildUserResponse(ctx context.Context, user *models.DBUsers, p
 		CurrentFieldId: user.CurrentFieldId,
 		VisitedFields:  visitedFields,
 		NbMatches:      matchCount,
-		Winrate:        ptr(100), // TODO
+		Winrate:        ptr(80), // TODO
 		FavoriteCity:   nil,
 		FavoriteSport:  favSport,
 		FavoriteField:  favField,
