@@ -118,6 +118,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/court/{id}": {
+            "get": {
+                "description": "Retourne les informations d’un terrain (court) en fonction de son identifiant passé dans l’URL",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "terrain"
+                ],
+                "summary": "Récupère un terrain par son ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Identifiant du terrain",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Terrain trouvé",
+                        "schema": {
+                            "$ref": "#/definitions/models.DBCourt"
+                        }
+                    },
+                    "400": {
+                        "description": "ID manquant ou invalide",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Terrain non trouvé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur serveur ou base de données",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/email": {
             "post": {
                 "description": "Sends a test email to the specified address",
@@ -228,71 +275,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/models.HelloWorldResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/image": {
-            "get": {
-                "description": "Retrieves a pre-signed URL to access an image stored in S3",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "upload"
-                ],
-                "summary": "Get image URL from S3",
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/models.ImageUrl"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Uploads an image file to an S3 bucket",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "upload"
-                ],
-                "summary": "Upload an image to S3",
-                "parameters": [
-                    {
-                        "type": "file",
-                        "description": "Image file to upload",
-                        "name": "image",
-                        "in": "formData",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created"
-                    },
-                    "400": {
-                        "description": "Bad request or file not found",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
                         }
                     }
                 }
@@ -433,6 +415,62 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Erreur serveur lors de la récupération des matchs",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/match/court/{courtId}": {
+            "get": {
+                "description": "Retourne les matchs associés à un terrain (court) via son ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Liste des matchs pour un court",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Identifiant du terrain",
+                        "name": "courtId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.MatchResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "ID manquant",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Utilisateur non autorisé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Aucun match trouvé pour ce terrain",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur interne serveur ou base",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -603,6 +641,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/match/{id}/score": {
+            "patch": {
+                "description": "Met à jour les scores (score1 et score2) d’un match via son ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Met à jour le score d’un match",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID du match",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Nouveaux scores",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UpdateScoreRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.MatchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/place": {
             "post": {
                 "description": "Appelle l'API Google Places pour synchroniser les terrains autour d'une position donnée (Paris en dur pour l'instant)",
@@ -763,6 +866,62 @@ const docTemplate = `{
                 }
             }
         },
+        "/user/matches/{userId}": {
+            "get": {
+                "description": "Retourne les matchs auxquels un utilisateur a participé",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Liste des matchs d’un utilisateur",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Identifiant de l'utilisateur",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.GetMatchByUserIdResponses"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/users/{id}": {
             "get": {
                 "security": [
@@ -891,6 +1050,15 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "User fields to update",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UserPatchRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -945,6 +1113,9 @@ const docTemplate = `{
                 },
                 "longitude": {
                     "type": "number"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },
@@ -987,18 +1158,39 @@ const docTemplate = `{
                 }
             }
         },
+        "models.GetMatchByUserIdResponses": {
+            "type": "object",
+            "properties": {
+                "current_state": {
+                    "$ref": "#/definitions/models.EtatMatch"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "participant_nber": {
+                    "type": "integer"
+                },
+                "place": {
+                    "type": "string"
+                },
+                "score1": {
+                    "type": "integer"
+                },
+                "score2": {
+                    "type": "integer"
+                },
+                "sport": {
+                    "$ref": "#/definitions/models.Sport"
+                }
+            }
+        },
         "models.HelloWorldResponse": {
             "type": "object",
             "properties": {
                 "response": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.ImageUrl": {
-            "type": "object",
-            "properties": {
-                "url": {
                     "type": "string"
                 }
             }
@@ -1033,11 +1225,14 @@ const docTemplate = `{
         "models.MatchRequest": {
             "type": "object",
             "properties": {
+                "court_id": {
+                    "type": "string"
+                },
                 "date": {
                     "type": "string"
                 },
-                "place": {
-                    "type": "string"
+                "nbre_participant": {
+                    "type": "integer"
                 },
                 "sport": {
                     "$ref": "#/definitions/models.Sport"
@@ -1047,6 +1242,9 @@ const docTemplate = `{
         "models.MatchResponse": {
             "type": "object",
             "properties": {
+                "created_at": {
+                    "type": "string"
+                },
                 "current_state": {
                     "$ref": "#/definitions/models.EtatMatch"
                 },
@@ -1056,7 +1254,7 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
-                "participant_nber": {
+                "nbre_participant": {
                     "type": "integer"
                 },
                 "place": {
@@ -1094,12 +1292,46 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "basket",
-                "foot"
+                "foot",
+                "ping-pong"
             ],
             "x-enum-varnames": [
                 "Basket",
-                "Foot"
+                "Foot",
+                "PingPong"
             ]
+        },
+        "models.UpdateScoreRequest": {
+            "type": "object",
+            "properties": {
+                "score1": {
+                    "type": "integer"
+                },
+                "score2": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.UserPatchRequest": {
+            "type": "object",
+            "properties": {
+                "bio": {
+                    "description": "@nullable",
+                    "type": "string"
+                },
+                "currentFieldId": {
+                    "description": "@nullable",
+                    "type": "string"
+                },
+                "email": {
+                    "description": "@nullable",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "@nullable",
+                    "type": "string"
+                }
+            }
         },
         "models.UserResponse": {
             "type": "object",
@@ -1109,6 +1341,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "createdAt": {
+                    "type": "string"
+                },
+                "currentFieldId": {
                     "type": "string"
                 },
                 "favoriteCity": {
@@ -1132,6 +1367,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.Field"
                     }
+                },
+                "nbMatches": {
+                    "type": "integer"
                 },
                 "profilePicture": {
                     "description": "@nullable",

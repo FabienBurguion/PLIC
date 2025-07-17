@@ -6,13 +6,14 @@ import (
 )
 
 type DBUsers struct {
-	Id        string    `db:"id"`
-	Username  string    `db:"username"`
-	Email     string    `db:"email"`
-	Bio       *string   `db:"bio"`
-	Password  string    `db:"password"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+	Id             string    `db:"id"`
+	Username       string    `db:"username"`
+	Email          string    `db:"email"`
+	Bio            *string   `db:"bio"`
+	CurrentFieldId *string   `db:"current_field_id"`
+	Password       string    `db:"password"`
+	CreatedAt      time.Time `db:"created_at"`
+	UpdatedAt      time.Time `db:"updated_at"`
 }
 
 func NewDBUsersFixture() DBUsers {
@@ -20,7 +21,7 @@ func NewDBUsersFixture() DBUsers {
 		Id:        uuid.NewString(),
 		Username:  "username",
 		Email:     "an email",
-		Bio:       ptr("A bio"),
+		Bio:       ptr("a bio"),
 		Password:  "password",
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -55,24 +56,4 @@ func (u DBUsers) WithBio(bio string) DBUsers {
 func (u DBUsers) WitUpdatedAt(updatedAt time.Time) DBUsers {
 	u.UpdatedAt = updatedAt
 	return u
-}
-
-func (u DBUsers) ToUserResponse(profilePictureUrl string) UserResponse {
-	var p *string
-	if profilePictureUrl != "" {
-		p = &profilePictureUrl
-	}
-	return UserResponse{
-		Username:       u.Username,
-		Bio:            u.Bio,
-		CreatedAt:      u.CreatedAt,
-		ProfilePicture: p,
-		VisitedFields:  0,   // TODO
-		Winrate:        nil, // TODO
-		FavoriteCity:   nil, // TODO
-		FavoriteSport:  nil, // TODO
-		FavoriteField:  nil, // TODO
-		Sports:         nil, // TODO
-		Fields:         nil, // TODO
-	}
 }

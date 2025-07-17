@@ -8,12 +8,9 @@ import (
 )
 
 const (
-	BadRequestError       = "Bad Request"
-	UnauthorizedError     = "Unauthorized"
-	ForbiddenError        = "Forbidden"
-	NotFoundError         = "Not Found"
-	InternalServerError   = "Internal Server Error"
-	MethodNotAllowedError = "Method Not Allowed"
+	BadRequestError     = "Bad Request"
+	UnauthorizedError   = "Unauthorized"
+	InternalServerError = "Internal Server Error"
 )
 
 func WriteHTMLResponse(w http.ResponseWriter, statusCode int, title string, message string) error {

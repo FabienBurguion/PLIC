@@ -257,6 +257,8 @@ func TestDatabase_UpdateUser(t *testing.T) {
 	newEmail := "<EMAIL2>"
 	newBio := "A new bio"
 
+	newFieldId := uuid.NewString()
+
 	newUpdatedTime := time.Now().UTC().Add(time.Hour)
 
 	testCases := []testCase{
@@ -328,6 +330,23 @@ func TestDatabase_UpdateUser(t *testing.T) {
 			newUpdateTime: newUpdatedTime,
 			nilUser:       true,
 		},
+		{
+			name: "Current field id",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userId).
+						WithUsername(username).
+						WithEmail(email).
+						WithBio(bio),
+				},
+			},
+			param: models.UserPatchRequest{
+				CurrentFieldId: ptr(newFieldId),
+			},
+			newUpdateTime: newUpdatedTime,
+			nilUser:       false,
+		},
 	}
 
 	for _, c := range testCases {
@@ -366,6 +385,11 @@ func TestDatabase_UpdateUser(t *testing.T) {
 				require.Equal(t, *user.Bio, newBio)
 			} else {
 				require.Equal(t, *user.Bio, bio)
+			}
+			if c.param.CurrentFieldId != nil {
+				require.Equal(t, *user.CurrentFieldId, newFieldId)
+			} else {
+				require.Nil(t, user.CurrentFieldId)
 			}
 		})
 	}
@@ -410,4 +434,159 @@ func TestDatabase_DeleteUser(t *testing.T) {
 			require.Nil(t, user)
 		})
 	}
+}
+
+func TestDatabase_GetFavoriteFieldByUserID(t *testing.T) {
+	s := &Service{}
+	s.InitServiceTest()
+
+	userID := uuid.NewString()
+	matchID1 := uuid.NewString()
+	matchID2 := uuid.NewString()
+	courtID := uuid.NewString()
+
+	courts := []models.DBCourt{
+		{
+			Id:        courtID,
+			Name:      "Court central",
+			Address:   "1 rue des sports",
+			Longitude: 4.8357,
+			Latitude:  45.7640,
+			CreatedAt: time.Now(),
+		},
+	}
+
+	fixtures := DBFixtures{
+		Users: []models.DBUsers{
+			{Id: userID, Username: "user", Email: "user@example.com", Password: "pwd"},
+		},
+		Courts: courts,
+		Matches: []models.DBMatches{
+			{Id: matchID1, Sport: models.Foot, Place: "Paris", Date: time.Now(), CurrentState: models.Termine, CourtID: courtID}, // Ajout CourtID
+			{Id: matchID2, Sport: models.Foot, Place: "Paris", Date: time.Now(), CurrentState: models.Termine, CourtID: courtID}, // Ajout CourtID
+		},
+		UserMatches: []models.DBUserMatch{
+			{UserID: userID, MatchID: matchID1},
+			{UserID: userID, MatchID: matchID2},
+		},
+	}
+	s.loadFixtures(fixtures)
+
+	ctx := context.Background()
+	field, err := s.db.GetFavoriteFieldByUserID(ctx, userID)
+
+	require.NoError(t, err)
+	require.NotNil(t, field)
+	require.Equal(t, "Paris", *field)
+}
+
+func TestDatabase_GetFavoriteSportByUserID(t *testing.T) {
+	s := &Service{}
+	s.InitServiceTest()
+
+	userID := uuid.NewString()
+	matchID1 := uuid.NewString()
+	matchID2 := uuid.NewString()
+	courtID := uuid.NewString()
+
+	courts := []models.DBCourt{
+		{
+			Id:        courtID,
+			Name:      "Court central",
+			Address:   "10 avenue des sports",
+			Longitude: 7.1234,
+			Latitude:  43.5678,
+			CreatedAt: time.Now(),
+		},
+	}
+
+	fixtures := DBFixtures{
+		Users: []models.DBUsers{
+			{Id: userID, Username: "sporty", Email: "sporty@example.com", Password: "pwd"},
+		},
+		Courts: courts,
+		Matches: []models.DBMatches{
+			{Id: matchID1, Sport: models.Basket, Place: "Nice", Date: time.Now(), CurrentState: models.Termine, CourtID: courtID},
+			{Id: matchID2, Sport: models.Basket, Place: "Nice", Date: time.Now(), CurrentState: models.Termine, CourtID: courtID},
+		},
+		UserMatches: []models.DBUserMatch{
+			{UserID: userID, MatchID: matchID1},
+			{UserID: userID, MatchID: matchID2},
+		},
+	}
+	s.loadFixtures(fixtures)
+
+	ctx := context.Background()
+	sport, err := s.db.GetFavoriteSportByUserID(ctx, userID)
+
+	require.NoError(t, err)
+	require.NotNil(t, sport)
+	require.Equal(t, models.Basket, *sport)
+}
+
+func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
+	s := &Service{}
+	s.InitServiceTest()
+
+	userID := uuid.NewString()
+	matchID1 := uuid.NewString()
+	matchID2 := uuid.NewString()
+	matchID3 := uuid.NewString()
+	courtID := uuid.NewString()
+
+	courts := []models.DBCourt{
+		{
+			Id:        courtID,
+			Name:      "Court central",
+			Address:   "10 avenue des sports",
+			Longitude: 4.8357,
+			Latitude:  45.7640,
+			CreatedAt: time.Now(),
+		},
+	}
+
+	fixtures := DBFixtures{
+		Users: []models.DBUsers{
+			{Id: userID, Username: "multi", Email: "multi@example.com", Password: "pwd"},
+		},
+		Courts: courts,
+		Matches: []models.DBMatches{
+			{
+				Id:           matchID1,
+				Sport:        models.Foot,
+				Place:        "Paris",
+				Date:         time.Now(),
+				CurrentState: models.Termine,
+				CourtID:      courtID,
+			},
+			{
+				Id:           matchID2,
+				Sport:        models.Basket,
+				Place:        "Lyon",
+				Date:         time.Now(),
+				CurrentState: models.Termine,
+				CourtID:      courtID,
+			},
+			{
+				Id:           matchID3,
+				Sport:        models.PingPong,
+				Place:        "Lyon",
+				Date:         time.Now(),
+				CurrentState: models.Termine,
+				CourtID:      courtID,
+			},
+		},
+		UserMatches: []models.DBUserMatch{
+			{UserID: userID, MatchID: matchID1},
+			{UserID: userID, MatchID: matchID2},
+			{UserID: userID, MatchID: matchID3},
+		},
+	}
+	s.loadFixtures(fixtures)
+
+	ctx := context.Background()
+	sports, err := s.db.GetPlayedSportsByUserID(ctx, userID)
+
+	require.NoError(t, err)
+	require.ElementsMatch(t, []models.Sport{models.Foot, models.Basket, models.PingPong}, sports)
 }

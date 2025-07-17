@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 func TestDatabase_InsertTerrain(t *testing.T) {
@@ -49,7 +50,7 @@ func TestDatabase_InsertTerrain(t *testing.T) {
 						Lng: testLng,
 					},
 				},
-			})
+			}, time.Now())
 			require.NoError(t, err)
 			court, err := s.db.GetTerrainByAddress(ctx, "123 Rue Test")
 			require.NoError(t, err)
@@ -58,7 +59,7 @@ func TestDatabase_InsertTerrain(t *testing.T) {
 	}
 }
 
-func TestDatabase_GetAllTerrains(t *testing.T) {
+func TestDatabase_GetAllCourts(t *testing.T) {
 	type testCase struct {
 		name     string
 		expected models.DBCourt
@@ -83,19 +84,30 @@ func TestDatabase_GetAllTerrains(t *testing.T) {
 			t.Parallel()
 
 			s := &Service{}
-			s.InitServiceTest() // initialise DB test
+			s.InitServiceTest()
 			ctx := context.Background()
 
-			// Insérer un terrain manuellement pour test
-			_, err := s.db.Database.ExecContext(ctx, `
-				INSERT INTO courts (id, address, longitude, latitude)
-				VALUES ($1, $2, $3, $4)`,
-				c.expected.Id, c.expected.Address, c.expected.Longitude, c.expected.Latitude,
-			)
+			err := s.db.InsertTerrain(ctx, c.expected.Id, models.Place{
+				Name:    c.expected.Name,
+				Address: c.expected.Address,
+				Geometry: struct {
+					Location struct {
+						Lat float64 `json:"lat"`
+						Lng float64 `json:"lng"`
+					} `json:"location"`
+				}{
+					Location: struct {
+						Lat float64 `json:"lat"`
+						Lng float64 `json:"lng"`
+					}{
+						Lat: c.expected.Latitude,
+						Lng: c.expected.Longitude,
+					},
+				},
+			}, c.expected.CreatedAt)
 			require.NoError(t, err)
 
-			// Appel de la fonction à tester
-			terrains, err := s.db.GetAllTerrains(ctx)
+			terrains, err := s.db.GetAllCourts(ctx)
 			require.NoError(t, err)
 			require.NotEmpty(t, terrains)
 
@@ -105,11 +117,123 @@ func TestDatabase_GetAllTerrains(t *testing.T) {
 					require.Equal(t, c.expected.Address, terr.Address)
 					require.Equal(t, c.expected.Longitude, terr.Longitude)
 					require.Equal(t, c.expected.Latitude, terr.Latitude)
+					require.Equal(t, c.expected.Name, terr.Name)
 					found = true
 					break
 				}
 			}
 			require.True(t, found, "terrain not found in results")
+		})
+	}
+}
+
+func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
+	type testCase struct {
+		name          string
+		fixtures      DBFixtures
+		userID        string
+		expectedCount int
+		expectError   bool
+	}
+
+	userID1 := uuid.NewString()
+	court1 := models.NewDBCourtFixture()
+	court2 := models.NewDBCourtFixture()
+	matchID1 := uuid.NewString()
+	matchID2 := uuid.NewString()
+	matchID3 := uuid.NewString()
+
+	testCases := []testCase{
+		{
+			name: "User has matches in different places",
+			fixtures: DBFixtures{
+				Courts: []models.DBCourt{court1, court2},
+				Users: []models.DBUsers{
+					{Id: userID1, Username: "toto", Email: "toto@example.com", Password: "xxx"},
+				},
+				Matches: []models.DBMatches{
+					{
+						Id:              matchID1,
+						Sport:           models.Foot,
+						Place:           "Paris",
+						Date:            time.Now(),
+						ParticipantNber: 10,
+						CurrentState:    models.Valide,
+						Score1:          1,
+						Score2:          2,
+						CourtID:         court1.Id,
+					},
+					{
+						Id:              matchID2,
+						Sport:           models.Basket,
+						Place:           "Lyon",
+						Date:            time.Now(),
+						ParticipantNber: 8,
+						CurrentState:    models.Termine,
+						Score1:          3,
+						Score2:          3,
+						CourtID:         court2.Id,
+					},
+					{
+						Id:              matchID3,
+						Sport:           models.Foot,
+						Place:           "Paris",
+						Date:            time.Now(),
+						ParticipantNber: 12,
+						CurrentState:    models.Valide,
+						Score1:          0,
+						Score2:          0,
+						CourtID:         court1.Id,
+					},
+				},
+				UserMatches: []models.DBUserMatch{
+					{UserID: userID1, MatchID: matchID1},
+					{UserID: userID1, MatchID: matchID2},
+					{UserID: userID1, MatchID: matchID3},
+				},
+			},
+			userID:        userID1,
+			expectedCount: 2, // Paris and Lyon (two distinct Place fields)
+			expectError:   false,
+		},
+		{
+			name: "User has no matches",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					{Id: userID1, Username: "tata", Email: "tata@example.com", Password: "xxx"},
+				},
+			},
+			userID:        userID1,
+			expectedCount: 0,
+			expectError:   false,
+		},
+		{
+			name:          "Unknown user",
+			fixtures:      DBFixtures{},
+			userID:        uuid.NewString(),
+			expectedCount: 0,
+			expectError:   false,
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
+
+			ctx := context.Background()
+			count, err := s.db.GetVisitedFieldCountByUserID(ctx, c.userID)
+
+			if c.expectError {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, c.expectedCount, count)
 		})
 	}
 }

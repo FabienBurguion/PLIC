@@ -3,13 +3,59 @@ package main
 import (
 	"PLIC/httpx"
 	"PLIC/models"
+	"context"
 	"encoding/json"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
-	"sync"
 )
+
+func (s *Service) BuildUserResponse(ctx context.Context, user *models.DBUsers, profilePictureUrl string) models.UserResponse {
+	var (
+		visitedFields int
+		matchCount    int
+		favSport      *models.Sport
+		favField      *string
+		sports        []models.Sport
+		fields        []models.Field
+	)
+
+	if n, err := s.db.GetMatchCountByUserID(ctx, user.Id); err == nil {
+		matchCount = n
+	}
+	if n, err := s.db.GetVisitedFieldCountByUserID(ctx, user.Id); err == nil {
+		visitedFields = n
+	}
+	if c, err := s.db.GetFavoriteFieldByUserID(ctx, user.Id); err == nil {
+		favField = c
+	}
+	if spt, err := s.db.GetFavoriteSportByUserID(ctx, user.Id); err == nil {
+		favSport = spt
+	}
+	if lst, err := s.db.GetPlayedSportsByUserID(ctx, user.Id); err == nil {
+		sports = lst
+	}
+	if lst, err := s.db.GetRankedFieldsByUserID(ctx, user.Id); err == nil {
+		fields = lst
+	}
+
+	return models.UserResponse{
+		Username:       user.Username,
+		Bio:            user.Bio,
+		CreatedAt:      user.CreatedAt,
+		ProfilePicture: ptr(profilePictureUrl),
+		CurrentFieldId: user.CurrentFieldId,
+		VisitedFields:  visitedFields,
+		NbMatches:      matchCount,
+		Winrate:        ptr(80), // TODO
+		FavoriteCity:   nil,
+		FavoriteSport:  favSport,
+		FavoriteField:  favField,
+		Sports:         sports,
+		Fields:         fields,
+	}
+}
 
 // GetUserById godoc
 // @Summary      Get a param by ID
@@ -30,67 +76,29 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.A
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
 	}
 
-	var (
-		user       *models.DBUsers
-		s3Response *v4.PresignedHTTPRequest
-		userErr    error
-		s3Err      error
-	)
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
 	ctx := r.Context()
 
-	go func() {
-		defer wg.Done()
-		user, userErr = s.db.GetUserById(ctx, id)
-	}()
-
-	go func() {
-		defer wg.Done()
-		s3Response, s3Err = s.s3Service.GetProfilePicture(ctx, id)
-	}()
-
-	wg.Wait()
-
-	if userErr != nil {
-		log.Println("errored getting param by id:", userErr)
-		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+userErr.Error())
+	// --- USER ---
+	user, err := s.db.GetUserById(ctx, id)
+	if err != nil {
+		log.Println("error getting user by id:", err)
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
 	}
-
 	if user == nil {
-		return httpx.WriteError(w, http.StatusNotFound, "param not found")
+		return httpx.WriteError(w, http.StatusNotFound, "user not found")
 	}
 
-	if s3Err != nil {
-		log.Println("error getting profile picture:", s3Err)
+	// --- PROFILE PICTURE ---
+	s3Resp, err := s.s3Service.GetProfilePicture(ctx, id)
+	if err != nil {
+		log.Println("error getting profile picture:", err)
+		s3Resp = &v4.PresignedHTTPRequest{URL: ""}
 	}
 
-	res := models.UserResponse{
-		Username:       user.Username,
-		ProfilePicture: ptr(s3Response.URL),
-		Bio:            user.Bio,
-		CreatedAt:      user.CreatedAt,
-		VisitedFields:  0,                        // TODO NO HARDCODE
-		Winrate:        ptr(100),                 // TODO NO HARDCODE
-		FavoriteCity:   ptr("a wonderful city"),  // TODO NO HARDCODE
-		FavoriteSport:  ptr(models.Foot),         // TODO NO HARDCODE
-		FavoriteField:  ptr("a wonderful field"), // TODO NO HARDCODE
-		Sports: []models.Sport{ // TODO NO HARDCODE
-			models.Basket,
-			models.Foot,
-		},
-		Fields: []models.Field{ // TODO NO HARDCODE
-			{
-				Ranking: 1,
-				Name:    "a wonderful field",
-				Score:   1000,
-			},
-		},
-	}
+	// --- BUILD FULL RESPONSE ---
+	response := s.BuildUserResponse(ctx, user, s3Resp.URL)
 
-	return httpx.Write(w, http.StatusOK, res)
+	return httpx.Write(w, http.StatusOK, response)
 }
 
 // PatchUser godoc
@@ -100,6 +108,7 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.A
 // @Accept       json
 // @Produce      json
 // @Param        id path string true "User ID"
+// @Param        body body models.UserPatchRequest true "User fields to update"
 // @Success      200
 // @Failure      400 {object} models.Error "Missing ID in URL params"
 // @Failure      403 {object} models.Error "Incorrect rights"

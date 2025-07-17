@@ -22,9 +22,11 @@ type Service struct {
 }
 
 type DBFixtures struct {
-	Users   []models.DBUsers
-	Courts  []models.DBCourt
-	Matches []models.DBMatches
+	Users       []models.DBUsers
+	Courts      []models.DBCourt
+	Matches     []models.DBMatches
+	UserMatches []models.DBUserMatch
+	Rankings    []models.DBRanking
 }
 
 func findLatestMigrationFile(dir string) (string, error) {
@@ -149,7 +151,50 @@ func (s *Service) loadFixtures(fixtures DBFixtures) {
 			panic(err)
 		}
 	}
+	for _, court := range fixtures.Courts {
+		err := s.db.CreateCourt(ctx, court)
+		if err != nil {
+			panic(fmt.Errorf("failed to insert court: %w", err))
+		}
+	}
+
+	for _, c := range fixtures.Courts {
+		if err := s.db.InsertTerrain(ctx, c.Id, models.Place{
+			Name:    c.Name,
+			Address: c.Address,
+			Geometry: struct {
+				Location struct {
+					Lat float64 `json:"lat"`
+					Lng float64 `json:"lng"`
+				} `json:"location"`
+			}{
+				Location: struct {
+					Lat float64 `json:"lat"`
+					Lng float64 `json:"lng"`
+				}{
+					Lat: c.Latitude,
+					Lng: c.Longitude,
+				},
+			},
+		}, time.Now()); err != nil {
+			panic(fmt.Sprintf("failed to insert terrain: %v", err))
+		}
+	}
+
 	for _, m := range fixtures.Matches {
-		_ = s.db.CreateMatch(ctx, m)
+		if err := s.db.CreateMatch(ctx, m); err != nil {
+			panic(fmt.Sprintf("failed to insert match: %v", err))
+		}
+	}
+	for _, m := range fixtures.UserMatches {
+		if err := s.db.CreateUserMatch(ctx, m); err != nil {
+			panic(fmt.Sprintf("failed to insert user_match: %v", err))
+		}
+	}
+
+	for _, r := range fixtures.Rankings {
+		if err := s.db.InsertRanking(ctx, r); err != nil {
+			panic(fmt.Sprintf("failed to insert ranking: %v", err))
+		}
 	}
 }

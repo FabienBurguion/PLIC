@@ -30,7 +30,7 @@ type Service struct {
 	db            database.Database
 	server        *chi.Mux
 	clock         Clock
-	mailer        mailer.MailerInterface
+	mailer        mailer.MailSender
 	s3Service     s3_management.S3Service
 	configuration *models.Configuration
 }
@@ -54,9 +54,16 @@ func (s *Service) InitService() {
 	s.db = s.initDb()
 	s.server = chi.NewRouter()
 	s.server.Use(middleware.Logger)
+	s.server.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			rw := &models.ResponseWriter{ResponseWriter: w, StatusCode: http.StatusOK}
+			next.ServeHTTP(rw, r)
+			log.Printf("➡️ %s %s - %d", r.Method, r.URL.Path, rw.StatusCode)
+		})
+	})
 	s.server.Use(middleware.Recoverer)
 	s.server.Use(middleware.RequestID)
-	s.server.Use(middleware.Timeout(5 * time.Second))
+	s.server.Use(middleware.Timeout(10 * time.Second))
 	s.server.Use(middleware.Heartbeat("/ping"))
 
 	parisLocation, err := time.LoadLocation("Europe/Paris")
@@ -103,6 +110,9 @@ func (s *Service) initDb() database.Database {
 		panic(err)
 	}
 	fmt.Printf("version=%s\n", version)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetMaxIdleConns(10)
+	db.SetMaxOpenConns(20)
 	return database.Database{
 		Database: sqlx.NewDb(db, "postgres"),
 	}
@@ -119,35 +129,37 @@ func main() {
 	s.InitService()
 
 	//LOGIN
-	s.POST("/register", withAuthentication(s.Register))
-	s.POST("/login", withAuthentication(s.Login))
-	s.POST("/forgot-password", withAuthentication(s.ForgetPassword))
-	s.GET("/reset-password/{token}", withAuthentication(s.ResetPassword))
+	s.POST("/register", s.Register)
+	s.POST("/login", s.Login)
+	s.POST("/forgot-password", s.ForgetPassword)
+	s.GET("/reset-password/{token}", s.ResetPassword)
 	s.POST("/change-password", withAuthentication(s.ChangePassword))
 
 	// ENDPOINTS FOR TESTING PURPOSE
 	s.GET("/", withAuthentication(s.GetTime))
-	s.GET("/hello_world", withAuthentication(s.GetHelloWorld))
+	s.GET("/hello_world", s.GetHelloWorld)
 
 	// ENDPOINTS FOR EMAIL - TESTING
 	s.POST("/email", withAuthentication(s.SendMail))
 
 	// ENDPOINTS FOR S3
-	s.POST("/image", withAuthentication(s.UploadImageToS3))
-	s.GET("/image", withAuthentication(s.GetS3Image))
 	s.POST("/profile_picture/{id}", withAuthentication(s.UploadProfilePictureToS3))
 
 	// GOOGLE
-	s.POST("/place", withAuthentication(s.HandleSyncGooglePlaces))
+	s.POST("/place", s.HandleSyncGooglePlaces)
 
 	// ENDPOINTS FOR TERRAINS
-	s.GET("/court/all", withAuthentication(s.GetAllTerrains))
+	s.GET("/court/all", withAuthentication(s.GetAllCourts))
+	s.GET("/court/{id}", withAuthentication(s.GetCourtByID))
 
 	// ENDPOINTS FOR MATCHES
 	s.GET("/match/all", withAuthentication(s.GetAllMatches))
 	s.GET("/match/{id}", withAuthentication(s.GetMatchByID))
+	s.GET("/user/matches/{userId}", withAuthentication(s.GetMatchesByUserID))
+	s.GET("/matches/court/{courtId}", withAuthentication(s.GetMatchesByCourtId))
 	s.POST("/match", withAuthentication(s.CreateMatch))
 	s.POST("/join/match/{id}", withAuthentication(s.JoinMatch))
+	s.PATCH("/score/match/{id}", withAuthentication(s.UpdateMatchScore))
 	s.DELETE("/match/{id}", withAuthentication(s.DeleteMatch))
 
 	//ENDPOINTS FOR USERS

@@ -1,12 +1,16 @@
 package models
 
-import "time"
+import (
+	"github.com/google/uuid"
+	"time"
+)
 
 type Sport string
 
 const (
-	Basket Sport = "basket"
-	Foot   Sport = "foot"
+	Basket   Sport = "basket"
+	Foot     Sport = "foot"
+	PingPong Sport = "ping-pong"
 )
 
 type EtatMatch string
@@ -28,23 +32,20 @@ type DBMatches struct {
 	CurrentState    EtatMatch `db:"current_state"`
 	Score1          int       `db:"score1"`
 	Score2          int       `db:"score2"`
+	CourtID         string    `db:"court_id"`
+	CreatedAt       time.Time `db:"created_at"`
+	UpdatedAt       time.Time `db:"updated_at"`
 }
 
-func (m DBMatches) ToMatchResponse(users []DBUsers, profilePictures []string) MatchResponse {
-	userResponses := make([]UserResponse, len(users))
-	for i, u := range users {
-		userResponses[i] = u.ToUserResponse(profilePictures[i])
-	}
-
-	return MatchResponse{
-		Id:              m.Id,
-		Sport:           m.Sport,
-		Place:           m.Place,
-		Date:            m.Date,
-		ParticipantNber: m.ParticipantNber,
-		CurrentState:    m.CurrentState,
-		Score1:          m.Score1,
-		Score2:          m.Score2,
-		Users:           userResponses,
+func NewDBMatchesFixture() DBMatches {
+	return DBMatches{
+		Id:              uuid.NewString(),
+		Sport:           "foot",
+		Place:           "Paris",
+		Date:            time.Now(),
+		ParticipantNber: 8,
+		CurrentState:    "Manque joueur",
+		Score1:          0,
+		Score2:          0,
 	}
 }

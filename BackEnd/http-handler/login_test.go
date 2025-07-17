@@ -142,11 +142,15 @@ func TestService_Login(t *testing.T) {
 }
 
 func TestService_Register(t *testing.T) {
+	type expected struct {
+		code     int
+		response models.LoginResponse
+	}
 	type testCase struct {
 		name     string
 		fixtures DBFixtures
 		param    models.RegisterRequest
-		expected int
+		expected expected
 	}
 
 	userId := uuid.NewString()
@@ -163,7 +167,9 @@ func TestService_Register(t *testing.T) {
 				Email:    email,
 				Password: password,
 			},
-			expected: http.StatusCreated,
+			expected: expected{
+				code: http.StatusCreated,
+			},
 		},
 		{
 			name: "Empty email => bad request",
@@ -174,7 +180,9 @@ func TestService_Register(t *testing.T) {
 				Email:    "",
 				Password: password,
 			},
-			expected: http.StatusBadRequest,
+			expected: expected{
+				code: http.StatusBadRequest,
+			},
 		},
 		{
 			name: "Empty password => bad request",
@@ -185,7 +193,9 @@ func TestService_Register(t *testing.T) {
 				Email:    email,
 				Password: "",
 			},
-			expected: http.StatusBadRequest,
+			expected: expected{
+				code: http.StatusBadRequest,
+			},
 		},
 		{
 			name: "User already exists -> 401",
@@ -200,7 +210,9 @@ func TestService_Register(t *testing.T) {
 				Email:    email,
 				Password: password,
 			},
-			expected: http.StatusUnauthorized,
+			expected: expected{
+				code: http.StatusUnauthorized,
+			},
 		},
 	}
 
@@ -224,9 +236,9 @@ func TestService_Register(t *testing.T) {
 			defer func(Body io.ReadCloser) {
 				_ = Body.Close()
 			}(resp.Body)
-			require.Equal(t, c.expected, resp.StatusCode)
+			require.Equal(t, c.expected.code, resp.StatusCode)
 
-			if c.expected != http.StatusCreated {
+			if c.expected.code != http.StatusCreated {
 				return
 			}
 

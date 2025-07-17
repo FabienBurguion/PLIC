@@ -7,9 +7,11 @@ type UserResponse struct {
 	// @nullable
 	ProfilePicture *string `json:"profilePicture"`
 	// @nullable
-	Bio           *string   `json:"bio"`
-	CreatedAt     time.Time `json:"createdAt"`
-	VisitedFields int       `json:"visitedFields"`
+	Bio            *string   `json:"bio"`
+	CurrentFieldId *string   `json:"currentFieldId"`
+	CreatedAt      time.Time `json:"createdAt"`
+	VisitedFields  int       `json:"visitedFields"`
+	NbMatches      int       `json:"nbMatches"`
 	// @nullable
 	Winrate *int `json:"winrate"`
 	// @nullable
@@ -29,4 +31,6 @@ type UserPatchRequest struct {
 	Email *string `json:"email"`
 	// @nullable
 	Bio *string `json:"bio"`
+	// @nullable
+	CurrentFieldId *string `json:"currentFieldId"`
 }

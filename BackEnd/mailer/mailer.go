@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type MailerInterface interface {
+type MailSender interface {
 	SendTestMail(to string) error
 	SendPasswordResetMail(to string, newPassword string) error
 	SendLinkResetPassword(to string, newPassword string) error
