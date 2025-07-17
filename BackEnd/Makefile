@@ -15,7 +15,7 @@ docker-down:
 
 .PHONY: test
 test: docker-up
-	go test ./... -v
+	go test -p=1 -coverpkg=./... -coverprofile=coverage.out ./...
 	make docker-down
 
 .PHONY: zip-windows
