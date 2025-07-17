@@ -14,10 +14,9 @@ docker-down:
 	docker compose down -v
 
 .PHONY: test
-test:
-	docker compose up -d
+test: docker-up
 	go test ./... -v
-	docker compose down -v
+	make docker-down
 
 .PHONY: zip-windows
 zip-windows:
