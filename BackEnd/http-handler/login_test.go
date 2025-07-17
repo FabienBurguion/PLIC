@@ -143,8 +143,7 @@ func TestService_Login(t *testing.T) {
 
 func TestService_Register(t *testing.T) {
 	type expected struct {
-		code     int
-		response models.LoginResponse
+		code int
 	}
 	type testCase struct {
 		name     string
