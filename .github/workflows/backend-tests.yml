@@ -1,4 +1,4 @@
-name: Backend Tests
+name: Run Tests and Coverage
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
       - 'BackEnd/**'
 
 jobs:
-  test-backend:
+  test:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -16,8 +16,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Set up Docker (buildx)
         uses: docker/setup-buildx-action@v3
 
-      - name: Run Makefile test target
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run make test (with Docker)
         run: make test
+
+      - name: Enforce minimum coverage
+        if: success()
+        run: |
+          if [ -f coverage.out ]; then
+            threshold=30.0
+            coverage=$(go tool cover -func=coverage.out | grep total: | awk '{print substr($3, 1, length($3)-1)}')
+            echo "Current coverage: $coverage%"
+            awk "BEGIN {exit ($coverage < $threshold) ? 1 : 0}"
+          else
+            echo "No coverage.out file found, skipping coverage check."
+          fi

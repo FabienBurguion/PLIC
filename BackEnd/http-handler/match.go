@@ -158,16 +158,7 @@ func (s *Service) GetMatchesByUserID(w http.ResponseWriter, r *http.Request, aut
 
 	res := make([]models.GetMatchByUserIdResponses, len(dbMatches))
 	for i, m := range dbMatches {
-		res[i] = models.GetMatchByUserIdResponses{
-			Id:              m.Id,
-			Sport:           m.Sport,
-			Place:           m.Place,
-			Date:            m.Date,
-			ParticipantNber: m.ParticipantNber,
-			CurrentState:    m.CurrentState,
-			Score1:          m.Score1,
-			Score2:          m.Score2,
-		}
+		res[i] = models.GetMatchByUserIdResponses(m)
 	}
 
 	return httpx.Write(w, http.StatusOK, res)
