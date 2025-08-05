@@ -37,7 +37,7 @@ func (s *Service) BuildMatchResponse(ctx context.Context, match models.DBMatches
 	return nil, models.MatchResponse{
 		Id:              match.Id,
 		Sport:           match.Sport,
-		Place:           court.Address,
+		Place:           court.Name,
 		Date:            match.Date,
 		NbreParticipant: match.ParticipantNber,
 		CurrentState:    match.CurrentState,
@@ -244,7 +244,7 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 		matchResponse := models.MatchResponse{
 			Id:              match.Id,
 			Sport:           match.Sport,
-			Place:           court.Address,
+			Place:           court.Name,
 			Date:            match.Date,
 			NbreParticipant: match.ParticipantNber,
 			CurrentState:    match.CurrentState,
@@ -321,7 +321,7 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, _ models
 		matchResponse := models.MatchResponse{
 			Id:              match.Id,
 			Sport:           match.Sport,
-			Place:           court.Address,
+			Place:           court.Name,
 			Date:            match.Date,
 			NbreParticipant: match.ParticipantNber,
 			CurrentState:    match.CurrentState,
