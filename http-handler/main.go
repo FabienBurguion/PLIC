@@ -8,6 +8,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
+	"net/http"
+	"time"
+
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -17,9 +21,6 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
-	"log"
-	"net/http"
-	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -148,7 +149,7 @@ func main() {
 	// GOOGLE
 	s.POST("/place", s.HandleSyncGooglePlaces)
 
-	// ENDPOINTS FOR TERRAINS
+	// ENDPOINTS FOR COURTS
 	s.GET("/court/all", withAuthentication(s.GetAllCourts))
 	s.GET("/court/{id}", withAuthentication(s.GetCourtByID))
 

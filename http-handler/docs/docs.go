@@ -1127,23 +1127,6 @@ const docTemplate = `{
                 }
             }
         },
-        "models.EtatMatch": {
-            "type": "string",
-            "enum": [
-                "Termine",
-                "Manque Score",
-                "En cours",
-                "Valide",
-                "Manque joueur"
-            ],
-            "x-enum-varnames": [
-                "Termine",
-                "ManqueScore",
-                "EnCours",
-                "Valide",
-                "ManqueJoueur"
-            ]
-        },
         "models.Field": {
             "type": "object",
             "properties": {
@@ -1162,7 +1145,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "current_state": {
-                    "$ref": "#/definitions/models.EtatMatch"
+                    "$ref": "#/definitions/models.MatchState"
                 },
                 "date": {
                     "type": "string"
@@ -1246,7 +1229,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "current_state": {
-                    "$ref": "#/definitions/models.EtatMatch"
+                    "$ref": "#/definitions/models.MatchState"
                 },
                 "date": {
                     "type": "string"
@@ -1276,6 +1259,23 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "models.MatchState": {
+            "type": "string",
+            "enum": [
+                "Termine",
+                "Manque Score",
+                "En cours",
+                "Valide",
+                "Manque joueur"
+            ],
+            "x-enum-varnames": [
+                "Termine",
+                "ManqueScore",
+                "EnCours",
+                "Valide",
+                "ManqueJoueur"
+            ]
         },
         "models.RegisterRequest": {
             "type": "object",

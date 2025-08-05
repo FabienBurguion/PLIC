@@ -24,20 +24,6 @@ definitions:
       message:
         type: string
     type: object
-  models.EtatMatch:
-    enum:
-    - Termine
-    - Manque Score
-    - En cours
-    - Valide
-    - Manque joueur
-    type: string
-    x-enum-varnames:
-    - Termine
-    - ManqueScore
-    - EnCours
-    - Valide
-    - ManqueJoueur
   models.Field:
     properties:
       name:
@@ -50,7 +36,7 @@ definitions:
   models.GetMatchByUserIdResponses:
     properties:
       current_state:
-        $ref: '#/definitions/models.EtatMatch'
+        $ref: '#/definitions/models.MatchState'
       date:
         type: string
       id:
@@ -104,7 +90,7 @@ definitions:
       created_at:
         type: string
       current_state:
-        $ref: '#/definitions/models.EtatMatch'
+        $ref: '#/definitions/models.MatchState'
       date:
         type: string
       id:
@@ -124,6 +110,20 @@ definitions:
           $ref: '#/definitions/models.UserResponse'
         type: array
     type: object
+  models.MatchState:
+    enum:
+    - Termine
+    - Manque Score
+    - En cours
+    - Valide
+    - Manque joueur
+    type: string
+    x-enum-varnames:
+    - Termine
+    - ManqueScore
+    - EnCours
+    - Valide
+    - ManqueJoueur
   models.RegisterRequest:
     properties:
       email:
