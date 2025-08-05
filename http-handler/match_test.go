@@ -478,3 +478,118 @@ func Test_UpdateMatchScore(t *testing.T) {
 	require.Equal(t, updateReq.Score2, res.Score2)
 	require.Equal(t, matchID, res.Id)
 }
+
+func Test_JoinMatch(t *testing.T) {
+	court := models.NewDBCourtFixture().WithAddress("123 Rue Sport")
+
+	match := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithParticipantNber(1).
+		WithCurrentState(models.ManqueJoueur)
+
+	user := models.NewDBUsersFixture()
+
+	matchID := match.Id
+	userID := user.Id
+
+	type testCase struct {
+		name           string
+		fixtures       DBFixtures
+		paramID        string
+		auth           models.AuthInfo
+		expectedCode   int
+		expectErrorMsg string
+		checkJoined    bool
+	}
+
+	testCases := []testCase{
+		{
+			name: "User successfully joins match",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match},
+				Users:   []models.DBUsers{user},
+			},
+			paramID:      matchID,
+			auth:         models.AuthInfo{IsConnected: true, UserID: userID},
+			expectedCode: http.StatusOK,
+			checkJoined:  true,
+		},
+		{
+			name:           "Missing match ID",
+			paramID:        "",
+			auth:           models.AuthInfo{IsConnected: true, UserID: userID},
+			expectedCode:   http.StatusBadRequest,
+			expectErrorMsg: "missing match ID",
+		},
+		{
+			name:           "Unauthorized user",
+			paramID:        matchID,
+			auth:           models.AuthInfo{IsConnected: false, UserID: userID},
+			expectedCode:   http.StatusUnauthorized,
+			expectErrorMsg: "not authorized",
+		},
+		{
+			name: "User already joined",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match},
+				Users:   []models.DBUsers{user},
+				UserMatches: []models.DBUserMatch{
+					{UserID: userID, MatchID: matchID, CreatedAt: time.Now()},
+				},
+			},
+			paramID:        matchID,
+			auth:           models.AuthInfo{IsConnected: true, UserID: userID},
+			expectedCode:   http.StatusConflict,
+			expectErrorMsg: "user already joined",
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
+
+			url := "/match/join/" + c.paramID
+			r := httptest.NewRequest("POST", url, nil)
+			routeCtx := chi.NewRouteContext()
+			if c.paramID != "" {
+				routeCtx.URLParams.Add("id", c.paramID)
+			}
+			r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+
+			w := httptest.NewRecorder()
+
+			err := s.JoinMatch(w, r, c.auth)
+			require.NoError(t, err)
+
+			resp := w.Result()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
+
+			require.Equal(t, c.expectedCode, resp.StatusCode)
+
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+
+			if c.expectErrorMsg != "" {
+				require.Contains(t, string(body), c.expectErrorMsg)
+			}
+
+			if c.checkJoined {
+				ctx := context.Background()
+
+				joined, err := s.db.IsUserInMatch(ctx, userID, matchID)
+				require.NoError(t, err)
+				require.True(t, joined)
+
+				updatedMatch, err := s.db.GetMatchById(ctx, matchID)
+				require.NoError(t, err)
+				require.Equal(t, match.ParticipantNber+1, updatedMatch.ParticipantNber)
+			}
+		})
+	}
+}

@@ -6,12 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"io"
 	"log"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func (s *Service) BuildMatchResponse(ctx context.Context, match models.DBMatches, users []models.DBUsers, profilePictures []string) (error, models.MatchResponse) {
@@ -467,6 +468,13 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to join match: "+err.Error())
 	}
 
+	match.ParticipantNber++
+	match.UpdatedAt = s.clock.Now()
+	err = s.db.UpsertMatch(ctx, *match)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to update match: "+err.Error())
+	}
+
 	return httpx.Write(w, http.StatusOK, map[string]string{
 		"status": "joined match",
 		"id":     matchID,
@@ -547,10 +555,13 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, auth 
 	if match == nil {
 		return httpx.WriteError(w, http.StatusNotFound, "match not found")
 	}
+	match.Score1 = req.Score1
+	match.Score2 = req.Score2
+	match.UpdatedAt = s.clock.Now()
 
-	err = s.db.UpdateMatchScore(ctx, id, req.Score1, req.Score2, s.clock.Now())
+	err = s.db.UpsertMatch(ctx, *match)
 	if err != nil {
-		return httpx.WriteError(w, http.StatusInternalServerError, "failed to update score: "+err.Error())
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to update match: "+err.Error())
 	}
 
 	var (

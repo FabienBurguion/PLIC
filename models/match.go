@@ -33,7 +33,7 @@ type MatchResponse struct {
 	Place           string         `json:"place"`
 	Date            time.Time      `json:"date"`
 	NbreParticipant int            `json:"nbre_participant"`
-	CurrentState    EtatMatch      `json:"current_state"`
+	CurrentState    MatchState     `json:"current_state"`
 	Score1          int            `json:"score1"`
 	Score2          int            `json:"score2"`
 	Users           []UserResponse `json:"users"`

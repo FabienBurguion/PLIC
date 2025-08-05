@@ -146,8 +146,8 @@ func (db Database) AddUserToMatch(ctx context.Context, um models.DBUserMatch) er
 }
 
 func (db Database) IsUserInMatch(ctx context.Context, userID, matchID string) (bool, error) {
-	var exists struct{}
-	err := db.Database.GetContext(ctx, &exists, `
+	var dummy int
+	err := db.Database.GetContext(ctx, &dummy, `
         SELECT 1
         FROM user_match
         WHERE user_id = $1 AND match_id = $2
@@ -182,16 +182,23 @@ func (db Database) CreateUserMatch(ctx context.Context, um models.DBUserMatch) e
 	return err
 }
 
-func (db Database) UpdateMatchScore(ctx context.Context, id string, score1, score2 int, updatedTime time.Time) error {
+func (db Database) UpsertMatch(ctx context.Context, match models.DBMatches) error {
 	_, err := db.Database.ExecContext(ctx, `
-		UPDATE matches 
-		SET score1 = $1, score2 = $2, current_state = $3, updated_at = $4
-		WHERE id = $5
-	`, score1, score2, models.Termine, updatedTime, id)
+		INSERT INTO matches (id, sport, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+		ON CONFLICT (id) DO UPDATE SET
+			sport = EXCLUDED.sport,
+			date = EXCLUDED.date,
+			participant_nber = EXCLUDED.participant_nber,
+			current_state = EXCLUDED.current_state,
+			score1 = EXCLUDED.score1,
+			score2 = EXCLUDED.score2,
+			court_id = EXCLUDED.court_id,
+			updated_at = NOW()
+	`, match.Id, match.Sport, match.Date, match.ParticipantNber, match.CurrentState, match.Score1, match.Score2, match.CourtID, match.CreatedAt)
 
 	if err != nil {
-		return fmt.Errorf("échec mise à jour du score: %w", err)
+		return fmt.Errorf("failed to upsert match: %w", err)
 	}
-
 	return nil
 }

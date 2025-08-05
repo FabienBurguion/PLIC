@@ -9,12 +9,12 @@ type DBUserMatch struct {
 }
 
 type DBMatchByUserId struct {
-	Id              string    `db:"id"`
-	Sport           Sport     `db:"sport"`
-	Place           string    `db:"place"`
-	Date            time.Time `db:"date"`
-	ParticipantNber int       `db:"participant_nber"`
-	CurrentState    EtatMatch `db:"current_state"`
-	Score1          int       `db:"score1"`
-	Score2          int       `db:"score2"`
+	Id              string     `db:"id"`
+	Sport           Sport      `db:"sport"`
+	Place           string     `db:"place"`
+	Date            time.Time  `db:"date"`
+	ParticipantNber int        `db:"participant_nber"`
+	CurrentState    MatchState `db:"current_state"`
+	Score1          int        `db:"score1"`
+	Score2          int        `db:"score2"`
 }

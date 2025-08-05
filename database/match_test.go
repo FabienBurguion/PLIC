@@ -564,3 +564,81 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 		})
 	}
 }
+
+func TestDatabase_UpsertMatch(t *testing.T) {
+	court := models.NewDBCourtFixture().
+		WithName("Court Test").
+		WithAddress("123 Test St")
+
+	matchID := uuid.NewString()
+
+	initialMatch := models.DBMatches{
+		Id:              matchID,
+		Sport:           models.Foot,
+		Date:            time.Now(),
+		ParticipantNber: 10,
+		CurrentState:    models.ManqueJoueur,
+		Score1:          0,
+		Score2:          0,
+		CourtID:         court.Id,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	updatedMatch := initialMatch
+	updatedMatch.Score1 = 5
+	updatedMatch.Score2 = 3
+	updatedMatch.CurrentState = models.Termine
+
+	type testCase struct {
+		name          string
+		fixtures      DBFixtures
+		inputMatch    models.DBMatches
+		expectedScore [2]int
+		expectedState models.MatchState
+	}
+
+	testCases := []testCase{
+		{
+			name: "Insert new match",
+			fixtures: DBFixtures{
+				Courts: []models.DBCourt{court},
+			},
+			inputMatch:    initialMatch,
+			expectedScore: [2]int{0, 0},
+			expectedState: models.ManqueJoueur,
+		},
+		{
+			name: "Update existing match",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{initialMatch},
+			},
+			inputMatch:    updatedMatch,
+			expectedScore: [2]int{5, 3},
+			expectedState: models.Termine,
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
+
+			ctx := context.Background()
+			err := s.db.UpsertMatch(ctx, c.inputMatch)
+			require.NoError(t, err)
+
+			matchFromDB, err := s.db.GetMatchById(ctx, c.inputMatch.Id)
+			require.NoError(t, err)
+			require.NotNil(t, matchFromDB)
+
+			require.Equal(t, c.expectedScore[0], matchFromDB.Score1)
+			require.Equal(t, c.expectedScore[1], matchFromDB.Score2)
+			require.Equal(t, c.expectedState, matchFromDB.CurrentState)
+		})
+	}
+}
