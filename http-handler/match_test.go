@@ -5,14 +5,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_GetMatchByID(t *testing.T) {
@@ -403,7 +404,7 @@ func Test_CreateMatch(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, matchReq.Sport, res.Sport)
-	require.Equal(t, court.Address, res.Place)
+	require.Equal(t, court.Name, res.Place)
 	require.WithinDuration(t, matchReq.Date, res.Date, time.Second)
 	require.Equal(t, matchReq.NbreParticipant, res.NbreParticipant)
 	require.Equal(t, models.ManqueJoueur, res.CurrentState)
