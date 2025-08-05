@@ -5,10 +5,11 @@ import (
 	"PLIC/models"
 	"context"
 	"encoding/json"
-	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
-	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
+
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/go-chi/chi/v5"
 )
 
 func (s *Service) BuildUserResponse(ctx context.Context, user *models.DBUsers, profilePictureUrl string) models.UserResponse {

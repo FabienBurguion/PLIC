@@ -29,9 +29,14 @@ func (s *Service) BuildMatchResponse(ctx context.Context, match models.DBMatches
 	}
 
 	court, err := s.db.GetCourtByID(ctx, match.CourtID)
-	if err != nil || court == nil {
+	if err != nil {
 		log.Println("error getting court:", err)
 		return fmt.Errorf("error getting court %s: %s", match.CourtID, err.Error()), models.MatchResponse{}
+	}
+
+	if court == nil {
+		log.Println("error: no court found for match", match.Id)
+		return fmt.Errorf("error: no court found for match %s", match.Id), models.MatchResponse{}
 	}
 
 	return nil, models.MatchResponse{
@@ -236,9 +241,14 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 		}
 
 		court, err := s.db.GetCourtByID(ctx, courtID)
-		if err != nil || court == nil {
+		if err != nil {
 			log.Println("error getting court:", err)
 			return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch court: "+err.Error())
+		}
+
+		if court == nil {
+			log.Println("error: no court found for match", match.Id)
+			return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch court")
 		}
 
 		matchResponse := models.MatchResponse{
