@@ -477,7 +477,7 @@ func TestDatabase_GetFavoriteFieldByUserID(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, field)
-	require.Equal(t, "1 rue des sports", *field)
+	require.Equal(t, "Court central", *field)
 }
 
 func TestDatabase_GetFavoriteSportByUserID(t *testing.T) {
