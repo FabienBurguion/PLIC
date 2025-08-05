@@ -34,7 +34,6 @@ func TestDatabase_CreateMatch(t *testing.T) {
 			match: models.DBMatches{
 				Id:              matchID,
 				Sport:           models.Basket,
-				Place:           court.Address,
 				Date:            time.Now(),
 				ParticipantNber: 8,
 				CurrentState:    models.ManqueJoueur,
@@ -56,7 +55,6 @@ func TestDatabase_CreateMatch(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, dbMatch)
 			require.Equal(t, c.match.Id, dbMatch.Id)
-			require.Equal(t, c.match.Place, dbMatch.Place)
 			require.Equal(t, c.match.CourtID, dbMatch.CourtID)
 		})
 	}
@@ -87,7 +85,6 @@ func TestDatabase_GetMatchById(t *testing.T) {
 					{
 						Id:              id,
 						Sport:           models.Foot,
-						Place:           "Lyon",
 						Date:            time.Now(),
 						ParticipantNber: 10,
 						CurrentState:    models.ManqueJoueur,
@@ -148,7 +145,6 @@ func TestDatabase_GetAllMatches(t *testing.T) {
 					{
 						Id:              id1,
 						Sport:           models.Foot,
-						Place:           "Nice",
 						Date:            time.Now(),
 						ParticipantNber: 2,
 						CurrentState:    models.ManqueJoueur,
@@ -159,7 +155,6 @@ func TestDatabase_GetAllMatches(t *testing.T) {
 					{
 						Id:              id2,
 						Sport:           models.Basket,
-						Place:           "Paris",
 						Date:            time.Now(),
 						ParticipantNber: 10,
 						CurrentState:    models.ManqueJoueur,
@@ -252,7 +247,6 @@ func TestDatabase_GetMatchesByUserID(t *testing.T) {
 					{
 						Id:              matchID1,
 						Sport:           models.Foot,
-						Place:           "Lyon",
 						Date:            time.Now(),
 						ParticipantNber: 10,
 						CurrentState:    models.ManqueJoueur,
@@ -263,7 +257,6 @@ func TestDatabase_GetMatchesByUserID(t *testing.T) {
 					{
 						Id:              matchID2,
 						Sport:           models.Basket,
-						Place:           "Paris",
 						Date:            time.Now(),
 						ParticipantNber: 5,
 						CurrentState:    models.Valide,
@@ -367,7 +360,6 @@ func TestDatabase_GetMatchCountByUserID(t *testing.T) {
 					{
 						Id:              matchID1,
 						Sport:           models.Foot,
-						Place:           "Lyon",
 						Date:            time.Now(),
 						ParticipantNber: 10,
 						CurrentState:    models.Termine,
@@ -378,7 +370,6 @@ func TestDatabase_GetMatchCountByUserID(t *testing.T) {
 					{
 						Id:              matchID2,
 						Sport:           models.Basket,
-						Place:           "Paris",
 						Date:            time.Now(),
 						ParticipantNber: 5,
 						CurrentState:    models.ManqueScore,
@@ -389,7 +380,6 @@ func TestDatabase_GetMatchCountByUserID(t *testing.T) {
 					{
 						Id:              matchID3,
 						Sport:           models.Foot,
-						Place:           "Toulouse",
 						Date:            time.Now(),
 						ParticipantNber: 8,
 						CurrentState:    models.Valide,
@@ -419,7 +409,6 @@ func TestDatabase_GetMatchCountByUserID(t *testing.T) {
 					{
 						Id:              matchID4,
 						Sport:           models.Basket,
-						Place:           "Nice",
 						Date:            time.Now(),
 						ParticipantNber: 6,
 						CurrentState:    models.Valide,
@@ -476,7 +465,6 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 	match1 := models.DBMatches{
 		Id:           uuid.NewString(),
 		Sport:        models.Foot,
-		Place:        "Paris",
 		Date:         time.Now().Add(-time.Hour),
 		CurrentState: models.Termine,
 		Score1:       3,
@@ -486,7 +474,6 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 	match2 := models.DBMatches{
 		Id:           uuid.NewString(),
 		Sport:        models.Basket,
-		Place:        "Lyon",
 		Date:         time.Now(),
 		CurrentState: models.Termine,
 		Score1:       1,

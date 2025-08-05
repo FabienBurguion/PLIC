@@ -14,7 +14,7 @@ func (db Database) CheckMatchExist(ctx context.Context, id string) (bool, error)
 	var match models.DBMatches
 
 	err := db.Database.GetContext(ctx, &match, `
-		SELECT id, sport, place, date, participant_nber, current_state, score1, score2, created_at, updated_at
+		SELECT id, sport, date, participant_nber, current_state, score1, score2, created_at, updated_at
 		FROM matches
 		WHERE id = $1`, id)
 	if err != nil {
@@ -31,7 +31,7 @@ func (db Database) GetMatchById(ctx context.Context, id string) (*models.DBMatch
 	var match models.DBMatches
 
 	err := db.Database.GetContext(ctx, &match, `
-        SELECT id, sport, place, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
+        SELECT id, sport, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
         FROM matches
         WHERE id = $1`, id)
 
@@ -64,7 +64,7 @@ func (db Database) GetUsersByMatchId(ctx context.Context, matchId string) ([]mod
 func (db Database) GetMatchesByUserID(ctx context.Context, userID string) ([]models.DBMatchByUserId, error) {
 	var dbMatches []models.DBMatchByUserId
 	err := db.Database.SelectContext(ctx, &dbMatches, `
-		SELECT m.id, m.sport, m.place, m.date, m.participant_nber, m.current_state, m.score1, m.score2
+		SELECT m.id, m.sport, m.date, m.participant_nber, m.current_state, m.score1, m.score2
 		FROM matches m
 		JOIN user_match um ON m.id = um.match_id
 		WHERE um.user_id = $1
@@ -80,7 +80,7 @@ func (db Database) GetMatchesByCourtId(ctx context.Context, courtID string) ([]m
 	var dbMatches []models.DBMatches
 	log.Printf("🟡 Requête pour court %s à %v", courtID, time.Now())
 	err := db.Database.SelectContext(ctx, &dbMatches, `
-        SELECT id, sport, place, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
+        SELECT id, sport, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
         FROM matches
         WHERE court_id = $1
         ORDER BY date DESC
@@ -112,7 +112,7 @@ func (db Database) GetMatchCountByUserID(ctx context.Context, userID string) (in
 func (db Database) GetAllMatches(ctx context.Context) ([]models.DBMatches, error) {
 	var matches []models.DBMatches
 	err := db.Database.SelectContext(ctx, &matches, `
-        SELECT id, sport, place, date, participant_nber, current_state, score1, score2, created_at, updated_at
+        SELECT id, sport, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
         FROM matches`)
 	if err != nil {
 		return nil, fmt.Errorf("échec de la récupération des matchs : %w", err)
@@ -123,9 +123,9 @@ func (db Database) GetAllMatches(ctx context.Context) ([]models.DBMatches, error
 func (db Database) CreateMatch(ctx context.Context, match models.DBMatches) error {
 	_, err := db.Database.NamedExecContext(ctx, `
     INSERT INTO matches (
-        id, sport, place, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
+        id, sport, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
     ) VALUES (
-        :id, :sport, :place, :date, :participant_nber, :current_state, :score1, :score2, :court_id, :created_at, :updated_at
+        :id, :sport, :date, :participant_nber, :current_state, :score1, :score2, :court_id, :created_at, :updated_at
     )`, match)
 
 	if err != nil {

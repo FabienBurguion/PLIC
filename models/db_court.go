@@ -17,12 +17,11 @@ type DBCourt struct {
 func NewDBCourtFixture() DBCourt {
 	return DBCourt{
 		Id:        uuid.NewString(),
-		Name:      uuid.NewString(),
-		Address:   "address",
+		Name:      "a court",
+		Address:   "an address",
 		Longitude: 0.0,
 		Latitude:  0.0,
 		CreatedAt: time.Now(),
-		//	UpdatedAt: time.Now(),
 	}
 }
 
@@ -33,6 +32,11 @@ func (u DBCourt) WithId(id string) DBCourt {
 
 func (u DBCourt) WithName(name string) DBCourt {
 	u.Name = name
+	return u
+}
+
+func (u DBCourt) WithAddress(address string) DBCourt {
+	u.Address = address
 	return u
 }
 

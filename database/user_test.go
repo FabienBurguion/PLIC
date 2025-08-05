@@ -462,8 +462,8 @@ func TestDatabase_GetFavoriteFieldByUserID(t *testing.T) {
 		},
 		Courts: courts,
 		Matches: []models.DBMatches{
-			{Id: matchID1, Sport: models.Foot, Place: "Paris", Date: time.Now(), CurrentState: models.Termine, CourtID: courtID}, // Ajout CourtID
-			{Id: matchID2, Sport: models.Foot, Place: "Paris", Date: time.Now(), CurrentState: models.Termine, CourtID: courtID}, // Ajout CourtID
+			{Id: matchID1, Sport: models.Foot, Date: time.Now(), CurrentState: models.Termine, CourtID: courtID}, // Ajout CourtID
+			{Id: matchID2, Sport: models.Foot, Date: time.Now(), CurrentState: models.Termine, CourtID: courtID}, // Ajout CourtID
 		},
 		UserMatches: []models.DBUserMatch{
 			{UserID: userID, MatchID: matchID1},
@@ -477,7 +477,7 @@ func TestDatabase_GetFavoriteFieldByUserID(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, field)
-	require.Equal(t, "Paris", *field)
+	require.Equal(t, "1 rue des sports", *field)
 }
 
 func TestDatabase_GetFavoriteSportByUserID(t *testing.T) {
@@ -506,8 +506,8 @@ func TestDatabase_GetFavoriteSportByUserID(t *testing.T) {
 		},
 		Courts: courts,
 		Matches: []models.DBMatches{
-			{Id: matchID1, Sport: models.Basket, Place: "Nice", Date: time.Now(), CurrentState: models.Termine, CourtID: courtID},
-			{Id: matchID2, Sport: models.Basket, Place: "Nice", Date: time.Now(), CurrentState: models.Termine, CourtID: courtID},
+			{Id: matchID1, Sport: models.Basket, Date: time.Now(), CurrentState: models.Termine, CourtID: courtID},
+			{Id: matchID2, Sport: models.Basket, Date: time.Now(), CurrentState: models.Termine, CourtID: courtID},
 		},
 		UserMatches: []models.DBUserMatch{
 			{UserID: userID, MatchID: matchID1},
@@ -554,7 +554,6 @@ func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
 			{
 				Id:           matchID1,
 				Sport:        models.Foot,
-				Place:        "Paris",
 				Date:         time.Now(),
 				CurrentState: models.Termine,
 				CourtID:      courtID,
@@ -562,7 +561,6 @@ func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
 			{
 				Id:           matchID2,
 				Sport:        models.Basket,
-				Place:        "Lyon",
 				Date:         time.Now(),
 				CurrentState: models.Termine,
 				CourtID:      courtID,
@@ -570,7 +568,6 @@ func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
 			{
 				Id:           matchID3,
 				Sport:        models.PingPong,
-				Place:        "Lyon",
 				Date:         time.Now(),
 				CurrentState: models.Termine,
 				CourtID:      courtID,

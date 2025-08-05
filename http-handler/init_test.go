@@ -154,7 +154,7 @@ func InitDBTest(sqlFile string) (*sqlx.DB, func() error, error) {
 func (s *Service) loadFixtures(fixtures DBFixtures) {
 	ctx := context.Background()
 	for _, c := range fixtures.Courts {
-		if err := s.db.InsertTerrain(ctx, c.Id, models.Place{
+		if err := s.db.InsertCourt(ctx, c.Id, models.Place{
 			Name:    c.Name,
 			Address: c.Address,
 			Geometry: struct {

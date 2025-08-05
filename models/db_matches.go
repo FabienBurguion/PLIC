@@ -26,7 +26,6 @@ const (
 type DBMatches struct {
 	Id              string    `db:"id"`
 	Sport           Sport     `db:"sport"`
-	Place           string    `db:"place"`
 	Date            time.Time `db:"date"`
 	ParticipantNber int       `db:"participant_nber"`
 	CurrentState    EtatMatch `db:"current_state"`
@@ -41,11 +40,15 @@ func NewDBMatchesFixture() DBMatches {
 	return DBMatches{
 		Id:              uuid.NewString(),
 		Sport:           "foot",
-		Place:           "Paris",
 		Date:            time.Now(),
 		ParticipantNber: 8,
 		CurrentState:    "Manque joueur",
 		Score1:          0,
 		Score2:          0,
 	}
+}
+
+func (m DBMatches) WithCourtId(id string) DBMatches {
+	m.CourtID = id
+	return m
 }

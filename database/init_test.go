@@ -159,7 +159,7 @@ func (s *Service) loadFixtures(fixtures DBFixtures) {
 	}
 
 	for _, c := range fixtures.Courts {
-		if err := s.db.InsertTerrain(ctx, c.Id, models.Place{
+		if err := s.db.InsertCourt(ctx, c.Id, models.Place{
 			Name:    c.Name,
 			Address: c.Address,
 			Geometry: struct {

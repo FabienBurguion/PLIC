@@ -5,6 +5,7 @@ import (
 	"PLIC/models"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"log"
@@ -13,7 +14,7 @@ import (
 	"time"
 )
 
-func (s *Service) BuildMatchResponse(ctx context.Context, match models.DBMatches, users []models.DBUsers, profilePictures []string) models.MatchResponse {
+func (s *Service) BuildMatchResponse(ctx context.Context, match models.DBMatches, users []models.DBUsers, profilePictures []string) (error, models.MatchResponse) {
 	userResponses := make([]models.UserResponse, len(users))
 	for i, u := range users {
 		var profilePicture string
@@ -26,10 +27,16 @@ func (s *Service) BuildMatchResponse(ctx context.Context, match models.DBMatches
 		userResponses[i] = s.BuildUserResponse(ctx, &u, profilePicture)
 	}
 
-	return models.MatchResponse{
+	court, err := s.db.GetCourtByID(ctx, match.CourtID)
+	if err != nil || court == nil {
+		log.Println("error getting court:", err)
+		return fmt.Errorf("error getting court %s: %s", match.CourtID, err.Error()), models.MatchResponse{}
+	}
+
+	return nil, models.MatchResponse{
 		Id:              match.Id,
 		Sport:           match.Sport,
-		Place:           match.Place,
+		Place:           court.Address,
 		Date:            match.Date,
 		NbreParticipant: match.ParticipantNber,
 		CurrentState:    match.CurrentState,
@@ -118,7 +125,10 @@ func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, auth mode
 
 	wg2.Wait()
 
-	response := s.BuildMatchResponse(ctx, *match, users, profilePictures)
+	err, response := s.BuildMatchResponse(ctx, *match, users, profilePictures)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to build match response: "+err.Error())
+	}
 	return httpx.Write(w, http.StatusOK, response)
 }
 
@@ -224,10 +234,16 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 			userResponseCache[user.Id] = userResp
 		}
 
+		court, err := s.db.GetCourtByID(ctx, courtID)
+		if err != nil || court == nil {
+			log.Println("error getting court:", err)
+			return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch court: "+err.Error())
+		}
+
 		matchResponse := models.MatchResponse{
 			Id:              match.Id,
 			Sport:           match.Sport,
-			Place:           match.Place,
+			Place:           court.Address,
 			Date:            match.Date,
 			NbreParticipant: match.ParticipantNber,
 			CurrentState:    match.CurrentState,
@@ -290,10 +306,21 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, _ models
 			userResponseCache[user.Id] = userResp
 		}
 
+		court, err := s.db.GetCourtByID(ctx, match.CourtID)
+		if err != nil {
+			log.Println("error getting court:", err)
+			return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch court: "+err.Error())
+		}
+
+		if court == nil {
+			log.Println("error: no court found for match", match.Id)
+			return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch court")
+		}
+
 		matchResponse := models.MatchResponse{
 			Id:              match.Id,
 			Sport:           match.Sport,
-			Place:           match.Place,
+			Place:           court.Address,
 			Date:            match.Date,
 			NbreParticipant: match.ParticipantNber,
 			CurrentState:    match.CurrentState,
@@ -346,7 +373,6 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 	}
 
 	matchDb := match.ToDBMatches(s.clock.Now())
-	matchDb.Place = court.Address
 
 	if err := s.db.CreateMatch(ctx, matchDb); err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to create match: "+err.Error())
@@ -384,7 +410,10 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 	}
 
 	wg.Wait()
-	response := s.BuildMatchResponse(ctx, matchDb, users, profilePictures)
+	err, response := s.BuildMatchResponse(ctx, matchDb, users, profilePictures)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to build match response: "+err.Error())
+	}
 
 	return httpx.Write(w, http.StatusCreated, response)
 }
@@ -559,6 +588,9 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, auth 
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to retrieve updated match")
 	}
 
-	resp := s.BuildMatchResponse(ctx, *updatedMatch, users, profilePictures)
+	err, resp := s.BuildMatchResponse(ctx, *updatedMatch, users, profilePictures)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to build match response: "+err.Error())
+	}
 	return httpx.Write(w, http.StatusOK, resp)
 }

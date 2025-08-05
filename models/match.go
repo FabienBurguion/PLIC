@@ -16,7 +16,6 @@ func (m MatchRequest) ToDBMatches(now time.Time) DBMatches {
 	return DBMatches{
 		Id:              uuid.NewString(),
 		Sport:           m.Sport,
-		Place:           "",
 		Date:            m.Date,
 		ParticipantNber: m.NbreParticipant,
 		CurrentState:    ManqueJoueur,

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func (db Database) InsertTerrain(ctx context.Context, id string, p models.Place, createdTime time.Time) error {
+func (db Database) InsertCourt(ctx context.Context, id string, p models.Place, createdTime time.Time) error {
 	_, err := db.Database.ExecContext(ctx, `
 		INSERT INTO courts (id, address, longitude, latitude, created_at, name)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -54,7 +54,7 @@ func (db Database) GetAllCourts(ctx context.Context) ([]models.DBCourt, error) {
 func (db Database) GetVisitedFieldCountByUserID(ctx context.Context, userID string) (int, error) {
 	var count int
 	err := db.Database.GetContext(ctx, &count, `
-		SELECT COALESCE(COUNT(DISTINCT m.place), 0) AS count
+		SELECT COALESCE(COUNT(DISTINCT m.court_id), 0) AS count
 		FROM user_match um
 		JOIN matches m ON m.id = um.match_id
 		WHERE um.user_id = $1

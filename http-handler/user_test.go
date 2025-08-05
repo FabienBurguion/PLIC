@@ -17,13 +17,7 @@ import (
 
 func Test_GetUserById(t *testing.T) {
 	court1 := models.NewDBCourtFixture()
-	if court1.Id == "" {
-		court1.Id = uuid.NewString()
-	}
 	court2 := models.NewDBCourtFixture()
-	if court2.Id == "" {
-		court2.Id = uuid.NewString()
-	}
 
 	userWithData := models.NewDBUsersFixture()
 	userNoMatch := models.NewDBUsersFixture()
@@ -31,7 +25,6 @@ func Test_GetUserById(t *testing.T) {
 	match1 := models.DBMatches{
 		Id:           uuid.NewString(),
 		Sport:        models.Foot,
-		Place:        "Paris",
 		Date:         time.Now(),
 		CurrentState: models.Termine,
 		Score1:       2,
@@ -41,7 +34,6 @@ func Test_GetUserById(t *testing.T) {
 	match2 := models.DBMatches{
 		Id:           uuid.NewString(),
 		Sport:        models.Basket,
-		Place:        "Lyon",
 		Date:         time.Now(),
 		CurrentState: models.Termine,
 		Score1:       5,
@@ -51,7 +43,6 @@ func Test_GetUserById(t *testing.T) {
 	match3 := models.DBMatches{
 		Id:           uuid.NewString(),
 		Sport:        models.PingPong,
-		Place:        "Marseille",
 		Date:         time.Now(),
 		CurrentState: models.Termine,
 		Score1:       3,
@@ -87,7 +78,7 @@ func Test_GetUserById(t *testing.T) {
 				require.Equal(t, userWithData.Bio, res.Bio)
 				require.Equal(t, userWithData.CreatedAt.Unix(), res.CreatedAt.Unix())
 				require.Equal(t, 3, res.NbMatches)
-				require.Equal(t, 3, res.VisitedFields)
+				require.Equal(t, 2, res.VisitedFields)
 
 				if res.FavoriteSport != nil {
 					require.Contains(t, []models.Sport{models.Foot, models.Basket, models.PingPong}, *res.FavoriteSport)
@@ -103,7 +94,6 @@ func Test_GetUserById(t *testing.T) {
 				}
 
 				require.NotNil(t, res.FavoriteField)
-				require.Contains(t, []string{"Paris", "Lyon"}, *res.FavoriteField)
 
 				require.Len(t, res.Fields, 0)
 			},

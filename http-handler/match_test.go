@@ -199,7 +199,6 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 	match1 := models.DBMatches{
 		Id:           uuid.NewString(),
 		Sport:        models.Foot,
-		Place:        "Paris",
 		Date:         time.Now().Add(-time.Hour),
 		CurrentState: models.Termine,
 		Score1:       3,
@@ -209,7 +208,6 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 	match2 := models.DBMatches{
 		Id:           uuid.NewString(),
 		Sport:        models.Basket,
-		Place:        "Lyon",
 		Date:         time.Now(),
 		CurrentState: models.Termine,
 		Score1:       1,
@@ -306,20 +304,11 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 }
 
 func Test_GetAllMatches(t *testing.T) {
-	match1 := models.NewDBMatchesFixture()
-	match2 := models.NewDBMatchesFixture()
-
 	court1 := models.NewDBCourtFixture()
-	if court1.Id == "" {
-		court1.Id = uuid.NewString()
-	}
 	court2 := models.NewDBCourtFixture()
-	if court2.Id == "" {
-		court2.Id = uuid.NewString()
-	}
 
-	match1.CourtID = court1.Id
-	match2.CourtID = court2.Id
+	match1 := models.NewDBMatchesFixture().WithCourtId(court1.Id)
+	match2 := models.NewDBMatchesFixture().WithCourtId(court2.Id)
 
 	user := models.NewDBUsersFixture()
 

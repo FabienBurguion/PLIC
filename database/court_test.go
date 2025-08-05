@@ -33,7 +33,7 @@ func TestDatabase_InsertTerrain(t *testing.T) {
 			s.InitServiceTest()
 			ctx := context.Background()
 
-			err := s.db.InsertTerrain(ctx, id, models.Place{
+			err := s.db.InsertCourt(ctx, id, models.Place{
 				Name:    "Test Court",
 				Address: "123 Rue Test",
 				Geometry: struct {
@@ -87,7 +87,7 @@ func TestDatabase_GetAllCourts(t *testing.T) {
 			s.InitServiceTest()
 			ctx := context.Background()
 
-			err := s.db.InsertTerrain(ctx, c.expected.Id, models.Place{
+			err := s.db.InsertCourt(ctx, c.expected.Id, models.Place{
 				Name:    c.expected.Name,
 				Address: c.expected.Address,
 				Geometry: struct {
@@ -137,8 +137,8 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 	}
 
 	userID1 := uuid.NewString()
-	court1 := models.NewDBCourtFixture()
-	court2 := models.NewDBCourtFixture()
+	court1 := models.NewDBCourtFixture().WithAddress("12 rue de Paris, Paris")
+	court2 := models.NewDBCourtFixture().WithAddress("5 avenue des Champs, Lyon")
 	matchID1 := uuid.NewString()
 	matchID2 := uuid.NewString()
 	matchID3 := uuid.NewString()
@@ -155,7 +155,6 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 					{
 						Id:              matchID1,
 						Sport:           models.Foot,
-						Place:           "Paris",
 						Date:            time.Now(),
 						ParticipantNber: 10,
 						CurrentState:    models.Valide,
@@ -166,7 +165,6 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 					{
 						Id:              matchID2,
 						Sport:           models.Basket,
-						Place:           "Lyon",
 						Date:            time.Now(),
 						ParticipantNber: 8,
 						CurrentState:    models.Termine,
@@ -177,7 +175,6 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 					{
 						Id:              matchID3,
 						Sport:           models.Foot,
-						Place:           "Paris",
 						Date:            time.Now(),
 						ParticipantNber: 12,
 						CurrentState:    models.Valide,

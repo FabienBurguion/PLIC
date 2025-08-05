@@ -152,20 +152,21 @@ func (db Database) DeleteUser(ctx context.Context, userId string) error {
 }
 
 func (db Database) GetFavoriteFieldByUserID(ctx context.Context, userID string) (*string, error) {
-	var field string
-	err := db.Database.GetContext(ctx, &field, `
-		SELECT m.place
+	var address string
+	err := db.Database.GetContext(ctx, &address, `
+		SELECT c.address
 		FROM user_match um
 		JOIN matches m ON m.id = um.match_id
+		JOIN courts c ON c.id = m.court_id
 		WHERE um.user_id = $1
-		GROUP BY m.place
+		GROUP BY c.address
 		ORDER BY COUNT(*) DESC
 		LIMIT 1
 	`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching favorite field: %w", err)
 	}
-	return &field, nil
+	return &address, nil
 }
 
 func (db Database) GetFavoriteSportByUserID(ctx context.Context, userID string) (*models.Sport, error) {
