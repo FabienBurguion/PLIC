@@ -15,7 +15,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func (s *Service) BuildMatchResponse(ctx context.Context, match models.DBMatches, users []models.DBUsers, profilePictures []string) (error, models.MatchResponse) {
+func (s *Service) buildMatchResponse(ctx context.Context, match models.DBMatches, users []models.DBUsers, profilePictures []string) (error, models.MatchResponse) {
 	userResponses := make([]models.UserResponse, len(users))
 	for i, u := range users {
 		var profilePicture string
@@ -131,7 +131,7 @@ func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, auth mode
 
 	wg2.Wait()
 
-	err, response := s.BuildMatchResponse(ctx, *match, users, profilePictures)
+	err, response := s.buildMatchResponse(ctx, *match, users, profilePictures)
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to build match response: "+err.Error())
 	}
@@ -421,7 +421,7 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 	}
 
 	wg.Wait()
-	err, response := s.BuildMatchResponse(ctx, matchDb, users, profilePictures)
+	err, response := s.buildMatchResponse(ctx, matchDb, users, profilePictures)
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to build match response: "+err.Error())
 	}
@@ -609,7 +609,7 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, auth 
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to retrieve updated match")
 	}
 
-	err, resp := s.BuildMatchResponse(ctx, *updatedMatch, users, profilePictures)
+	err, resp := s.buildMatchResponse(ctx, *updatedMatch, users, profilePictures)
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to build match response: "+err.Error())
 	}
