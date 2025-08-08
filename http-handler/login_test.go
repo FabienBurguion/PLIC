@@ -148,14 +148,11 @@ func TestService_Login(t *testing.T) {
 }
 
 func TestService_Register(t *testing.T) {
-	type expected struct {
-		code int
-	}
 	type testCase struct {
 		name     string
 		fixtures DBFixtures
 		param    models.RegisterRequest
-		expected expected
+		expected int
 	}
 
 	userId := uuid.NewString()
@@ -172,9 +169,7 @@ func TestService_Register(t *testing.T) {
 				Email:    email,
 				Password: password,
 			},
-			expected: expected{
-				code: http.StatusCreated,
-			},
+			expected: http.StatusCreated,
 		},
 		{
 			name: "Empty email => bad request",
@@ -185,9 +180,7 @@ func TestService_Register(t *testing.T) {
 				Email:    "",
 				Password: password,
 			},
-			expected: expected{
-				code: http.StatusBadRequest,
-			},
+			expected: http.StatusBadRequest,
 		},
 		{
 			name: "Empty password => bad request",
@@ -198,9 +191,7 @@ func TestService_Register(t *testing.T) {
 				Email:    email,
 				Password: "",
 			},
-			expected: expected{
-				code: http.StatusBadRequest,
-			},
+			expected: http.StatusBadRequest,
 		},
 		{
 			name: "User already exists -> 401",
@@ -215,9 +206,7 @@ func TestService_Register(t *testing.T) {
 				Email:    email,
 				Password: password,
 			},
-			expected: expected{
-				code: http.StatusUnauthorized,
-			},
+			expected: http.StatusUnauthorized,
 		},
 	}
 
@@ -246,9 +235,9 @@ func TestService_Register(t *testing.T) {
 			defer func(Body io.ReadCloser) {
 				_ = Body.Close()
 			}(resp.Body)
-			require.Equal(t, c.expected.code, resp.StatusCode)
+			require.Equal(t, c.expected, resp.StatusCode)
 
-			if c.expected.code != http.StatusCreated {
+			if c.expected != http.StatusCreated {
 				return
 			}
 
@@ -480,8 +469,8 @@ func TestService_ResetPassword(t *testing.T) {
 
 func TestService_ChangePassword(t *testing.T) {
 	type expected struct {
-		statusCode      int
-		currentPassword string
+		statusCode  int
+		newPassword string
 	}
 
 	type testCase struct {
@@ -524,8 +513,8 @@ func TestService_ChangePassword(t *testing.T) {
 				UserID:      userId,
 			},
 			expected: expected{
-				statusCode:      http.StatusOK,
-				currentPassword: newPassword,
+				statusCode:  http.StatusOK,
+				newPassword: newPassword,
 			},
 		},
 		{
@@ -595,7 +584,7 @@ func TestService_ChangePassword(t *testing.T) {
 			}
 			user, err := s.db.GetUserById(ctx, userId)
 			require.NoError(t, err)
-			require.NoError(t, bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(c.expected.currentPassword)))
+			require.NoError(t, bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(c.expected.newPassword)))
 		})
 	}
 }

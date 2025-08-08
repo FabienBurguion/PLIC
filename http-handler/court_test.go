@@ -15,12 +15,16 @@ import (
 )
 
 func Test_GetCourtByID(t *testing.T) {
+	type expected struct {
+		code  int
+		check func(t *testing.T, res models.DBCourt)
+	}
+
 	type testCase struct {
-		name          string
-		urlID         string
-		fixtures      DBFixtures
-		expectedCode  int
-		expectedCheck func(t *testing.T, res models.DBCourt)
+		name     string
+		urlID    string
+		fixtures DBFixtures
+		expected expected
 	}
 
 	court := models.NewDBCourtFixture()
@@ -32,28 +36,34 @@ func Test_GetCourtByID(t *testing.T) {
 			fixtures: DBFixtures{
 				Courts: []models.DBCourt{court},
 			},
-			expectedCode: http.StatusOK,
-			expectedCheck: func(t *testing.T, res models.DBCourt) {
-				require.Equal(t, court.Id, res.Id)
-				require.Equal(t, court.Name, res.Name)
-				require.Equal(t, court.Address, res.Address)
-				require.Equal(t, court.Latitude, res.Latitude)
-				require.Equal(t, court.Longitude, res.Longitude)
+			expected: expected{
+				code: http.StatusOK,
+				check: func(t *testing.T, res models.DBCourt) {
+					require.Equal(t, court.Id, res.Id)
+					require.Equal(t, court.Name, res.Name)
+					require.Equal(t, court.Address, res.Address)
+					require.Equal(t, court.Latitude, res.Latitude)
+					require.Equal(t, court.Longitude, res.Longitude)
+				},
 			},
 		},
 		{
-			name:          "Missing ID",
-			urlID:         "",
-			fixtures:      DBFixtures{},
-			expectedCode:  http.StatusBadRequest,
-			expectedCheck: nil,
+			name:     "Missing ID",
+			urlID:    "",
+			fixtures: DBFixtures{},
+			expected: expected{
+				code:  http.StatusBadRequest,
+				check: nil,
+			},
 		},
 		{
-			name:          "Court not found",
-			urlID:         uuid.NewString(),
-			fixtures:      DBFixtures{},
-			expectedCode:  http.StatusNotFound,
-			expectedCheck: nil,
+			name:     "Court not found",
+			urlID:    uuid.NewString(),
+			fixtures: DBFixtures{},
+			expected: expected{
+				code:  http.StatusNotFound,
+				check: nil,
+			},
 		},
 	}
 
@@ -91,9 +101,9 @@ func Test_GetCourtByID(t *testing.T) {
 				_ = Body.Close()
 			}(resp.Body)
 
-			require.Equal(t, c.expectedCode, resp.StatusCode)
+			require.Equal(t, c.expected.code, resp.StatusCode)
 
-			if c.expectedCode == http.StatusOK && c.expectedCheck != nil {
+			if c.expected.code == http.StatusOK && c.expected.check != nil {
 				var res models.DBCourt
 				body, err := io.ReadAll(resp.Body)
 				require.NoError(t, err)
@@ -101,7 +111,7 @@ func Test_GetCourtByID(t *testing.T) {
 				err = json.Unmarshal(body, &res)
 				require.NoError(t, err)
 
-				c.expectedCheck(t, res)
+				c.expected.check(t, res)
 			}
 		})
 	}

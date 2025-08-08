@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -17,52 +16,41 @@ import (
 )
 
 func Test_GetUserById(t *testing.T) {
+	type expected struct {
+		code  int
+		check func(t *testing.T, res models.UserResponse)
+	}
+
+	type testCase struct {
+		name     string
+		param    string
+		fixtures DBFixtures
+		expected expected
+	}
+
 	court1 := models.NewDBCourtFixture()
 	court2 := models.NewDBCourtFixture()
 
 	userWithData := models.NewDBUsersFixture()
 	userNoMatch := models.NewDBUsersFixture()
 
-	match1 := models.DBMatches{
-		Id:           uuid.NewString(),
-		Sport:        models.Foot,
-		Date:         time.Now(),
-		CurrentState: models.Termine,
-		Score1:       ptr(2),
-		Score2:       ptr(1),
-		CourtID:      court1.Id,
-	}
-	match2 := models.DBMatches{
-		Id:           uuid.NewString(),
-		Sport:        models.Basket,
-		Date:         time.Now(),
-		CurrentState: models.Termine,
-		Score1:       ptr(5),
-		Score2:       ptr(3),
-		CourtID:      court2.Id,
-	}
-	match3 := models.DBMatches{
-		Id:           uuid.NewString(),
-		Sport:        models.PingPong,
-		Date:         time.Now(),
-		CurrentState: models.Termine,
-		Score1:       ptr(3),
-		Score2:       ptr(0),
-		CourtID:      court1.Id,
-	}
-
-	type testCase struct {
-		name          string
-		urlID         string
-		fixtures      DBFixtures
-		expectedCode  int
-		expectedCheck func(t *testing.T, res models.UserResponse)
-	}
+	match1 := models.NewDBMatchesFixture().
+		WithCourtId(court1.Id).
+		WithCurrentState(models.Termine).
+		WithSport(models.Foot)
+	match2 := models.NewDBMatchesFixture().
+		WithCourtId(court2.Id).
+		WithCurrentState(models.Termine).
+		WithSport(models.Basket)
+	match3 := models.NewDBMatchesFixture().
+		WithCourtId(court1.Id).
+		WithCurrentState(models.Termine).
+		WithSport(models.PingPong)
 
 	testCases := []testCase{
 		{
 			name:  "User with full match history",
-			urlID: userWithData.Id,
+			param: userWithData.Id,
 			fixtures: DBFixtures{
 				Users:   []models.DBUsers{userWithData},
 				Courts:  []models.DBCourt{court1, court2},
@@ -73,64 +61,72 @@ func Test_GetUserById(t *testing.T) {
 					{UserID: userWithData.Id, MatchID: match3.Id},
 				},
 			},
-			expectedCode: http.StatusOK,
-			expectedCheck: func(t *testing.T, res models.UserResponse) {
-				require.Equal(t, userWithData.Username, res.Username)
-				require.Equal(t, userWithData.Bio, res.Bio)
-				require.Equal(t, userWithData.CreatedAt.Unix(), res.CreatedAt.Unix())
-				require.Equal(t, 3, res.NbMatches)
-				require.Equal(t, 2, res.VisitedFields)
+			expected: expected{
+				code: http.StatusOK,
+				check: func(t *testing.T, res models.UserResponse) {
+					require.Equal(t, userWithData.Username, res.Username)
+					require.Equal(t, userWithData.Bio, res.Bio)
+					require.Equal(t, userWithData.CreatedAt.Unix(), res.CreatedAt.Unix())
+					require.Equal(t, 3, res.NbMatches)
+					require.Equal(t, 2, res.VisitedFields)
 
-				if res.FavoriteSport != nil {
-					require.Contains(t, []models.Sport{models.Foot, models.Basket, models.PingPong}, *res.FavoriteSport)
-				} else {
-					t.Log("FavoriteSport is nil (expected if no match was inserted)")
-				}
-				require.ElementsMatch(t, []models.Sport{models.Foot, models.Basket, models.PingPong}, res.Sports)
+					if res.FavoriteSport != nil {
+						require.Contains(t, []models.Sport{models.Foot, models.Basket, models.PingPong}, *res.FavoriteSport)
+					} else {
+						t.Log("FavoriteSport is nil (res if no match was inserted)")
+					}
+					require.ElementsMatch(t, []models.Sport{models.Foot, models.Basket, models.PingPong}, res.Sports)
 
-				if res.FavoriteCity != nil {
-					require.Contains(t, []string{"Paris", "Lyon"}, *res.FavoriteCity)
-				} else {
-					t.Log("FavoriteCity is nil (expected if no match was inserted)")
-				}
+					if res.FavoriteCity != nil {
+						require.Contains(t, []string{"Paris", "Lyon"}, *res.FavoriteCity)
+					} else {
+						t.Log("FavoriteCity is nil (res if no match was inserted)")
+					}
 
-				require.NotNil(t, res.FavoriteField)
+					require.NotNil(t, res.FavoriteField)
 
-				require.Len(t, res.Fields, 0)
+					require.Len(t, res.Fields, 0)
+				},
 			},
 		},
 		{
 			name:  "User with no matches",
-			urlID: userNoMatch.Id,
+			param: userNoMatch.Id,
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{
 					userNoMatch,
 				},
 			},
-			expectedCode: http.StatusOK,
-			expectedCheck: func(t *testing.T, res models.UserResponse) {
-				require.Equal(t, 0, res.NbMatches)
-				require.Equal(t, 0, res.VisitedFields)
-				require.Nil(t, res.FavoriteSport)
-				require.Nil(t, res.FavoriteCity)
-				require.Nil(t, res.FavoriteField)
-				require.Empty(t, res.Sports)
-				require.Empty(t, res.Fields)
+			expected: expected{
+				code: http.StatusOK,
+				check: func(t *testing.T, res models.UserResponse) {
+					require.Equal(t, 0, res.NbMatches)
+					require.Equal(t, 0, res.VisitedFields)
+					require.Nil(t, res.FavoriteSport)
+					require.Nil(t, res.FavoriteCity)
+					require.Nil(t, res.FavoriteField)
+					require.Empty(t, res.Sports)
+					require.Empty(t, res.Fields)
+				},
 			},
 		},
 		{
-			name:          "User not found",
-			urlID:         uuid.NewString(),
-			fixtures:      DBFixtures{},
-			expectedCode:  http.StatusNotFound,
-			expectedCheck: nil,
+			name:     "User not found",
+			param:    uuid.NewString(),
+			fixtures: DBFixtures{},
+			expected: expected{
+				code:  http.StatusNotFound,
+				check: nil,
+			},
 		},
 		{
-			name:          "Missing ID",
-			urlID:         "",
-			fixtures:      DBFixtures{},
-			expectedCode:  http.StatusBadRequest,
-			expectedCheck: nil,
+			name:     "Missing ID",
+			param:    "",
+			fixtures: DBFixtures{},
+			expected: expected{
+				code:  http.StatusBadRequest,
+				check: nil,
+			},
 		},
 	}
 
@@ -148,15 +144,15 @@ func Test_GetUserById(t *testing.T) {
 			s.loadFixtures(c.fixtures)
 
 			url := "/users"
-			if c.urlID != "" {
-				url += "/" + c.urlID
+			if c.param != "" {
+				url += "/" + c.param
 			}
 
 			r := httptest.NewRequest("GET", url, nil)
 			r.Header.Set("Content-Type", "application/json")
-			if c.urlID != "" {
+			if c.param != "" {
 				routeCtx := chi.NewRouteContext()
-				routeCtx.URLParams.Add("id", c.urlID)
+				routeCtx.URLParams.Add("id", c.param)
 				r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
 			}
 
@@ -170,9 +166,9 @@ func Test_GetUserById(t *testing.T) {
 				_ = Body.Close()
 			}(resp.Body)
 
-			require.Equal(t, c.expectedCode, resp.StatusCode)
+			require.Equal(t, c.expected.code, resp.StatusCode)
 
-			if c.expectedCode == http.StatusOK && c.expectedCheck != nil {
+			if c.expected.code == http.StatusOK && c.expected.check != nil {
 				bodyBytes, err := io.ReadAll(resp.Body)
 				require.NoError(t, err)
 
@@ -180,21 +176,25 @@ func Test_GetUserById(t *testing.T) {
 				err = json.Unmarshal(bodyBytes, &res)
 				require.NoError(t, err)
 
-				c.expectedCheck(t, res)
+				c.expected.check(t, res)
 			}
 		})
 	}
 }
 
 func Test_PatchUser(t *testing.T) {
+	type expected struct {
+		res  *models.DBUsers
+		code int
+	}
+
 	type testCase struct {
-		name         string
-		fixtures     DBFixtures
-		param        models.UserPatchRequest
-		authInfo     models.AuthInfo
-		urlUserId    string
-		expected     *models.DBUsers
-		expectedCode int
+		name      string
+		fixtures  DBFixtures
+		param     models.UserPatchRequest
+		auth      models.AuthInfo
+		urlUserId string
+		expected  expected
 	}
 
 	userId := uuid.NewString()
@@ -224,17 +224,19 @@ func Test_PatchUser(t *testing.T) {
 				Email:    ptr(newEmail),
 				Bio:      ptr(newBio),
 			},
-			authInfo: models.AuthInfo{
+			auth: models.AuthInfo{
 				IsConnected: true,
 				UserID:      userId,
 			},
-			urlUserId:    userId,
-			expectedCode: 200,
-			expected: &models.DBUsers{
-				Id:       userId,
-				Username: newUsername,
-				Email:    newEmail,
-				Bio:      ptr(newBio),
+			urlUserId: userId,
+			expected: expected{
+				code: 200,
+				res: &models.DBUsers{
+					Id:       userId,
+					Username: newUsername,
+					Email:    newEmail,
+					Bio:      ptr(newBio),
+				},
 			},
 		},
 		{
@@ -245,13 +247,15 @@ func Test_PatchUser(t *testing.T) {
 			param: models.UserPatchRequest{
 				Bio: ptr(newBio),
 			},
-			authInfo: models.AuthInfo{
+			auth: models.AuthInfo{
 				IsConnected: true,
 				UserID:      userId,
 			},
-			urlUserId:    userId,
-			expectedCode: 200,
-			expected:     nil,
+			urlUserId: userId,
+			expected: expected{
+				code: 200,
+				res:  nil,
+			},
 		},
 		{
 			name: "Not connected",
@@ -263,13 +267,15 @@ func Test_PatchUser(t *testing.T) {
 			param: models.UserPatchRequest{
 				Bio: ptr(newBio),
 			},
-			authInfo: models.AuthInfo{
+			auth: models.AuthInfo{
 				IsConnected: false,
 				UserID:      userId,
 			},
-			urlUserId:    userId,
-			expectedCode: 403,
-			expected:     nil,
+			urlUserId: userId,
+			expected: expected{
+				code: 403,
+				res:  nil,
+			},
 		},
 		{
 			name: "Wrong param ID",
@@ -281,13 +287,15 @@ func Test_PatchUser(t *testing.T) {
 			param: models.UserPatchRequest{
 				Bio: ptr(newBio),
 			},
-			authInfo: models.AuthInfo{
+			auth: models.AuthInfo{
 				IsConnected: true,
 				UserID:      "another-param-id",
 			},
-			urlUserId:    userId,
-			expectedCode: 403,
-			expected:     nil,
+			urlUserId: userId,
+			expected: expected{
+				code: 403,
+				res:  nil,
+			},
 		},
 		{
 			name: "Current field id",
@@ -299,18 +307,20 @@ func Test_PatchUser(t *testing.T) {
 			param: models.UserPatchRequest{
 				CurrentFieldId: ptr(newCurrentFieldId),
 			},
-			authInfo: models.AuthInfo{
+			auth: models.AuthInfo{
 				IsConnected: true,
 				UserID:      userId,
 			},
-			urlUserId:    userId,
-			expectedCode: 200,
-			expected: &models.DBUsers{
-				Id:             userId,
-				Username:       "username",
-				Email:          "an email",
-				Bio:            ptr("a bio"),
-				CurrentFieldId: &newCurrentFieldId,
+			urlUserId: userId,
+			expected: expected{
+				code: 200,
+				res: &models.DBUsers{
+					Id:             userId,
+					Username:       "username",
+					Email:          "an email",
+					Bio:            ptr("a bio"),
+					CurrentFieldId: &newCurrentFieldId,
+				},
 			},
 		},
 	}
@@ -340,7 +350,7 @@ func Test_PatchUser(t *testing.T) {
 
 			w := httptest.NewRecorder()
 
-			err = s.PatchUser(w, r, c.authInfo)
+			err = s.PatchUser(w, r, c.auth)
 			require.NoError(t, err)
 
 			resp := w.Result()
@@ -348,17 +358,17 @@ func Test_PatchUser(t *testing.T) {
 				_ = Body.Close()
 			}(resp.Body)
 
-			require.Equal(t, c.expectedCode, resp.StatusCode)
+			require.Equal(t, c.expected.code, resp.StatusCode)
 
-			if c.expected != nil {
+			if c.expected.res != nil {
 				updated, err := s.db.GetUserById(r.Context(), c.urlUserId)
 				require.NoError(t, err)
 
-				require.Equal(t, c.expected.Username, updated.Username)
-				require.Equal(t, c.expected.Email, updated.Email)
-				require.Equal(t, *c.expected.Bio, *updated.Bio)
-				if c.expected.CurrentFieldId != nil {
-					require.Equal(t, *c.expected.CurrentFieldId, *updated.CurrentFieldId)
+				require.Equal(t, c.expected.res.Username, updated.Username)
+				require.Equal(t, c.expected.res.Email, updated.Email)
+				require.Equal(t, *c.expected.res.Bio, *updated.Bio)
+				if c.expected.res.CurrentFieldId != nil {
+					require.Equal(t, *c.expected.res.CurrentFieldId, *updated.CurrentFieldId)
 				}
 			}
 		})
@@ -366,16 +376,12 @@ func Test_PatchUser(t *testing.T) {
 }
 
 func Test_DeleteUser(t *testing.T) {
-	type expected struct {
-		authInfo     models.AuthInfo
-		expectedCode int
-	}
-
 	type testCase struct {
 		name     string
 		param    string
+		auth     models.AuthInfo
 		fixtures DBFixtures
-		expected expected
+		expected int
 	}
 
 	userId := uuid.NewString()
@@ -390,13 +396,11 @@ func Test_DeleteUser(t *testing.T) {
 				},
 			},
 			param: userId,
-			expected: expected{
-				authInfo: models.AuthInfo{
-					IsConnected: true,
-					UserID:      userId,
-				},
-				expectedCode: 200,
+			auth: models.AuthInfo{
+				IsConnected: true,
+				UserID:      userId,
 			},
+			expected: 200,
 		},
 		{
 			name: "No auth info",
@@ -407,13 +411,11 @@ func Test_DeleteUser(t *testing.T) {
 				},
 			},
 			param: userId,
-			expected: expected{
-				authInfo: models.AuthInfo{
-					IsConnected: false,
-					UserID:      "",
-				},
-				expectedCode: 403,
+			auth: models.AuthInfo{
+				IsConnected: false,
+				UserID:      "",
 			},
+			expected: 403,
 		},
 		{
 			name: "No userId",
@@ -424,13 +426,11 @@ func Test_DeleteUser(t *testing.T) {
 				},
 			},
 			param: "",
-			expected: expected{
-				authInfo: models.AuthInfo{
-					IsConnected: true,
-					UserID:      userId,
-				},
-				expectedCode: 400,
+			auth: models.AuthInfo{
+				IsConnected: true,
+				UserID:      userId,
 			},
+			expected: 400,
 		},
 	}
 
@@ -457,7 +457,7 @@ func Test_DeleteUser(t *testing.T) {
 
 			w := httptest.NewRecorder()
 
-			err := s.DeleteUser(w, r, c.expected.authInfo)
+			err := s.DeleteUser(w, r, c.auth)
 			require.NoError(t, err)
 
 			resp := w.Result()
@@ -465,9 +465,9 @@ func Test_DeleteUser(t *testing.T) {
 				_ = Body.Close()
 			}(resp.Body)
 
-			require.Equal(t, c.expected.expectedCode, resp.StatusCode)
+			require.Equal(t, c.expected, resp.StatusCode)
 
-			if c.expected.expectedCode != 200 {
+			if c.expected != 200 {
 				return
 			}
 

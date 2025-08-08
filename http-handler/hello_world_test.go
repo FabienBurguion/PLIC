@@ -3,10 +3,11 @@ package main
 import (
 	"PLIC/models"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestHelloWorldHandler(t *testing.T) {
