@@ -139,7 +139,12 @@ func Test_GetUserById(t *testing.T) {
 			t.Parallel()
 
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			url := "/users"
@@ -315,7 +320,12 @@ func Test_PatchUser(t *testing.T) {
 			t.Parallel()
 
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			body, err := json.Marshal(c.param)
@@ -430,7 +440,12 @@ func Test_DeleteUser(t *testing.T) {
 			t.Parallel()
 
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			r := httptest.NewRequest("PATCH", "/users/"+c.param, nil)

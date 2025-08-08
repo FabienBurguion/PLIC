@@ -6,16 +6,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/go-chi/chi/v5"
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/bcrypt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestService_Login(t *testing.T) {
@@ -107,7 +108,12 @@ func TestService_Login(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			body, _ := json.Marshal(c.param)
@@ -219,7 +225,12 @@ func TestService_Register(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			body, _ := json.Marshal(c.param)
@@ -330,7 +341,12 @@ func TestService_ForgetPassword(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			mockMailer := mailer.NewMockMailer()
 			s.mailer = mockMailer
 			s.loadFixtures(c.fixtures)
@@ -410,7 +426,12 @@ func TestService_ResetPassword(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			mockMailer := mailer.NewMockMailer()
 			s.mailer = mockMailer
 			s.loadFixtures(DBFixtures{
@@ -547,7 +568,12 @@ func TestService_ChangePassword(t *testing.T) {
 			ctx := context.Background()
 			t.Parallel()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			body, _ := json.Marshal(param)

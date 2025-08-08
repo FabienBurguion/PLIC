@@ -13,6 +13,20 @@ type MatchRequest struct {
 	NbreParticipant int       `json:"nbre_participant"`
 }
 
+func NewMatchRequestFixture() MatchRequest {
+	return MatchRequest{
+		Sport:           Foot,
+		CourtID:         uuid.NewString(),
+		Date:            time.Now(),
+		NbreParticipant: 2,
+	}
+}
+
+func (m MatchRequest) WithCourtId(courtId string) MatchRequest {
+	m.CourtID = courtId
+	return m
+}
+
 func (m MatchRequest) ToDBMatches(now time.Time) DBMatches {
 	return DBMatches{
 		Id:              uuid.NewString(),

@@ -78,7 +78,7 @@ func findLatestMigrationFile(dir string) (string, error) {
 	return filepath.Join(dir, latest), nil
 }
 
-func (s *Service) InitServiceTest() {
+func (s *Service) InitServiceTest() func() error {
 	file, err := findLatestMigrationFile("../database/sql")
 	if err != nil {
 		panic(err)
@@ -91,13 +91,7 @@ func (s *Service) InitServiceTest() {
 		Database: db,
 	}
 
-	go func() {
-		<-time.After(10 * time.Second)
-		_ = cleanup()
-	}()
-
 	mockS3 := &s3_management.MockS3Service{}
-
 	s.s3Service = mockS3
 
 	parisLocation, err := time.LoadLocation("Europe/Paris")
@@ -106,6 +100,8 @@ func (s *Service) InitServiceTest() {
 	}
 
 	s.clock = Clock{location: parisLocation}
+
+	return cleanup
 }
 
 func InitDBTest(sqlFile string) (*sqlx.DB, func() error, error) {

@@ -63,3 +63,8 @@ func (m DBMatches) WithCurrentState(currentState MatchState) DBMatches {
 	m.CurrentState = currentState
 	return m
 }
+
+func (m DBMatches) WithSport(sport Sport) DBMatches {
+	m.Sport = sport
+	return m
+}

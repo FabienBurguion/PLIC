@@ -5,11 +5,12 @@ import (
 	"PLIC/models"
 	"bytes"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestService_SendTestMail(t *testing.T) {
@@ -52,7 +53,12 @@ func TestService_SendTestMail(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			mockMailer := mailer.NewMockMailer()
 			s.mailer = mockMailer
 

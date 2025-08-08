@@ -4,13 +4,14 @@ import (
 	"PLIC/models"
 	"context"
 	"encoding/json"
-	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_GetCourtByID(t *testing.T) {
@@ -61,7 +62,12 @@ func Test_GetCourtByID(t *testing.T) {
 			t.Parallel()
 
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			url := "/court"
