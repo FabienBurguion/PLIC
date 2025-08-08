@@ -3,20 +3,25 @@ package database
 import (
 	"PLIC/models"
 	"context"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDatabase_GetRankedFieldsByUserID(t *testing.T) {
+	type expected struct {
+		fields  []models.Field
+		isError bool
+	}
+
 	type testCase struct {
-		name           string
-		fixtures       DBFixtures
-		userID         string
-		expectedFields []models.Field
-		expectError    bool
+		name     string
+		fixtures DBFixtures
+		param    string
+		expected expected
 	}
 
 	userID := uuid.NewString()
@@ -32,56 +37,111 @@ func TestDatabase_GetRankedFieldsByUserID(t *testing.T) {
 			name: "User has rankings on multiple courts with different local ranks",
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{
-					{Id: userID, Username: "user", Email: "user@example.com", Password: "pwd"},
-					{Id: otherUser1, Username: "other1", Email: "o1@example.com", Password: "pwd"},
-					{Id: otherUser2, Username: "other2", Email: "o2@example.com", Password: "pwd"},
+					models.NewDBUsersFixture().
+						WithId(userID).
+						WithUsername("user1").
+						WithEmail("email1"),
+					models.NewDBUsersFixture().
+						WithId(otherUser1).
+						WithUsername("user2").
+						WithEmail("email2"),
+					models.NewDBUsersFixture().
+						WithId(otherUser2).
+						WithUsername("user3").
+						WithEmail("email3"),
 				},
 				Courts: []models.DBCourt{
-					{Id: courtID1, Name: "Central Park", Address: "NY", Latitude: 0.0, Longitude: 0.0},
-					{Id: courtID2, Name: "Stade de Lyon", Address: "Lyon", Latitude: 0.0, Longitude: 0.0},
-					{Id: courtID3, Name: "Playground", Address: "Paris", Latitude: 0.0, Longitude: 0.0},
+					models.NewDBCourtFixture().
+						WithId(courtID1).
+						WithName("Central Park"),
+					models.NewDBCourtFixture().
+						WithId(courtID2).
+						WithName("Stade de Lyon"),
+					models.NewDBCourtFixture().
+						WithId(courtID3).
+						WithName("Playground"),
 				},
 				Rankings: []models.DBRanking{
 					// Court 1
-					{UserID: userID, CourtID: courtID1, Elo: 1200},
-					{UserID: otherUser1, CourtID: courtID1, Elo: 1300},
-					{UserID: otherUser2, CourtID: courtID1, Elo: 1250},
+					models.NewDBRankingFixture().
+						WithUserId(userID).
+						WithCourtId(courtID1).
+						WithElo(1200),
+					models.NewDBRankingFixture().
+						WithUserId(otherUser1).
+						WithCourtId(courtID1).
+						WithElo(1300),
+					models.NewDBRankingFixture().
+						WithUserId(otherUser2).
+						WithCourtId(courtID1).
+						WithElo(1250),
 
 					// Court 2
-					{UserID: userID, CourtID: courtID2, Elo: 1300},
-					{UserID: otherUser1, CourtID: courtID2, Elo: 1000},
+					models.NewDBRankingFixture().
+						WithUserId(userID).
+						WithCourtId(courtID2).
+						WithElo(1300),
+					models.NewDBRankingFixture().
+						WithUserId(otherUser1).
+						WithCourtId(courtID2).
+						WithElo(1000),
 
 					// Court 3
-					{UserID: userID, CourtID: courtID3, Elo: 1250},
-					{UserID: otherUser1, CourtID: courtID3, Elo: 1250},
-					{UserID: otherUser2, CourtID: courtID3, Elo: 1100},
+					models.NewDBRankingFixture().
+						WithUserId(userID).
+						WithCourtId(courtID3).
+						WithElo(1250),
+					models.NewDBRankingFixture().
+						WithUserId(otherUser1).
+						WithCourtId(courtID3).
+						WithElo(1250),
+					models.NewDBRankingFixture().
+						WithUserId(otherUser2).
+						WithCourtId(courtID3).
+						WithElo(1100),
 				},
 			},
-			userID: userID,
-			expectedFields: []models.Field{
-				{Ranking: 3, Name: "Central Park", Score: 1200},
-				{Ranking: 1, Name: "Stade de Lyon", Score: 1300},
-				{Ranking: 1, Name: "Playground", Score: 1250},
+			param: userID,
+			expected: expected{
+				fields: []models.Field{
+					models.NewFieldFixture().
+						WithRanking(1).
+						WithName("Stade de Lyon").
+						WithScore(1300),
+					models.NewFieldFixture().
+						WithRanking(1).
+						WithName("Playground").
+						WithScore(1250),
+					models.NewFieldFixture().
+						WithRanking(3).
+						WithName("Central Park").
+						WithScore(1200),
+				},
+				isError: false,
 			},
-			expectError: false,
 		},
 		{
 			name: "User has no ranked courts",
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{
-					{Id: userID, Username: "empty", Email: "empty@example.com", Password: "pwd"},
+					models.NewDBUsersFixture().
+						WithId(userID),
 				},
 			},
-			userID:         userID,
-			expectedFields: []models.Field{},
-			expectError:    false,
+			param: userID,
+			expected: expected{
+				fields:  []models.Field{},
+				isError: false,
+			},
 		},
 		{
-			name:           "Unknown user",
-			fixtures:       DBFixtures{},
-			userID:         uuid.NewString(),
-			expectedFields: []models.Field{},
-			expectError:    false,
+			name:     "Unknown user",
+			fixtures: DBFixtures{},
+			param:    uuid.NewString(),
+			expected: expected{
+				fields:  []models.Field{},
+				isError: false,
+			},
 		},
 	}
 
@@ -94,96 +154,95 @@ func TestDatabase_GetRankedFieldsByUserID(t *testing.T) {
 			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()
-			fields, err := s.db.GetRankedFieldsByUserID(ctx, c.userID)
+			fields, err := s.db.GetRankedFieldsByUserID(ctx, c.param)
 
-			if c.expectError {
+			if c.expected.isError {
 				require.Error(t, err)
 				return
 			}
 
 			require.NoError(t, err)
-			require.Equal(t, len(c.expectedFields), len(fields))
+			require.Equal(t, len(c.expected.fields), len(fields))
 
 			sort.Slice(fields, func(i, j int) bool {
 				return fields[i].Name < fields[j].Name
 			})
-			sort.Slice(c.expectedFields, func(i, j int) bool {
-				return c.expectedFields[i].Name < c.expectedFields[j].Name
+			sort.Slice(c.expected.fields, func(i, j int) bool {
+				return c.expected.fields[i].Name < c.expected.fields[j].Name
 			})
 
 			for i := range fields {
-				require.Equal(t, c.expectedFields[i].Ranking, fields[i].Ranking, "wrong ranking for %s", fields[i].Name)
-				require.Equal(t, c.expectedFields[i].Name, fields[i].Name)
-				require.Equal(t, c.expectedFields[i].Score, fields[i].Score)
+				require.Equal(t, c.expected.fields[i].Ranking, fields[i].Ranking, "wrong ranking for %s", fields[i].Name)
+				require.Equal(t, c.expected.fields[i].Name, fields[i].Name)
+				require.Equal(t, c.expected.fields[i].Score, fields[i].Score)
 			}
 		})
 	}
 }
 
 func TestDatabase_InsertRanking(t *testing.T) {
-	s := &Service{}
-	s.InitServiceTest()
+	type testCase struct {
+		name      string
+		fixtures  DBFixtures
+		param     models.DBRanking
+		expected  int
+		preInsert bool
+	}
 
-	ctx := context.Background()
+	user := models.NewDBUsersFixture()
+	court := models.NewDBCourtFixture()
 
-	userID := uuid.NewString()
-	courtID := uuid.NewString()
+	initialRanking := models.NewDBRankingFixture().
+		WithUserId(user.Id).
+		WithCourtId(court.Id).
+		WithElo(1450)
 
-	fixtures := DBFixtures{
-		Users: []models.DBUsers{
-			{Id: userID, Username: "bob", Email: "bob@example.com", Password: "pwd"},
-		},
-		Courts: []models.DBCourt{
-			{
-				Id:        courtID,
-				Name:      "Central Park",
-				Address:   "NY",
-				Latitude:  0.0,
-				Longitude: 0.0,
+	updatedRanking := initialRanking
+	updatedRanking.Elo = 1600
+	updatedRanking.UpdatedAt = time.Now()
+
+	testCases := []testCase{
+		{
+			name: "Insert new ranking",
+			fixtures: DBFixtures{
+				Users:  []models.DBUsers{user},
+				Courts: []models.DBCourt{court},
 			},
+			param:    initialRanking,
+			expected: 1450,
+		},
+		{
+			name: "Update existing ranking on conflict",
+			fixtures: DBFixtures{
+				Users:  []models.DBUsers{user},
+				Courts: []models.DBCourt{court},
+			},
+			param:     updatedRanking,
+			expected:  1600,
+			preInsert: true,
 		},
 	}
 
-	s.loadFixtures(fixtures)
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
 
-	ranking := models.DBRanking{
-		UserID:    userID,
-		CourtID:   courtID,
-		Elo:       1450,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+			ctx := context.Background()
+
+			if c.preInsert {
+				err := s.db.InsertRanking(ctx, initialRanking)
+				require.NoError(t, err)
+			}
+
+			err := s.db.InsertRanking(ctx, c.param)
+			require.NoError(t, err)
+
+			ranking, err := s.db.GetRankingByUserAndCourt(ctx, c.param.UserID, c.param.CourtID)
+			require.NoError(t, err)
+			require.NotNil(t, ranking)
+			require.Equal(t, c.expected, ranking.Elo)
+		})
 	}
-
-	t.Run("Insert new ranking", func(t *testing.T) {
-		err := s.db.InsertRanking(ctx, ranking)
-		require.NoError(t, err)
-
-		var stored models.DBRanking
-		err = s.db.Database.GetContext(ctx, &stored, `
-			SELECT user_id, court_id, elo, created_at, updated_at
-			FROM ranking
-			WHERE user_id = $1 AND court_id = $2`,
-			userID, courtID,
-		)
-		require.NoError(t, err)
-		require.Equal(t, ranking.Elo, stored.Elo)
-	})
-
-	t.Run("Update existing ranking on conflict", func(t *testing.T) {
-		ranking.Elo = 1600
-		ranking.UpdatedAt = time.Now()
-
-		err := s.db.InsertRanking(ctx, ranking)
-		require.NoError(t, err)
-
-		var updated models.DBRanking
-		err = s.db.Database.GetContext(ctx, &updated, `
-			SELECT user_id, court_id, elo
-			FROM ranking
-			WHERE user_id = $1 AND court_id = $2`,
-			userID, courtID,
-		)
-		require.NoError(t, err)
-		require.Equal(t, 1600, updated.Elo)
-	})
 }

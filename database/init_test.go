@@ -183,7 +183,7 @@ func (s *Service) loadFixtures(fixtures DBFixtures) {
 
 	for _, m := range fixtures.Matches {
 		if err := s.db.CreateMatch(ctx, m); err != nil {
-			panic(fmt.Sprintf("failed to insert match: %v", err))
+			panic(fmt.Sprintf("failed to insert param: %v", err))
 		}
 	}
 	for _, m := range fixtures.UserMatches {

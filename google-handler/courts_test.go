@@ -11,7 +11,13 @@ import (
 )
 
 func TestGetPlaces(t *testing.T) {
-	mux := http.NewServeMux()
+	type testCase struct {
+		name           string
+		lat, lng       float64
+		keyword        string
+		expectedPlaces []models.Place
+	}
+
 	place := models.Place{
 		Name:    "name",
 		Address: "address",
@@ -30,20 +36,32 @@ func TestGetPlaces(t *testing.T) {
 			},
 		},
 	}
-	mux.HandleFunc("/json", func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(models.GooglePlacesResponse{
-			Results: []models.Place{place},
-		})
-	})
 
-	mockServer := httptest.NewServer(mux)
-	defer mockServer.Close()
-
-	result, err := GetPlaces(mockServer.URL, 48.8566, 2.3522, "test")
-	if err != nil {
-		t.Fatalf("Erreur: %v", err)
+	testCases := []testCase{
+		{
+			name:           "basic valid response",
+			lat:            48.8566,
+			lng:            2.3522,
+			keyword:        "test",
+			expectedPlaces: []models.Place{place},
+		},
 	}
 
-	expected := place
-	require.Equal(t, expected, result[0])
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mux := http.NewServeMux()
+			mux.HandleFunc("/json", func(w http.ResponseWriter, r *http.Request) {
+				_ = json.NewEncoder(w).Encode(models.GooglePlacesResponse{
+					Results: tc.expectedPlaces,
+				})
+			})
+
+			mockServer := httptest.NewServer(mux)
+			defer mockServer.Close()
+
+			result, err := GetPlaces(mockServer.URL, tc.lat, tc.lng, tc.keyword)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedPlaces, result)
+		})
+	}
 }

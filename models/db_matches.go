@@ -49,8 +49,13 @@ func NewDBMatchesFixture() DBMatches {
 	}
 }
 
-func (m DBMatches) WithCourtId(id string) DBMatches {
-	m.CourtID = id
+func (m DBMatches) WithId(id string) DBMatches {
+	m.Id = id
+	return m
+}
+
+func (m DBMatches) WithCourtId(courtId string) DBMatches {
+	m.CourtID = courtId
 	return m
 }
 
@@ -66,5 +71,15 @@ func (m DBMatches) WithCurrentState(currentState MatchState) DBMatches {
 
 func (m DBMatches) WithSport(sport Sport) DBMatches {
 	m.Sport = sport
+	return m
+}
+
+func (m DBMatches) WithScore1(score1 int) DBMatches {
+	m.Score1 = &score1
+	return m
+}
+
+func (m DBMatches) WithScore2(score2 int) DBMatches {
+	m.Score2 = &score2
 	return m
 }

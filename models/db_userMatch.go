@@ -31,3 +31,8 @@ func (u DBUserMatch) WithMatchId(matchId string) DBUserMatch {
 	u.MatchID = matchId
 	return u
 }
+
+func (u DBUserMatch) WithTeam(team int) DBUserMatch {
+	u.Team = team
+	return u
+}

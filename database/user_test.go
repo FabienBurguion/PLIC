@@ -3,11 +3,12 @@ package database
 import (
 	"PLIC/models"
 	"context"
+	"testing"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
-	"testing"
-	"time"
 )
 
 func TestDatabase_CheckUserExist(t *testing.T) {
@@ -79,13 +80,10 @@ func TestDatabase_CreateUser(t *testing.T) {
 
 			ctx := context.Background()
 
-			err := s.db.CreateUser(ctx, models.DBUsers{
-				Id:        id,
-				Username:  "A name",
-				Password:  "A password",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			})
+			err := s.db.CreateUser(ctx, models.NewDBUsersFixture().
+				WithId(id).
+				WithUsername("A name"),
+			)
 			require.NoError(t, err)
 			user, err := s.db.GetUserByUsername(ctx, "A name")
 			require.NoError(t, err)
@@ -437,52 +435,114 @@ func TestDatabase_DeleteUser(t *testing.T) {
 }
 
 func TestDatabase_GetFavoriteFieldByUserID(t *testing.T) {
-	s := &Service{}
-	s.InitServiceTest()
+	type expected struct {
+		IsError bool
+		res     *string
+	}
 
-	userID := uuid.NewString()
+	type testCase struct {
+		name        string
+		fixtures    DBFixtures
+		inputUserID string
+		expected    expected
+	}
+
+	courtID := uuid.NewString()
 	matchID1 := uuid.NewString()
 	matchID2 := uuid.NewString()
-	courtID := uuid.NewString()
+	userID := uuid.NewString()
 
 	courts := []models.DBCourt{
+		models.NewDBCourtFixture().
+			WithId(courtID).
+			WithName("Court central"),
+	}
+
+	testCases := []testCase{
 		{
-			Id:        courtID,
-			Name:      "Court central",
-			Address:   "1 rue des sports",
-			Longitude: 4.8357,
-			Latitude:  45.7640,
-			CreatedAt: time.Now(),
+			name: "User with favorite court",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userID),
+				},
+				Courts: courts,
+				Matches: []models.DBMatches{
+					models.NewDBMatchesFixture().
+						WithId(matchID1).
+						WithCourtId(courtID).
+						WithCurrentState(models.Termine),
+					models.NewDBMatchesFixture().
+						WithId(matchID2).
+						WithCourtId(courtID).
+						WithCurrentState(models.Termine),
+				},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().
+						WithUserId(userID).
+						WithMatchId(matchID1),
+					models.NewDBUserMatchFixture().
+						WithUserId(userID).
+						WithMatchId(matchID2),
+				},
+			},
+			inputUserID: userID,
+			expected: expected{
+				IsError: false,
+				res:     ptr("Court central"),
+			},
+		},
+		{
+			name: "User with no matches",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture(),
+				},
+			},
+			inputUserID: "empty-user",
+			expected: expected{
+				IsError: false,
+				res:     nil,
+			},
 		},
 	}
 
-	fixtures := DBFixtures{
-		Users: []models.DBUsers{
-			{Id: userID, Username: "user", Email: "user@example.com", Password: "pwd"},
-		},
-		Courts: courts,
-		Matches: []models.DBMatches{
-			{Id: matchID1, Sport: models.Foot, Date: time.Now(), CurrentState: models.Termine, CourtID: courtID}, // Ajout CourtID
-			{Id: matchID2, Sport: models.Foot, Date: time.Now(), CurrentState: models.Termine, CourtID: courtID}, // Ajout CourtID
-		},
-		UserMatches: []models.DBUserMatch{
-			{UserID: userID, MatchID: matchID1},
-			{UserID: userID, MatchID: matchID2},
-		},
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(tc.fixtures)
+
+			ctx := context.Background()
+			result, err := s.db.GetFavoriteFieldByUserID(ctx, tc.inputUserID)
+
+			if tc.expected.IsError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				if tc.expected.res == nil {
+					require.Nil(t, result)
+				} else {
+					require.NotNil(t, result)
+					require.Equal(t, *tc.expected.res, *result)
+				}
+			}
+		})
 	}
-	s.loadFixtures(fixtures)
-
-	ctx := context.Background()
-	field, err := s.db.GetFavoriteFieldByUserID(ctx, userID)
-
-	require.NoError(t, err)
-	require.NotNil(t, field)
-	require.Equal(t, "Court central", *field)
 }
 
 func TestDatabase_GetFavoriteSportByUserID(t *testing.T) {
-	s := &Service{}
-	s.InitServiceTest()
+	type expected struct {
+		IsError bool
+		res     *models.Sport
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		param    string
+		expected expected
+	}
 
 	userID := uuid.NewString()
 	matchID1 := uuid.NewString()
@@ -490,43 +550,98 @@ func TestDatabase_GetFavoriteSportByUserID(t *testing.T) {
 	courtID := uuid.NewString()
 
 	courts := []models.DBCourt{
+		models.NewDBCourtFixture().
+			WithId(courtID).
+			WithName("Court central"),
+	}
+
+	testCases := []testCase{
 		{
-			Id:        courtID,
-			Name:      "Court central",
-			Address:   "10 avenue des sports",
-			Longitude: 7.1234,
-			Latitude:  43.5678,
-			CreatedAt: time.Now(),
+			name: "User with favorite sport",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userID),
+				},
+				Courts: courts,
+				Matches: []models.DBMatches{
+					models.NewDBMatchesFixture().
+						WithId(matchID1).
+						WithCourtId(courtID).
+						WithSport(models.Basket).
+						WithCurrentState(models.Termine),
+					models.NewDBMatchesFixture().
+						WithId(matchID2).
+						WithCourtId(courtID).
+						WithSport(models.Basket).
+						WithCurrentState(models.Termine),
+				},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().
+						WithUserId(userID).
+						WithMatchId(matchID1),
+					models.NewDBUserMatchFixture().
+						WithUserId(userID).
+						WithMatchId(matchID2),
+				},
+			},
+			param: userID,
+			expected: expected{
+				IsError: false,
+				res:     ptr(models.Basket),
+			},
+		},
+		{
+			name: "User with no matches",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture(),
+				},
+			},
+			param: "empty-user",
+			expected: expected{
+				IsError: false,
+				res:     nil,
+			},
 		},
 	}
 
-	fixtures := DBFixtures{
-		Users: []models.DBUsers{
-			{Id: userID, Username: "sporty", Email: "sporty@example.com", Password: "pwd"},
-		},
-		Courts: courts,
-		Matches: []models.DBMatches{
-			{Id: matchID1, Sport: models.Basket, Date: time.Now(), CurrentState: models.Termine, CourtID: courtID},
-			{Id: matchID2, Sport: models.Basket, Date: time.Now(), CurrentState: models.Termine, CourtID: courtID},
-		},
-		UserMatches: []models.DBUserMatch{
-			{UserID: userID, MatchID: matchID1},
-			{UserID: userID, MatchID: matchID2},
-		},
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(tc.fixtures)
+
+			ctx := context.Background()
+			result, err := s.db.GetFavoriteSportByUserID(ctx, tc.param)
+
+			if tc.expected.IsError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				if tc.expected.res == nil {
+					require.Nil(t, result)
+				} else {
+					require.NotNil(t, result)
+					require.Equal(t, *tc.expected.res, *result)
+				}
+			}
+		})
 	}
-	s.loadFixtures(fixtures)
-
-	ctx := context.Background()
-	sport, err := s.db.GetFavoriteSportByUserID(ctx, userID)
-
-	require.NoError(t, err)
-	require.NotNil(t, sport)
-	require.Equal(t, models.Basket, *sport)
 }
 
 func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
-	s := &Service{}
-	s.InitServiceTest()
+	type expected struct {
+		IsError bool
+		sports  []models.Sport
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		param    string
+		expected expected
+	}
 
 	userID := uuid.NewString()
 	matchID1 := uuid.NewString()
@@ -534,56 +649,83 @@ func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
 	matchID3 := uuid.NewString()
 	courtID := uuid.NewString()
 
-	courts := []models.DBCourt{
+	testCases := []testCase{
 		{
-			Id:        courtID,
-			Name:      "Court central",
-			Address:   "10 avenue des sports",
-			Longitude: 4.8357,
-			Latitude:  45.7640,
-			CreatedAt: time.Now(),
+			name: "User with multiple sports",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(userID),
+				},
+				Courts: []models.DBCourt{
+					models.NewDBCourtFixture().
+						WithId(courtID),
+				},
+				Matches: []models.DBMatches{
+					models.NewDBMatchesFixture().
+						WithId(matchID1).
+						WithSport(models.Foot).
+						WithCourtId(courtID).
+						WithCurrentState(models.Termine),
+					models.NewDBMatchesFixture().
+						WithId(matchID2).
+						WithSport(models.Basket).
+						WithCourtId(courtID).
+						WithCurrentState(models.Termine),
+					models.NewDBMatchesFixture().
+						WithId(matchID3).
+						WithSport(models.PingPong).
+						WithCourtId(courtID).
+						WithCurrentState(models.Termine),
+				},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().
+						WithUserId(userID).
+						WithMatchId(matchID1),
+					models.NewDBUserMatchFixture().
+						WithUserId(userID).
+						WithMatchId(matchID2),
+					models.NewDBUserMatchFixture().
+						WithUserId(userID).
+						WithMatchId(matchID3),
+				},
+			},
+			param: userID,
+			expected: expected{
+				IsError: false,
+				sports:  []models.Sport{models.Foot, models.Basket, models.PingPong},
+			},
+		},
+		{
+			name: "User with no matches",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture(),
+				},
+			},
+			param: "unknown-user",
+			expected: expected{
+				IsError: false,
+				sports:  []models.Sport{},
+			},
 		},
 	}
 
-	fixtures := DBFixtures{
-		Users: []models.DBUsers{
-			{Id: userID, Username: "multi", Email: "multi@example.com", Password: "pwd"},
-		},
-		Courts: courts,
-		Matches: []models.DBMatches{
-			{
-				Id:           matchID1,
-				Sport:        models.Foot,
-				Date:         time.Now(),
-				CurrentState: models.Termine,
-				CourtID:      courtID,
-			},
-			{
-				Id:           matchID2,
-				Sport:        models.Basket,
-				Date:         time.Now(),
-				CurrentState: models.Termine,
-				CourtID:      courtID,
-			},
-			{
-				Id:           matchID3,
-				Sport:        models.PingPong,
-				Date:         time.Now(),
-				CurrentState: models.Termine,
-				CourtID:      courtID,
-			},
-		},
-		UserMatches: []models.DBUserMatch{
-			{UserID: userID, MatchID: matchID1},
-			{UserID: userID, MatchID: matchID2},
-			{UserID: userID, MatchID: matchID3},
-		},
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(tc.fixtures)
+
+			ctx := context.Background()
+			sports, err := s.db.GetPlayedSportsByUserID(ctx, tc.param)
+
+			if tc.expected.IsError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.ElementsMatch(t, tc.expected.sports, sports)
+			}
+		})
 	}
-	s.loadFixtures(fixtures)
-
-	ctx := context.Background()
-	sports, err := s.db.GetPlayedSportsByUserID(ctx, userID)
-
-	require.NoError(t, err)
-	require.ElementsMatch(t, []models.Sport{models.Foot, models.Basket, models.PingPong}, sports)
 }

@@ -40,3 +40,16 @@ func (db Database) InsertRanking(ctx context.Context, ranking models.DBRanking) 
 	}
 	return nil
 }
+
+func (db Database) GetRankingByUserAndCourt(ctx context.Context, userID string, courtID string) (*models.DBRanking, error) {
+	var ranking models.DBRanking
+	err := db.Database.GetContext(ctx, &ranking,
+		`SELECT user_id, court_id, elo, created_at, updated_at
+		FROM ranking
+		WHERE user_id = $1 AND court_id = $2`,
+		userID, courtID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch ranking: %w", err)
+	}
+	return &ranking, nil
+}

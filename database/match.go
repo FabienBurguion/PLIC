@@ -55,7 +55,7 @@ func (db Database) GetUsersByMatchId(ctx context.Context, matchId string) ([]mod
 
 	if err != nil {
 		fmt.Println("error is here")
-		return nil, fmt.Errorf("échec de la récupération des utilisateurs du match %s : %w", matchId, err)
+		return nil, fmt.Errorf("échec de la récupération des utilisateurs du param %s : %w", matchId, err)
 	}
 
 	return users, nil
@@ -129,7 +129,7 @@ func (db Database) CreateMatch(ctx context.Context, match models.DBMatches) erro
     )`, match)
 
 	if err != nil {
-		return fmt.Errorf("échec de l'insertion match : %w", err)
+		return fmt.Errorf("échec de len'insertion param : %w", err)
 	}
 	return nil
 }
@@ -159,7 +159,7 @@ func (db Database) DeleteMatch(ctx context.Context, matchID string) error {
 	`, matchID)
 
 	if err != nil {
-		return fmt.Errorf("échec de la suppression du match %s : %w", matchID, err)
+		return fmt.Errorf("échec de la suppression du param %s : %w", matchID, err)
 	}
 	return nil
 }
@@ -187,7 +187,7 @@ func (db Database) UpsertMatch(ctx context.Context, match models.DBMatches) erro
 	`, match.Id, match.Sport, match.Date, match.ParticipantNber, match.CurrentState, match.Score1, match.Score2, match.CourtID, match.CreatedAt)
 
 	if err != nil {
-		return fmt.Errorf("failed to upsert match: %w", err)
+		return fmt.Errorf("failed to upsert param: %w", err)
 	}
 	return nil
 }
@@ -200,7 +200,7 @@ func (db Database) CountUsersByMatchAndTeam(ctx context.Context, matchId string,
         WHERE match_id = $1 AND team = $2`, matchId, team)
 
 	if err != nil {
-		return 0, fmt.Errorf("échec du comptage des utilisateurs pour le match %s et l'équipe %d : %w", matchId, team, err)
+		return 0, fmt.Errorf("échec du comptage des utilisateurs pour le param %s et len'équipe %d : %w", matchId, team, err)
 	}
 
 	return count, nil

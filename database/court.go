@@ -17,7 +17,7 @@ func (db Database) InsertCourt(ctx context.Context, id string, p models.Place, c
 		id, p.Address, p.Geometry.Location.Lng, p.Geometry.Location.Lat, createdTime, p.Name,
 	)
 	if err != nil {
-		return fmt.Errorf("échec de l'insertion du terrain : %w", err)
+		return fmt.Errorf("échec de len'insertion du terrain : %w", err)
 	}
 
 	return nil
@@ -96,7 +96,7 @@ func (db Database) CreateCourt(ctx context.Context, court models.DBCourt) error 
 	`, court.Id, court.Name, court.Address, court.Longitude, court.Latitude, court.CreatedAt)
 
 	if err != nil {
-		return fmt.Errorf("échec de l'insertion court : %w", err)
+		return fmt.Errorf("échec de len'insertion court : %w", err)
 	}
 	return nil
 }

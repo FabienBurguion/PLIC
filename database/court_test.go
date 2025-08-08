@@ -16,6 +16,9 @@ func TestDatabase_InsertTerrain(t *testing.T) {
 		param string
 	}
 
+	testLat := 48.8566
+	testLng := 2.3522
+
 	id := uuid.NewString()
 	testCases := []testCase{
 		{
@@ -23,9 +26,6 @@ func TestDatabase_InsertTerrain(t *testing.T) {
 			param: id,
 		},
 	}
-
-	testLat := 48.8566
-	testLng := 2.3522
 
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
@@ -138,8 +138,10 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 	}
 
 	userID1 := uuid.NewString()
-	court1 := models.NewDBCourtFixture().WithAddress("12 rue de Paris, Paris")
-	court2 := models.NewDBCourtFixture().WithAddress("5 avenue des Champs, Lyon")
+	court1 := models.NewDBCourtFixture().
+		WithAddress("12 rue de Paris, Paris")
+	court2 := models.NewDBCourtFixture().
+		WithAddress("5 avenue des Champs, Lyon")
 	matchID1 := uuid.NewString()
 	matchID2 := uuid.NewString()
 	matchID3 := uuid.NewString()
@@ -150,44 +152,29 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 			fixtures: DBFixtures{
 				Courts: []models.DBCourt{court1, court2},
 				Users: []models.DBUsers{
-					{Id: userID1, Username: "toto", Email: "toto@example.com", Password: "xxx"},
+					models.NewDBUsersFixture().WithId(userID1),
 				},
 				Matches: []models.DBMatches{
-					{
-						Id:              matchID1,
-						Sport:           models.Foot,
-						Date:            time.Now(),
-						ParticipantNber: 10,
-						CurrentState:    models.Valide,
-						Score1:          ptr(1),
-						Score2:          ptr(2),
-						CourtID:         court1.Id,
-					},
-					{
-						Id:              matchID2,
-						Sport:           models.Basket,
-						Date:            time.Now(),
-						ParticipantNber: 8,
-						CurrentState:    models.Termine,
-						Score1:          ptr(3),
-						Score2:          ptr(3),
-						CourtID:         court2.Id,
-					},
-					{
-						Id:              matchID3,
-						Sport:           models.Foot,
-						Date:            time.Now(),
-						ParticipantNber: 12,
-						CurrentState:    models.Valide,
-						Score1:          ptr(0),
-						Score2:          ptr(0),
-						CourtID:         court1.Id,
-					},
+					models.NewDBMatchesFixture().
+						WithId(matchID1).
+						WithCourtId(court1.Id),
+					models.NewDBMatchesFixture().
+						WithId(matchID2).
+						WithCourtId(court2.Id),
+					models.NewDBMatchesFixture().
+						WithId(matchID3).
+						WithCourtId(court1.Id),
 				},
 				UserMatches: []models.DBUserMatch{
-					{UserID: userID1, MatchID: matchID1},
-					{UserID: userID1, MatchID: matchID2},
-					{UserID: userID1, MatchID: matchID3},
+					models.NewDBUserMatchFixture().
+						WithUserId(userID1).
+						WithMatchId(matchID1),
+					models.NewDBUserMatchFixture().
+						WithUserId(userID1).
+						WithMatchId(matchID2),
+					models.NewDBUserMatchFixture().
+						WithUserId(userID1).
+						WithMatchId(matchID3),
 				},
 			},
 			userID:        userID1,
@@ -198,7 +185,8 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 			name: "User has no matches",
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{
-					{Id: userID1, Username: "tata", Email: "tata@example.com", Password: "xxx"},
+					models.NewDBUsersFixture().
+						WithId(userID1),
 				},
 			},
 			userID:        userID1,

@@ -123,7 +123,7 @@ func (db Database) CreateUser(ctx context.Context, user models.DBUsers) error {
 		INSERT INTO users (id, username, email, bio, password, created_at, updated_at)
 		VALUES (:id, :username, :email, :bio, :password, :created_at, :updated_at)`, user)
 	if err != nil {
-		return fmt.Errorf("échec de l'insertion utilisateur : %w", err)
+		return fmt.Errorf("échec de len'insertion utilisateur : %w", err)
 	}
 	return nil
 }
@@ -164,6 +164,9 @@ func (db Database) GetFavoriteFieldByUserID(ctx context.Context, userID string) 
 		LIMIT 1
 	`, userID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("error fetching favorite field: %w", err)
 	}
 	return &name, nil
@@ -181,6 +184,9 @@ func (db Database) GetFavoriteSportByUserID(ctx context.Context, userID string) 
 		LIMIT 1
 	`, userID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("error fetching favorite sport: %w", err)
 	}
 	return &sport, nil
