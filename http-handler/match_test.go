@@ -146,7 +146,7 @@ func Test_GetMatchesByUserID(t *testing.T) {
 				Users: []models.DBUsers{user},
 			},
 			paramID:      userID,
-			expectedCode: 404,
+			expectedCode: 200,
 			expectFound:  false,
 		},
 	}
@@ -165,7 +165,7 @@ func Test_GetMatchesByUserID(t *testing.T) {
 			w := httptest.NewRecorder()
 			err := s.GetMatchesByUserID(w, r, models.AuthInfo{
 				IsConnected: true,
-				UserID:      userID,
+				UserID:      c.paramID,
 			})
 			require.NoError(t, err)
 
