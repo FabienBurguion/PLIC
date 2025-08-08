@@ -3,47 +3,13 @@ package google_handler
 import (
 	"PLIC/models"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-/*
-	func TestDatabase_GetPlaces(t *testing.T) {
-		httpmock.Activate()
-		defer httpmock.DeactivateAndReset()
-
-		mockResponse := `{
-			"results": [
-				{
-					"name": "Mock Sports Center",
-					"vicinity": "789 Mock Blvd",
-					"geometry": {
-						"location": {
-							"lat": 48.8566,
-							"lng": 2.3522
-						}
-					}
-				}
-			]
-		}`
-
-		url := "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=48.856600,2.352200&radius=1000&type=sports_complex&key=fake-key"
-		httpmock.RegisterResponder("GET", url,
-			httpmock.NewStringResponder(200, mockResponse),
-		)
-
-		db := Database{}
-		//ctx := context.Background()
-
-		places, err := db.GetPlaces(48.8566, 2.3522, "fake-key")
-		require.NoError(t, err)
-		require.Len(t, places, 1)
-		require.Equal(t, "Mock Sports Center", places[0].Name)
-		require.Equal(t, "789 Mock Blvd", places[0].Address)
-	}
-*/
 func TestGetPlaces(t *testing.T) {
 	mux := http.NewServeMux()
 	place := models.Place{

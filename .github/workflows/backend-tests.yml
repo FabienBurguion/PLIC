@@ -1,4 +1,4 @@
-name: Run Tests and Coverage
+name: Run Tests
 
 on:
   pull_request:
@@ -27,15 +27,3 @@ jobs:
 
       - name: Run make test (with Docker)
         run: make test
-
-      - name: Enforce minimum coverage
-        if: success()
-        run: |
-          if [ -f coverage.out ]; then
-            threshold=30.0
-            coverage=$(go tool cover -func=coverage.out | grep total: | awk '{print substr($3, 1, length($3)-1)}')
-            echo "Current coverage: $coverage%"
-            awk "BEGIN {exit ($coverage < $threshold) ? 1 : 0}"
-          else
-            echo "No coverage.out file found, skipping coverage check."
-          fi

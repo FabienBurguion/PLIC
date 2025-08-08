@@ -61,10 +61,10 @@ func (db Database) GetUsersByMatchId(ctx context.Context, matchId string) ([]mod
 	return users, nil
 }
 
-func (db Database) GetMatchesByUserID(ctx context.Context, userID string) ([]models.DBMatchByUserId, error) {
-	var dbMatches []models.DBMatchByUserId
+func (db Database) GetMatchesByUserID(ctx context.Context, userID string) ([]models.DBMatches, error) {
+	var dbMatches []models.DBMatches
 	err := db.Database.SelectContext(ctx, &dbMatches, `
-		SELECT m.id, m.sport, m.date, m.participant_nber, m.current_state, m.score1, m.score2
+		SELECT m.id, m.sport, m.date, m.participant_nber, m.current_state, m.score1, m.score2, m.court_id, m.created_at, m.updated_at
 		FROM matches m
 		JOIN user_match um ON m.id = um.match_id
 		WHERE um.user_id = $1
@@ -134,17 +134,6 @@ func (db Database) CreateMatch(ctx context.Context, match models.DBMatches) erro
 	return nil
 }
 
-func (db Database) AddUserToMatch(ctx context.Context, um models.DBUserMatch) error {
-	_, err := db.Database.NamedExecContext(ctx, `
-        INSERT INTO user_match (user_id, match_id, created_at)
-        VALUES (:user_id, :match_id, :created_at)
-    `, um)
-	if err != nil {
-		return fmt.Errorf("échec de l'ajout du user au match : %w", err)
-	}
-	return nil
-}
-
 func (db Database) IsUserInMatch(ctx context.Context, userID, matchID string) (bool, error) {
 	var dummy int
 	err := db.Database.GetContext(ctx, &dummy, `
@@ -177,8 +166,8 @@ func (db Database) DeleteMatch(ctx context.Context, matchID string) error {
 
 func (db Database) CreateUserMatch(ctx context.Context, um models.DBUserMatch) error {
 	_, err := db.Database.ExecContext(ctx,
-		`INSERT INTO user_match (user_id, match_id, created_at) VALUES ($1, $2, $3)`,
-		um.UserID, um.MatchID, um.CreatedAt)
+		`INSERT INTO user_match (user_id, match_id, team, created_at) VALUES ($1, $2, $3, $4)`,
+		um.UserID, um.MatchID, um.Team, um.CreatedAt)
 	return err
 }
 
@@ -201,4 +190,18 @@ func (db Database) UpsertMatch(ctx context.Context, match models.DBMatches) erro
 		return fmt.Errorf("failed to upsert match: %w", err)
 	}
 	return nil
+}
+
+func (db Database) CountUsersByMatchAndTeam(ctx context.Context, matchId string, team int) (int, error) {
+	var count int
+	err := db.Database.GetContext(ctx, &count, `
+        SELECT COUNT(*) 
+        FROM user_match 
+        WHERE match_id = $1 AND team = $2`, matchId, team)
+
+	if err != nil {
+		return 0, fmt.Errorf("échec du comptage des utilisateurs pour le match %s et l'équipe %d : %w", matchId, team, err)
+	}
+
+	return count, nil
 }

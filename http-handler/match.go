@@ -10,10 +10,49 @@ import (
 	"log"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 )
+
+func (s *Service) buildMatchesResponse(ctx context.Context, matches []models.DBMatches) []models.MatchResponse {
+	responses := make([]models.MatchResponse, 0, len(matches))
+
+	for _, match := range matches {
+		users, userErr := s.db.GetUsersByMatchId(ctx, match.Id)
+		if userErr != nil {
+			log.Printf("warning: could not fetch users for match %s: %v", match.Id, userErr)
+			continue
+		}
+
+		profilePictures := make([]string, len(users))
+		var wg sync.WaitGroup
+
+		for i, user := range users {
+			wg.Add(1)
+			go func(i int, user models.DBUsers) {
+				defer wg.Done()
+				pic, err := s.s3Service.GetProfilePicture(ctx, user.Id)
+				if err != nil {
+					log.Printf("error getting profile picture for user %s: %v", user.Id, err)
+					profilePictures[i] = ""
+				} else {
+					profilePictures[i] = pic.URL
+				}
+			}(i, user)
+		}
+		wg.Wait()
+
+		buildErr, matchResponse := s.buildMatchResponse(ctx, match, users, profilePictures)
+		if buildErr != nil {
+			log.Printf("warning: could not build match response for match %s: %v", match.Id, buildErr)
+			continue
+		}
+
+		responses = append(responses, matchResponse)
+	}
+
+	return responses
+}
 
 func (s *Service) buildMatchResponse(ctx context.Context, match models.DBMatches, users []models.DBUsers, profilePictures []string) (error, models.MatchResponse) {
 	userResponses := make([]models.UserResponse, len(users))
@@ -65,13 +104,13 @@ func (s *Service) buildMatchResponse(ctx context.Context, match models.DBMatches
 // @Failure      404  {object}  models.Error         "Match non trouvé"
 // @Failure      500  {object}  models.Error         "Erreur serveur ou base de données"
 // @Router       /match/{id} [get]
-func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
+func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
 	}
 
-	if !auth.IsConnected {
+	if !ai.IsConnected {
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
@@ -144,19 +183,19 @@ func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, auth mode
 // @Tags         match
 // @Produce      json
 // @Param        userId   path      string  true  "Identifiant de l'utilisateur"
-// @Success      200  {array}  models.GetMatchByUserIdResponses
+// @Success      200  {array}   models.MatchResponse
 // @Failure      400  {object}  models.Error
 // @Failure      401  {object}  models.Error
 // @Failure      404  {object}  models.Error
 // @Failure      500  {object}  models.Error
 // @Router       /user/matches/{userId} [get]
-func (s *Service) GetMatchesByUserID(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
+func (s *Service) GetMatchesByUserID(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
 	userId := chi.URLParam(r, "userId")
 	if userId == "" {
 		return httpx.WriteError(w, http.StatusBadRequest, "missing userId in url params")
 	}
 
-	if !auth.IsConnected {
+	if !ai.IsConnected {
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
@@ -168,14 +207,7 @@ func (s *Service) GetMatchesByUserID(w http.ResponseWriter, r *http.Request, aut
 		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
 	}
 
-	if len(dbMatches) == 0 {
-		return httpx.WriteError(w, http.StatusNotFound, "no matches found for this user")
-	}
-
-	res := make([]models.GetMatchByUserIdResponses, len(dbMatches))
-	for i, m := range dbMatches {
-		res[i] = models.GetMatchByUserIdResponses(m)
-	}
+	res := s.buildMatchesResponse(ctx, dbMatches)
 
 	return httpx.Write(w, http.StatusOK, res)
 }
@@ -192,79 +224,24 @@ func (s *Service) GetMatchesByUserID(w http.ResponseWriter, r *http.Request, aut
 // @Failure      404  {object}  models.Error  "Aucun match trouvé pour ce terrain"
 // @Failure      500  {object}  models.Error  "Erreur interne serveur ou base"
 // @Router       /match/court/{courtId} [get]
-func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
+func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
 	courtID := chi.URLParam(r, "courtId")
 	if courtID == "" {
 		return httpx.WriteError(w, http.StatusBadRequest, "missing courtId in url params")
 	}
 
-	if !auth.IsConnected {
+	if !ai.IsConnected {
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
+	ctx := r.Context()
+
 	matches, err := s.db.GetMatchesByCourtId(ctx, courtID)
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
 	}
 
-	res := make([]models.MatchResponse, 0, len(matches))
-	userResponseCache := make(map[string]models.UserResponse)
-
-	for _, match := range matches {
-		users, userErr := s.db.GetUsersByMatchId(ctx, match.Id)
-		if userErr != nil {
-			log.Printf("warning: could not fetch users for match %s: %v", match.Id, userErr)
-			continue
-		}
-
-		userResponses := make([]models.UserResponse, len(users))
-
-		for j, user := range users {
-			if cached, ok := userResponseCache[user.Id]; ok {
-				userResponses[j] = cached
-				continue
-			}
-
-			pic, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-			picURL := ""
-			if err != nil {
-				log.Printf("error getting profile picture for user %s: %v", user.Id, err)
-			} else {
-				picURL = pic.URL
-			}
-
-			userResp := s.BuildUserResponse(ctx, &user, picURL)
-			userResponses[j] = userResp
-			userResponseCache[user.Id] = userResp
-		}
-
-		court, err := s.db.GetCourtByID(ctx, courtID)
-		if err != nil {
-			log.Println("error getting court:", err)
-			return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch court: "+err.Error())
-		}
-
-		if court == nil {
-			log.Println("error: no court found for match", match.Id)
-			return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch court")
-		}
-
-		matchResponse := models.MatchResponse{
-			Id:              match.Id,
-			Sport:           match.Sport,
-			Place:           court.Name,
-			Date:            match.Date,
-			NbreParticipant: match.ParticipantNber,
-			CurrentState:    match.CurrentState,
-			Score1:          match.Score1,
-			Score2:          match.Score2,
-			Users:           userResponses,
-			CreatedAt:       match.CreatedAt,
-		}
-		res = append(res, matchResponse)
-	}
+	res := s.buildMatchesResponse(ctx, matches)
 
 	return httpx.Write(w, http.StatusOK, res)
 }
@@ -278,7 +255,11 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, au
 // @Failure      401   {object}  models.Error       "Utilisateur non autorisé"
 // @Failure      500  {object}  models.Error          "Erreur serveur lors de la récupération des matchs"
 // @Router       /match/all [get]
-func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
+func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
 	ctx := r.Context()
 
 	matches, err := s.db.GetAllMatches(ctx)
@@ -286,62 +267,7 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, _ models
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch matches: "+err.Error())
 	}
 
-	res := make([]models.MatchResponse, 0, len(matches))
-	userResponseCache := make(map[string]models.UserResponse)
-
-	for _, match := range matches {
-		users, userErr := s.db.GetUsersByMatchId(ctx, match.Id)
-		if userErr != nil {
-			log.Printf("warning: could not fetch users for match %s: %v", match.Id, userErr)
-			continue
-		}
-
-		userResponses := make([]models.UserResponse, len(users))
-
-		for j, user := range users {
-			if cached, ok := userResponseCache[user.Id]; ok {
-				userResponses[j] = cached
-				continue
-			}
-
-			pic, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-			picURL := ""
-			if err != nil {
-				log.Printf("error getting profile picture for user %s: %v", user.Id, err)
-			} else {
-				picURL = pic.URL
-			}
-
-			userResp := s.BuildUserResponse(ctx, &user, picURL)
-			userResponses[j] = userResp
-			userResponseCache[user.Id] = userResp
-		}
-
-		court, err := s.db.GetCourtByID(ctx, match.CourtID)
-		if err != nil {
-			log.Println("error getting court:", err)
-			return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch court: "+err.Error())
-		}
-
-		if court == nil {
-			log.Println("error: no court found for match", match.Id)
-			return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch court")
-		}
-
-		matchResponse := models.MatchResponse{
-			Id:              match.Id,
-			Sport:           match.Sport,
-			Place:           court.Name,
-			Date:            match.Date,
-			NbreParticipant: match.ParticipantNber,
-			CurrentState:    match.CurrentState,
-			Score1:          match.Score1,
-			Score2:          match.Score2,
-			Users:           userResponses,
-			CreatedAt:       match.CreatedAt,
-		}
-		res = append(res, matchResponse)
-	}
+	res := s.buildMatchesResponse(ctx, matches)
 
 	return httpx.Write(w, http.StatusOK, res)
 }
@@ -369,6 +295,10 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 		return httpx.WriteError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 	}
 
+	if match.NbreParticipant < 2 || match.NbreParticipant%2 != 0 {
+		return httpx.WriteError(w, http.StatusBadRequest, "invalid number of participant")
+	}
+
 	ctx := r.Context()
 
 	if !auth.IsConnected {
@@ -389,44 +319,19 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to create match: "+err.Error())
 	}
 
-	if err := s.db.AddUserToMatch(ctx, models.DBUserMatch{
+	if err := s.db.CreateUserMatch(ctx, models.DBUserMatch{
 		UserID:    auth.UserID,
 		MatchID:   matchDb.Id,
+		Team:      1, // When you create a match, you join the first team
 		CreatedAt: s.clock.Now(),
 	}); err != nil {
 		log.Println("User creating match:", auth.UserID)
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to associate user to match: "+err.Error())
 	}
-	users, err := s.db.GetUsersByMatchId(ctx, matchDb.Id)
-	if err != nil {
-		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch users: "+err.Error())
-	}
-	var (
-		profilePictures = make([]string, len(users))
-		wg              sync.WaitGroup
-	)
 
-	for i, user := range users {
-		wg.Add(1)
-		go func(i int, user models.DBUsers) {
-			defer wg.Done()
-			profilePicture, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-			if err != nil {
-				log.Println("error getting profile picture:", err)
-				profilePictures[i] = ""
-			} else {
-				profilePictures[i] = profilePicture.URL
-			}
-		}(i, user)
-	}
-
-	wg.Wait()
-	err, response := s.buildMatchResponse(ctx, matchDb, users, profilePictures)
-	if err != nil {
-		return httpx.WriteError(w, http.StatusInternalServerError, "failed to build match response: "+err.Error())
-	}
-
-	return httpx.Write(w, http.StatusCreated, response)
+	return httpx.Write(w, http.StatusCreated, models.CreateMatchResponse{
+		Id: matchDb.Id,
+	})
 }
 
 // JoinMatch godoc
@@ -435,7 +340,8 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 // @Tags         match
 // @Produce      json
 // @Param        id    path      string             true  "Identifiant du match"
-// @Success      200   {object}  map[string]string  "Utilisateur a rejoint le match avec succès"
+// @Param        body  body      models.JoinMatchRequest  true   "Informations pour rejoindre un match (team)"
+// @Success      200
 // @Failure      400   {object}  models.Error       "Identifiant manquant"
 // @Failure      401   {object}  models.Error       "Utilisateur non autorisé"
 // @Failure      404   {object}  models.Error       "Match non trouvé"
@@ -454,12 +360,26 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.
 		return httpx.WriteError(w, http.StatusBadRequest, "missing match ID")
 	}
 
+	var matchRequest models.JoinMatchRequest
+
+	decoder := json.NewDecoder(r.Body)
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(r.Body)
+	if err := decoder.Decode(&matchRequest); err != nil {
+		return httpx.WriteError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+	}
+
 	match, err := s.db.GetMatchById(ctx, matchID)
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch match: "+err.Error())
 	}
 	if match == nil {
 		return httpx.WriteError(w, http.StatusNotFound, "match not found")
+	}
+
+	if match.CurrentState != models.ManqueJoueur {
+		return httpx.WriteError(w, http.StatusBadRequest, "match is not in the right state")
 	}
 
 	exists, err := s.db.IsUserInMatch(ctx, auth.UserID, matchID)
@@ -470,25 +390,33 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.
 		return httpx.WriteError(w, http.StatusConflict, "user already joined the match")
 	}
 
-	if err := s.db.AddUserToMatch(ctx, models.DBUserMatch{
+	count, err := s.db.CountUsersByMatchAndTeam(ctx, matchID, matchRequest.Team)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to count users by match and team: "+err.Error())
+	}
+	if count >= match.ParticipantNber/2 {
+		return httpx.WriteError(w, http.StatusBadRequest, "this team is full")
+	}
+
+	if err := s.db.CreateUserMatch(ctx, models.DBUserMatch{
 		UserID:    auth.UserID,
 		MatchID:   matchID,
+		Team:      matchRequest.Team,
 		CreatedAt: s.clock.Now(),
 	}); err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to join match: "+err.Error())
 	}
 
-	match.ParticipantNber++
 	match.UpdatedAt = s.clock.Now()
+	if count+1 == match.ParticipantNber/2 {
+		match.CurrentState = models.Valide
+	}
 	err = s.db.UpsertMatch(ctx, *match)
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to update match: "+err.Error())
 	}
 
-	return httpx.Write(w, http.StatusOK, map[string]string{
-		"status": "joined match",
-		"id":     matchID,
-	})
+	return httpx.Write(w, http.StatusOK, nil)
 }
 
 // DeleteMatch godoc
@@ -497,7 +425,7 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.
 // @Tags         match
 // @Produce      json
 // @Param        id   path      string  true  "Identifiant du match à supprimer"
-// @Success      200  {object}  map[string]string "Match supprimé"
+// @Success      200
 // @Failure      400  {object}  models.Error      "ID manquant"
 // @Failure      401  {object}  models.Error      "Utilisateur non autorisé"
 // @Failure      500  {object}  models.Error      "Erreur lors de la suppression du match"
@@ -517,10 +445,7 @@ func (s *Service) DeleteMatch(w http.ResponseWriter, r *http.Request, auth model
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to delete match: "+err.Error())
 	}
 
-	return httpx.Write(w, http.StatusOK, map[string]string{
-		"status": "deleted match",
-		"id":     matchID,
-	})
+	return httpx.Write(w, http.StatusOK, nil)
 }
 
 // UpdateMatchScore godoc
@@ -531,13 +456,13 @@ func (s *Service) DeleteMatch(w http.ResponseWriter, r *http.Request, auth model
 // @Produce      json
 // @Param        id    path      string                    true  "ID du match"
 // @Param        body  body      models.UpdateScoreRequest true  "Nouveaux scores"
-// @Success      200   {object}  models.MatchResponse
+// @Success      200
 // @Failure      400   {object}  models.Error
 // @Failure      401   {object}  models.Error
 // @Failure      404   {object}  models.Error
 // @Failure      500   {object}  models.Error
 // @Router       /match/{id}/score [patch]
-func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
+func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
 
@@ -545,7 +470,7 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, auth 
 		return httpx.WriteError(w, http.StatusBadRequest, "missing match ID")
 	}
 
-	if !auth.IsConnected {
+	if !ai.IsConnected {
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
@@ -565,8 +490,8 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, auth 
 	if match == nil {
 		return httpx.WriteError(w, http.StatusNotFound, "match not found")
 	}
-	match.Score1 = req.Score1
-	match.Score2 = req.Score2
+	match.Score1 = &req.Score1
+	match.Score2 = &req.Score2
 	match.UpdatedAt = s.clock.Now()
 
 	err = s.db.UpsertMatch(ctx, *match)
@@ -574,44 +499,5 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, auth 
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to update match: "+err.Error())
 	}
 
-	var (
-		users           []models.DBUsers
-		profilePictures []string
-	)
-
-	users, err = s.db.GetUsersByMatchId(ctx, id)
-	if err != nil {
-		log.Println("warning: could not fetch users for updated match:", err)
-		users = []models.DBUsers{}
-	}
-
-	profilePictures = make([]string, len(users))
-	var wg sync.WaitGroup
-	wg.Add(len(users))
-
-	for i, user := range users {
-		go func(i int, user models.DBUsers) {
-			defer wg.Done()
-			pic, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-			if err != nil {
-				log.Println("error getting profile picture:", err)
-				profilePictures[i] = ""
-			} else {
-				profilePictures[i] = pic.URL
-			}
-		}(i, user)
-	}
-
-	wg.Wait()
-
-	updatedMatch, err := s.db.GetMatchById(ctx, id)
-	if err != nil || updatedMatch == nil {
-		return httpx.WriteError(w, http.StatusInternalServerError, "failed to retrieve updated match")
-	}
-
-	err, resp := s.buildMatchResponse(ctx, *updatedMatch, users, profilePictures)
-	if err != nil {
-		return httpx.WriteError(w, http.StatusInternalServerError, "failed to build match response: "+err.Error())
-	}
-	return httpx.Write(w, http.StatusOK, resp)
+	return httpx.Write(w, http.StatusOK, nil)
 }

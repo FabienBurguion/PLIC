@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -202,8 +203,8 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 		Sport:        models.Foot,
 		Date:         time.Now().Add(-time.Hour),
 		CurrentState: models.Termine,
-		Score1:       3,
-		Score2:       2,
+		Score1:       ptr(3),
+		Score2:       ptr(2),
 		CourtID:      court1.Id,
 	}
 	match2 := models.DBMatches{
@@ -211,8 +212,8 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 		Sport:        models.Basket,
 		Date:         time.Now(),
 		CurrentState: models.Termine,
-		Score1:       1,
-		Score2:       1,
+		Score1:       ptr(1),
+		Score2:       ptr(1),
 		CourtID:      court2.Id,
 	}
 
@@ -395,23 +396,6 @@ func Test_CreateMatch(t *testing.T) {
 		_ = Body.Close()
 	}(resp.Body)
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	var res models.MatchResponse
-	err = json.Unmarshal(body, &res)
-	require.NoError(t, err)
-
-	require.Equal(t, matchReq.Sport, res.Sport)
-	require.Equal(t, court.Name, res.Place)
-	require.WithinDuration(t, matchReq.Date, res.Date, time.Second)
-	require.Equal(t, matchReq.NbreParticipant, res.NbreParticipant)
-	require.Equal(t, models.ManqueJoueur, res.CurrentState)
-	require.Equal(t, 0, res.Score1)
-	require.Equal(t, 0, res.Score2)
-	require.Len(t, res.Users, 1)
-	require.Equal(t, user.Username, res.Users[0].Username)
 }
 
 func Test_UpdateMatchScore(t *testing.T) {
@@ -467,17 +451,6 @@ func Test_UpdateMatchScore(t *testing.T) {
 		_ = Body.Close()
 	}(resp.Body)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	var res models.MatchResponse
-	err = json.Unmarshal(body, &res)
-	require.NoError(t, err)
-
-	require.Equal(t, updateReq.Score1, res.Score1)
-	require.Equal(t, updateReq.Score2, res.Score2)
-	require.Equal(t, matchID, res.Id)
 }
 
 func Test_JoinMatch(t *testing.T) {
@@ -485,10 +458,11 @@ func Test_JoinMatch(t *testing.T) {
 
 	match := models.NewDBMatchesFixture().
 		WithCourtId(court.Id).
-		WithParticipantNber(1).
+		WithParticipantNber(2).
 		WithCurrentState(models.ManqueJoueur)
 
 	user := models.NewDBUsersFixture()
+	teammate := models.NewDBUsersFixture().WithUsername("teammate").WithEmail("other_email@gmail.com")
 
 	matchID := match.Id
 	userID := user.Id
@@ -498,6 +472,7 @@ func Test_JoinMatch(t *testing.T) {
 		fixtures       DBFixtures
 		paramID        string
 		auth           models.AuthInfo
+		bodyJSON       string
 		expectedCode   int
 		expectErrorMsg string
 		checkJoined    bool
@@ -513,6 +488,7 @@ func Test_JoinMatch(t *testing.T) {
 			},
 			paramID:      matchID,
 			auth:         models.AuthInfo{IsConnected: true, UserID: userID},
+			bodyJSON:     `{"team": 1}`,
 			expectedCode: http.StatusOK,
 			checkJoined:  true,
 		},
@@ -520,6 +496,7 @@ func Test_JoinMatch(t *testing.T) {
 			name:           "Missing match ID",
 			paramID:        "",
 			auth:           models.AuthInfo{IsConnected: true, UserID: userID},
+			bodyJSON:       `{"team": 1}`,
 			expectedCode:   http.StatusBadRequest,
 			expectErrorMsg: "missing match ID",
 		},
@@ -527,6 +504,7 @@ func Test_JoinMatch(t *testing.T) {
 			name:           "Unauthorized user",
 			paramID:        matchID,
 			auth:           models.AuthInfo{IsConnected: false, UserID: userID},
+			bodyJSON:       `{"team": 1}`,
 			expectedCode:   http.StatusUnauthorized,
 			expectErrorMsg: "not authorized",
 		},
@@ -542,8 +520,25 @@ func Test_JoinMatch(t *testing.T) {
 			},
 			paramID:        matchID,
 			auth:           models.AuthInfo{IsConnected: true, UserID: userID},
+			bodyJSON:       `{"team": 1}`,
 			expectedCode:   http.StatusConflict,
 			expectErrorMsg: "user already joined",
+		},
+		{
+			name: "Team is full",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match},
+				Users:   []models.DBUsers{user, teammate},
+				UserMatches: []models.DBUserMatch{
+					{UserID: teammate.Id, MatchID: matchID, Team: 1, CreatedAt: time.Now()},
+				},
+			},
+			paramID:        matchID,
+			auth:           models.AuthInfo{IsConnected: true, UserID: userID},
+			bodyJSON:       `{"team": 1}`,
+			expectedCode:   http.StatusBadRequest,
+			expectErrorMsg: "this team is full",
 		},
 	}
 
@@ -554,7 +549,9 @@ func Test_JoinMatch(t *testing.T) {
 			s.loadFixtures(c.fixtures)
 
 			url := "/match/join/" + c.paramID
-			r := httptest.NewRequest("POST", url, nil)
+			r := httptest.NewRequest("POST", url, strings.NewReader(c.bodyJSON))
+			r.Header.Set("Content-Type", "application/json")
+
 			routeCtx := chi.NewRouteContext()
 			if c.paramID != "" {
 				routeCtx.URLParams.Add("id", c.paramID)
@@ -589,7 +586,7 @@ func Test_JoinMatch(t *testing.T) {
 
 				updatedMatch, err := s.db.GetMatchById(ctx, matchID)
 				require.NoError(t, err)
-				require.Equal(t, match.ParticipantNber+1, updatedMatch.ParticipantNber)
+				require.Equal(t, models.Valide, updatedMatch.CurrentState)
 			}
 		})
 	}

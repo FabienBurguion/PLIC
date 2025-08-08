@@ -3,10 +3,11 @@ package database
 import (
 	"PLIC/models"
 	"context"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDatabase_CreateMatch(t *testing.T) {
@@ -37,8 +38,8 @@ func TestDatabase_CreateMatch(t *testing.T) {
 				Date:            time.Now(),
 				ParticipantNber: 8,
 				CurrentState:    models.ManqueJoueur,
-				Score1:          0,
-				Score2:          0,
+				Score1:          nil,
+				Score2:          nil,
 				CourtID:         court.Id,
 			},
 		},
@@ -88,8 +89,8 @@ func TestDatabase_GetMatchById(t *testing.T) {
 						Date:            time.Now(),
 						ParticipantNber: 10,
 						CurrentState:    models.ManqueJoueur,
-						Score1:          1,
-						Score2:          2,
+						Score1:          ptr(1),
+						Score2:          ptr(2),
 						CourtID:         court.Id,
 					},
 				},
@@ -148,8 +149,8 @@ func TestDatabase_GetAllMatches(t *testing.T) {
 						Date:            time.Now(),
 						ParticipantNber: 2,
 						CurrentState:    models.ManqueJoueur,
-						Score1:          0,
-						Score2:          0,
+						Score1:          nil,
+						Score2:          nil,
 						CourtID:         court.Id,
 					},
 					{
@@ -158,8 +159,8 @@ func TestDatabase_GetAllMatches(t *testing.T) {
 						Date:            time.Now(),
 						ParticipantNber: 10,
 						CurrentState:    models.ManqueJoueur,
-						Score1:          0,
-						Score2:          0,
+						Score1:          nil,
+						Score2:          nil,
 						CourtID:         court.Id,
 					},
 				},
@@ -250,8 +251,8 @@ func TestDatabase_GetMatchesByUserID(t *testing.T) {
 						Date:            time.Now(),
 						ParticipantNber: 10,
 						CurrentState:    models.ManqueJoueur,
-						Score1:          1,
-						Score2:          2,
+						Score1:          ptr(1),
+						Score2:          ptr(2),
 						CourtID:         courtID,
 					},
 					{
@@ -260,8 +261,8 @@ func TestDatabase_GetMatchesByUserID(t *testing.T) {
 						Date:            time.Now(),
 						ParticipantNber: 5,
 						CurrentState:    models.Valide,
-						Score1:          3,
-						Score2:          3,
+						Score1:          ptr(3),
+						Score2:          ptr(3),
 						CourtID:         courtID,
 					},
 				},
@@ -363,8 +364,8 @@ func TestDatabase_GetMatchCountByUserID(t *testing.T) {
 						Date:            time.Now(),
 						ParticipantNber: 10,
 						CurrentState:    models.Termine,
-						Score1:          2,
-						Score2:          1,
+						Score1:          ptr(2),
+						Score2:          ptr(1),
 						CourtID:         courtID,
 					},
 					{
@@ -373,8 +374,8 @@ func TestDatabase_GetMatchCountByUserID(t *testing.T) {
 						Date:            time.Now(),
 						ParticipantNber: 5,
 						CurrentState:    models.ManqueScore,
-						Score1:          3,
-						Score2:          2,
+						Score1:          ptr(3),
+						Score2:          ptr(2),
 						CourtID:         courtID,
 					},
 					{
@@ -383,8 +384,8 @@ func TestDatabase_GetMatchCountByUserID(t *testing.T) {
 						Date:            time.Now(),
 						ParticipantNber: 8,
 						CurrentState:    models.Valide,
-						Score1:          0,
-						Score2:          0,
+						Score1:          nil,
+						Score2:          nil,
 						CourtID:         courtID,
 					},
 				},
@@ -467,8 +468,8 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 		Sport:        models.Foot,
 		Date:         time.Now().Add(-time.Hour),
 		CurrentState: models.Termine,
-		Score1:       3,
-		Score2:       2,
+		Score1:       ptr(3),
+		Score2:       ptr(2),
 		CourtID:      court1.Id,
 	}
 	match2 := models.DBMatches{
@@ -476,8 +477,8 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 		Sport:        models.Basket,
 		Date:         time.Now(),
 		CurrentState: models.Termine,
-		Score1:       1,
-		Score2:       1,
+		Score1:       ptr(1),
+		Score2:       ptr(1),
 		CourtID:      court2.Id,
 	}
 
@@ -578,23 +579,23 @@ func TestDatabase_UpsertMatch(t *testing.T) {
 		Date:            time.Now(),
 		ParticipantNber: 10,
 		CurrentState:    models.ManqueJoueur,
-		Score1:          0,
-		Score2:          0,
+		Score1:          ptr(0),
+		Score2:          ptr(0),
 		CourtID:         court.Id,
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
 
 	updatedMatch := initialMatch
-	updatedMatch.Score1 = 5
-	updatedMatch.Score2 = 3
+	updatedMatch.Score1 = ptr(5)
+	updatedMatch.Score2 = ptr(3)
 	updatedMatch.CurrentState = models.Termine
 
 	type testCase struct {
 		name          string
 		fixtures      DBFixtures
 		inputMatch    models.DBMatches
-		expectedScore [2]int
+		expectedScore [2]*int
 		expectedState models.MatchState
 	}
 
@@ -605,7 +606,7 @@ func TestDatabase_UpsertMatch(t *testing.T) {
 				Courts: []models.DBCourt{court},
 			},
 			inputMatch:    initialMatch,
-			expectedScore: [2]int{0, 0},
+			expectedScore: [2]*int{ptr(0), ptr(0)},
 			expectedState: models.ManqueJoueur,
 		},
 		{
@@ -615,7 +616,7 @@ func TestDatabase_UpsertMatch(t *testing.T) {
 				Matches: []models.DBMatches{initialMatch},
 			},
 			inputMatch:    updatedMatch,
-			expectedScore: [2]int{5, 3},
+			expectedScore: [2]*int{ptr(5), ptr(3)},
 			expectedState: models.Termine,
 		},
 	}
@@ -636,9 +637,113 @@ func TestDatabase_UpsertMatch(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, matchFromDB)
 
-			require.Equal(t, c.expectedScore[0], matchFromDB.Score1)
-			require.Equal(t, c.expectedScore[1], matchFromDB.Score2)
+			if c.expectedScore[0] == nil {
+				require.Nil(t, matchFromDB.Score1)
+			} else {
+				require.NotNil(t, matchFromDB.Score1)
+				require.Equal(t, *c.expectedScore[0], *matchFromDB.Score1)
+			}
+			if c.expectedScore[1] == nil {
+				require.Nil(t, matchFromDB.Score2)
+			} else {
+				require.NotNil(t, matchFromDB.Score2)
+				require.Equal(t, *c.expectedScore[1], *matchFromDB.Score2)
+			}
 			require.Equal(t, c.expectedState, matchFromDB.CurrentState)
+		})
+	}
+}
+
+func TestDatabase_CountUsersByMatchAndTeam(t *testing.T) {
+	type testCase struct {
+		name        string
+		fixtures    DBFixtures
+		matchID     string
+		team        int
+		expectedCnt int
+		expectError bool
+	}
+
+	matchID := uuid.NewString()
+	court := models.NewDBCourtFixture()
+	teamA := 1
+	teamB := 2
+
+	user1 := models.DBUsers{Id: uuid.NewString(), Username: "user1", Email: "user1@example.com"}
+	user2 := models.DBUsers{Id: uuid.NewString(), Username: "user2", Email: "user2@example.com"}
+	user3 := models.DBUsers{Id: uuid.NewString(), Username: "user3", Email: "user3@example.com"}
+
+	testCases := []testCase{
+		{
+			name: "2 users in team 1, 1 in team 2",
+			fixtures: DBFixtures{
+				Courts: []models.DBCourt{court},
+				Users:  []models.DBUsers{user1, user2, user3},
+				Matches: []models.DBMatches{
+					{
+						Id:              matchID,
+						Sport:           models.Foot,
+						Date:            time.Now(),
+						ParticipantNber: 6,
+						CurrentState:    models.Valide,
+						CourtID:         court.Id,
+					},
+				},
+				UserMatches: []models.DBUserMatch{
+					{UserID: user1.Id, MatchID: matchID, Team: teamA},
+					{UserID: user2.Id, MatchID: matchID, Team: teamA},
+					{UserID: user3.Id, MatchID: matchID, Team: teamB},
+				},
+			},
+			matchID:     matchID,
+			team:        teamA,
+			expectedCnt: 2,
+			expectError: false,
+		},
+		{
+			name: "No users in specified team",
+			fixtures: DBFixtures{
+				Courts: []models.DBCourt{court},
+				Users:  []models.DBUsers{user1},
+				Matches: []models.DBMatches{
+					{Id: matchID, Sport: models.Foot, CourtID: court.Id, CurrentState: models.Valide},
+				},
+				UserMatches: []models.DBUserMatch{
+					{UserID: user1.Id, MatchID: matchID, Team: 1},
+				},
+			},
+			matchID:     matchID,
+			team:        3,
+			expectedCnt: 0,
+			expectError: false,
+		},
+		{
+			name:        "No such match",
+			fixtures:    DBFixtures{},
+			matchID:     uuid.NewString(),
+			team:        1,
+			expectedCnt: 0,
+			expectError: false,
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := context.Background()
+			s := &Service{}
+			s.InitServiceTest()
+			s.loadFixtures(c.fixtures)
+
+			count, err := s.db.CountUsersByMatchAndTeam(ctx, c.matchID, c.team)
+
+			if c.expectError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, c.expectedCnt, count)
 		})
 	}
 }

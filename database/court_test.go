@@ -3,10 +3,11 @@ package database
 import (
 	"PLIC/models"
 	"context"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDatabase_InsertTerrain(t *testing.T) {
@@ -158,8 +159,8 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 						Date:            time.Now(),
 						ParticipantNber: 10,
 						CurrentState:    models.Valide,
-						Score1:          1,
-						Score2:          2,
+						Score1:          ptr(1),
+						Score2:          ptr(2),
 						CourtID:         court1.Id,
 					},
 					{
@@ -168,8 +169,8 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 						Date:            time.Now(),
 						ParticipantNber: 8,
 						CurrentState:    models.Termine,
-						Score1:          3,
-						Score2:          3,
+						Score1:          ptr(3),
+						Score2:          ptr(3),
 						CourtID:         court2.Id,
 					},
 					{
@@ -178,8 +179,8 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 						Date:            time.Now(),
 						ParticipantNber: 12,
 						CurrentState:    models.Valide,
-						Score1:          0,
-						Score2:          0,
+						Score1:          ptr(0),
+						Score2:          ptr(0),
 						CourtID:         court1.Id,
 					},
 				},
@@ -190,7 +191,7 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 				},
 			},
 			userID:        userID1,
-			expectedCount: 2, // Paris and Lyon (two distinct Place fields)
+			expectedCount: 2,
 			expectError:   false,
 		},
 		{

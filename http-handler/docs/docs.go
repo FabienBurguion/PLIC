@@ -495,17 +495,20 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Informations pour rejoindre un match (team)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.JoinMatchRequest"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Utilisateur a rejoint le match avec succès",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
+                        "description": "OK"
                     },
                     "400": {
                         "description": "Identifiant manquant",
@@ -612,13 +615,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Match supprimé",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
+                        "description": "OK"
                     },
                     "400": {
                         "description": "ID manquant",
@@ -674,10 +671,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.MatchResponse"
-                        }
+                        "description": "OK"
                     },
                     "400": {
                         "description": "Bad Request",
@@ -891,7 +885,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.GetMatchByUserIdResponses"
+                                "$ref": "#/definitions/models.MatchResponse"
                             }
                         }
                     },
@@ -1141,40 +1135,19 @@ const docTemplate = `{
                 }
             }
         },
-        "models.GetMatchByUserIdResponses": {
-            "type": "object",
-            "properties": {
-                "current_state": {
-                    "$ref": "#/definitions/models.MatchState"
-                },
-                "date": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "participant_nber": {
-                    "type": "integer"
-                },
-                "place": {
-                    "type": "string"
-                },
-                "score1": {
-                    "type": "integer"
-                },
-                "score2": {
-                    "type": "integer"
-                },
-                "sport": {
-                    "$ref": "#/definitions/models.Sport"
-                }
-            }
-        },
         "models.HelloWorldResponse": {
             "type": "object",
             "properties": {
                 "response": {
                     "type": "string"
+                }
+            }
+        },
+        "models.JoinMatchRequest": {
+            "type": "object",
+            "properties": {
+                "team": {
+                    "type": "integer"
                 }
             }
         },

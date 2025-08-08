@@ -1,8 +1,9 @@
 package models
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type MatchRequest struct {
@@ -19,8 +20,8 @@ func (m MatchRequest) ToDBMatches(now time.Time) DBMatches {
 		Date:            m.Date,
 		ParticipantNber: m.NbreParticipant,
 		CurrentState:    ManqueJoueur,
-		Score1:          0,
-		Score2:          0,
+		Score1:          nil,
+		Score2:          nil,
 		CourtID:         m.CourtID,
 		CreatedAt:       now,
 		UpdatedAt:       now,
@@ -34,8 +35,16 @@ type MatchResponse struct {
 	Date            time.Time      `json:"date"`
 	NbreParticipant int            `json:"nbre_participant"`
 	CurrentState    MatchState     `json:"current_state"`
-	Score1          int            `json:"score1"`
-	Score2          int            `json:"score2"`
+	Score1          *int           `json:"score1"`
+	Score2          *int           `json:"score2"`
 	Users           []UserResponse `json:"users"`
 	CreatedAt       time.Time      `json:"created_at"`
+}
+
+type JoinMatchRequest struct {
+	Team int `json:"team"`
+}
+
+type CreateMatchResponse struct {
+	Id string `json:"id"`
 }

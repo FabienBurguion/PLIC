@@ -5,14 +5,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_GetUserById(t *testing.T) {
@@ -27,8 +28,8 @@ func Test_GetUserById(t *testing.T) {
 		Sport:        models.Foot,
 		Date:         time.Now(),
 		CurrentState: models.Termine,
-		Score1:       2,
-		Score2:       1,
+		Score1:       ptr(2),
+		Score2:       ptr(1),
 		CourtID:      court1.Id,
 	}
 	match2 := models.DBMatches{
@@ -36,8 +37,8 @@ func Test_GetUserById(t *testing.T) {
 		Sport:        models.Basket,
 		Date:         time.Now(),
 		CurrentState: models.Termine,
-		Score1:       5,
-		Score2:       3,
+		Score1:       ptr(5),
+		Score2:       ptr(3),
 		CourtID:      court2.Id,
 	}
 	match3 := models.DBMatches{
@@ -45,8 +46,8 @@ func Test_GetUserById(t *testing.T) {
 		Sport:        models.PingPong,
 		Date:         time.Now(),
 		CurrentState: models.Termine,
-		Score1:       3,
-		Score2:       0,
+		Score1:       ptr(3),
+		Score2:       ptr(0),
 		CourtID:      court1.Id,
 	}
 

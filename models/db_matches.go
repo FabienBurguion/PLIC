@@ -1,8 +1,9 @@
 package models
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Sport string
@@ -29,8 +30,8 @@ type DBMatches struct {
 	Date            time.Time  `db:"date"`
 	ParticipantNber int        `db:"participant_nber"`
 	CurrentState    MatchState `db:"current_state"`
-	Score1          int        `db:"score1"`
-	Score2          int        `db:"score2"`
+	Score1          *int       `db:"score1"`
+	Score2          *int       `db:"score2"`
 	CourtID         string     `db:"court_id"`
 	CreatedAt       time.Time  `db:"created_at"`
 	UpdatedAt       time.Time  `db:"updated_at"`
@@ -43,8 +44,8 @@ func NewDBMatchesFixture() DBMatches {
 		Date:            time.Now(),
 		ParticipantNber: 8,
 		CurrentState:    "Manque joueur",
-		Score1:          0,
-		Score2:          0,
+		Score1:          nil,
+		Score2:          nil,
 	}
 }
 
