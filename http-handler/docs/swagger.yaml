@@ -26,11 +26,11 @@ definitions:
     type: object
   models.Field:
     properties:
+      elo:
+        type: integer
       name:
         type: string
       ranking:
-        type: integer
-      score:
         type: integer
     type: object
   models.HelloWorldResponse:

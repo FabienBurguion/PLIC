@@ -179,7 +179,7 @@ func TestDatabase_GetRankedFieldsByUserID(t *testing.T) {
 			for i := range fields {
 				require.Equal(t, c.expected.fields[i].Ranking, fields[i].Ranking, "wrong ranking for %s", fields[i].Name)
 				require.Equal(t, c.expected.fields[i].Name, fields[i].Name)
-				require.Equal(t, c.expected.fields[i].Score, fields[i].Score)
+				require.Equal(t, c.expected.fields[i].Elo, fields[i].Elo)
 			}
 		})
 	}

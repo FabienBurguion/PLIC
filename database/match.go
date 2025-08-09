@@ -129,7 +129,7 @@ func (db Database) CreateMatch(ctx context.Context, match models.DBMatches) erro
     )`, match)
 
 	if err != nil {
-		return fmt.Errorf("échec de len'insertion param : %w", err)
+		return fmt.Errorf("échec de l'insertion : %w", err)
 	}
 	return nil
 }

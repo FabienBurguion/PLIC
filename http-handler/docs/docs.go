@@ -1124,13 +1124,13 @@ const docTemplate = `{
         "models.Field": {
             "type": "object",
             "properties": {
+                "elo": {
+                    "type": "integer"
+                },
                 "name": {
                     "type": "string"
                 },
                 "ranking": {
-                    "type": "integer"
-                },
-                "score": {
                     "type": "integer"
                 }
             }

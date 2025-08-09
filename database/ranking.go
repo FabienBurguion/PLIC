@@ -18,7 +18,7 @@ func (db Database) GetRankedFieldsByUserID(ctx context.Context, userID string) (
 			FROM ranking r
 			JOIN courts c ON c.id = r.court_id
 		)
-		SELECT ranking, name, elo AS score
+		SELECT ranking, name, elo
 		FROM ranked
 		WHERE user_id = $1
 	`, userID)

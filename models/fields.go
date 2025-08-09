@@ -3,14 +3,14 @@ package models
 type Field struct {
 	Ranking int    `json:"ranking"`
 	Name    string `json:"name"`
-	Score   int    `json:"score"`
+	Elo     int    `json:"elo"`
 }
 
 func NewFieldFixture() Field {
 	return Field{
 		Ranking: 0,
 		Name:    "",
-		Score:   0,
+		Elo:     0,
 	}
 }
 
@@ -25,6 +25,6 @@ func (f Field) WithName(name string) Field {
 }
 
 func (f Field) WithScore(score int) Field {
-	f.Score = score
+	f.Elo = score
 	return f
 }
