@@ -542,8 +542,8 @@ func TestDatabase_GetFavoriteFieldByUserID(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
 			s := &Service{}
 			cleanup := s.InitServiceTest()
 			defer func() {
@@ -551,20 +551,20 @@ func TestDatabase_GetFavoriteFieldByUserID(t *testing.T) {
 					t.Logf("cleanup error: %v", err)
 				}
 			}()
-			s.loadFixtures(tc.fixtures)
+			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()
-			result, err := s.db.GetFavoriteFieldByUserID(ctx, tc.inputUserID)
+			result, err := s.db.GetFavoriteFieldByUserID(ctx, c.inputUserID)
 
-			if tc.expected.IsError {
+			if c.expected.IsError {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				if tc.expected.res == nil {
+				if c.expected.res == nil {
 					require.Nil(t, result)
 				} else {
 					require.NotNil(t, result)
-					require.Equal(t, *tc.expected.res, *result)
+					require.Equal(t, *c.expected.res, *result)
 				}
 			}
 		})
@@ -646,8 +646,8 @@ func TestDatabase_GetFavoriteSportByUserID(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
 			s := &Service{}
 			cleanup := s.InitServiceTest()
 			defer func() {
@@ -655,20 +655,20 @@ func TestDatabase_GetFavoriteSportByUserID(t *testing.T) {
 					t.Logf("cleanup error: %v", err)
 				}
 			}()
-			s.loadFixtures(tc.fixtures)
+			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()
-			result, err := s.db.GetFavoriteSportByUserID(ctx, tc.param)
+			result, err := s.db.GetFavoriteSportByUserID(ctx, c.param)
 
-			if tc.expected.IsError {
+			if c.expected.IsError {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				if tc.expected.res == nil {
+				if c.expected.res == nil {
 					require.Nil(t, result)
 				} else {
 					require.NotNil(t, result)
-					require.Equal(t, *tc.expected.res, *result)
+					require.Equal(t, *c.expected.res, *result)
 				}
 			}
 		})
@@ -756,8 +756,8 @@ func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
 			s := &Service{}
 			cleanup := s.InitServiceTest()
 			defer func() {
@@ -765,16 +765,16 @@ func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
 					t.Logf("cleanup error: %v", err)
 				}
 			}()
-			s.loadFixtures(tc.fixtures)
+			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()
-			sports, err := s.db.GetPlayedSportsByUserID(ctx, tc.param)
+			sports, err := s.db.GetPlayedSportsByUserID(ctx, c.param)
 
-			if tc.expected.IsError {
+			if c.expected.IsError {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.ElementsMatch(t, tc.expected.sports, sports)
+				require.ElementsMatch(t, c.expected.sports, sports)
 			}
 		})
 	}

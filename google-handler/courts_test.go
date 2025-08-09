@@ -47,21 +47,21 @@ func TestGetPlaces(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
 			mux := http.NewServeMux()
 			mux.HandleFunc("/json", func(w http.ResponseWriter, r *http.Request) {
 				_ = json.NewEncoder(w).Encode(models.GooglePlacesResponse{
-					Results: tc.expectedPlaces,
+					Results: c.expectedPlaces,
 				})
 			})
 
 			mockServer := httptest.NewServer(mux)
 			defer mockServer.Close()
 
-			result, err := GetPlaces(mockServer.URL, tc.lat, tc.lng, tc.keyword)
+			result, err := GetPlaces(mockServer.URL, c.lat, c.lng, c.keyword)
 			require.NoError(t, err)
-			require.Equal(t, tc.expectedPlaces, result)
+			require.Equal(t, c.expectedPlaces, result)
 		})
 	}
 }

@@ -321,8 +321,8 @@ func TestDatabase_GetRankingByUserAndCourt(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
 			s := &Service{}
 			cleanup := s.InitServiceTest()
 			defer func() {
@@ -330,12 +330,12 @@ func TestDatabase_GetRankingByUserAndCourt(t *testing.T) {
 					t.Logf("cleanup error: %v", err)
 				}
 			}()
-			s.loadFixtures(tc.fixtures)
+			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()
-			got, err := s.db.GetRankingByUserAndCourt(ctx, tc.userID, tc.courtID)
+			got, err := s.db.GetRankingByUserAndCourt(ctx, c.userID, c.courtID)
 
-			if tc.expected.isError {
+			if c.expected.isError {
 				require.Error(t, err)
 				require.Nil(t, got)
 				return
@@ -343,9 +343,9 @@ func TestDatabase_GetRankingByUserAndCourt(t *testing.T) {
 
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.Equal(t, tc.userID, got.UserID)
-			require.Equal(t, tc.courtID, got.CourtID)
-			require.Equal(t, tc.expected.elo, got.Elo)
+			require.Equal(t, c.userID, got.UserID)
+			require.Equal(t, c.courtID, got.CourtID)
+			require.Equal(t, c.expected.elo, got.Elo)
 		})
 	}
 }
