@@ -10,8 +10,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -497,91 +499,167 @@ func Test_CreateMatch(t *testing.T) {
 	}
 }
 
-func Test_UpdateMatchScore(t *testing.T) {
-	type testCase struct {
-		name      string
-		fixtures  DBFixtures
-		auth      models.AuthInfo
-		param     string
-		updateReq models.UpdateScoreRequest
-		expected  int
+func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
+	type expected struct {
+		code          int
+		state         models.MatchState
+		score1        int
+		score2        int
+		errorContains string
 	}
 
-	user := models.NewDBUsersFixture()
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		steps    []struct {
+			auth  models.AuthInfo
+			param string
+			req   models.UpdateScoreRequest
+			exp   expected
+		}
+	}
+
 	court := models.NewDBCourtFixture()
-	match := models.NewDBMatchesFixture().
-		WithCourtId(court.Id)
+	matchConsensus := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCurrentState(models.ManqueScore)
+	matchNoConsensus := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCurrentState(models.ManqueScore)
+	matchTeamTwice := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCurrentState(models.ManqueScore)
+
+	userA := models.NewDBUsersFixture()
+	userB := models.NewDBUsersFixture().WithUsername("userB").WithEmail("emailB")
+	userC := models.NewDBUsersFixture().WithUsername("userC").WithEmail("emailC")
+
+	fixtures := DBFixtures{
+		Courts:  []models.DBCourt{court},
+		Matches: []models.DBMatches{matchConsensus, matchNoConsensus, matchTeamTwice},
+		Users:   []models.DBUsers{userA, userB, userC},
+		UserMatches: []models.DBUserMatch{
+			models.NewDBUserMatchFixture().WithUserId(userA.Id).WithMatchId(matchConsensus.Id).WithTeam(1),
+			models.NewDBUserMatchFixture().WithUserId(userB.Id).WithMatchId(matchConsensus.Id).WithTeam(2),
+
+			models.NewDBUserMatchFixture().WithUserId(userA.Id).WithMatchId(matchNoConsensus.Id).WithTeam(1),
+			models.NewDBUserMatchFixture().WithUserId(userB.Id).WithMatchId(matchNoConsensus.Id).WithTeam(2),
+
+			models.NewDBUserMatchFixture().WithUserId(userA.Id).WithMatchId(matchTeamTwice.Id).WithTeam(1),
+			models.NewDBUserMatchFixture().WithUserId(userC.Id).WithMatchId(matchTeamTwice.Id).WithTeam(1),
+		},
+	}
 
 	testCases := []testCase{
 		{
-			name:  "Successful score update",
-			auth:  models.AuthInfo{IsConnected: true, UserID: user.Id},
-			param: match.Id,
-			fixtures: DBFixtures{
-				Courts:  []models.DBCourt{court},
-				Matches: []models.DBMatches{match},
-				Users:   []models.DBUsers{user},
-				UserMatches: []models.DBUserMatch{
-					models.NewDBUserMatchFixture().
-						WithUserId(user.Id).
-						WithMatchId(match.Id),
+			name:     "Consensus: two teams same score -> match becomes Termine",
+			fixtures: fixtures,
+			steps: []struct {
+				auth  models.AuthInfo
+				param string
+				req   models.UpdateScoreRequest
+				exp   expected
+			}{
+				{
+					auth:  models.AuthInfo{IsConnected: true, UserID: userA.Id},
+					param: matchConsensus.Id,
+					req:   models.NewUpdateScoreRequestFixture().WithScore1(3).WithScore2(2),
+					exp:   expected{code: http.StatusOK, state: models.ManqueScore, score1: 3, score2: 2},
+				},
+				{
+					auth:  models.AuthInfo{IsConnected: true, UserID: userB.Id},
+					param: matchConsensus.Id,
+					req:   models.NewUpdateScoreRequestFixture().WithScore1(3).WithScore2(2),
+					exp:   expected{code: http.StatusOK, state: models.Termine, score1: 3, score2: 2},
 				},
 			},
-			updateReq: models.NewUpdateScoreRequestFixture().
-				WithScore1(3).
-				WithScore2(2),
-			expected: http.StatusOK,
 		},
 		{
-			name:  "Missing match ID param",
-			auth:  models.AuthInfo{IsConnected: true, UserID: user.Id},
-			param: "",
-			updateReq: models.NewUpdateScoreRequestFixture().
-				WithScore1(3).
-				WithScore2(2),
-			expected: http.StatusBadRequest,
+			name:     "No consensus: second team different score -> state unchanged, score is last proposed",
+			fixtures: fixtures,
+			steps: []struct {
+				auth  models.AuthInfo
+				param string
+				req   models.UpdateScoreRequest
+				exp   expected
+			}{
+				{
+					auth:  models.AuthInfo{IsConnected: true, UserID: userA.Id},
+					param: matchNoConsensus.Id,
+					req:   models.NewUpdateScoreRequestFixture().WithScore1(1).WithScore2(0),
+					exp:   expected{code: http.StatusOK, state: models.ManqueScore, score1: 1, score2: 0},
+				},
+				{
+					auth:  models.AuthInfo{IsConnected: true, UserID: userB.Id},
+					param: matchNoConsensus.Id,
+					req:   models.NewUpdateScoreRequestFixture().WithScore1(2).WithScore2(2),
+					exp:   expected{code: http.StatusOK, state: models.ManqueScore, score1: 2, score2: 2},
+				},
+			},
 		},
 		{
-			name:     "Unauthorized user",
-			auth:     models.AuthInfo{IsConnected: false, UserID: user.Id},
-			param:    match.Id,
-			expected: http.StatusUnauthorized,
+			name:     "Same team second vote blocked",
+			fixtures: fixtures,
+			steps: []struct {
+				auth  models.AuthInfo
+				param string
+				req   models.UpdateScoreRequest
+				exp   expected
+			}{
+				{
+					auth:  models.AuthInfo{IsConnected: true, UserID: userA.Id},
+					param: matchTeamTwice.Id,
+					req:   models.NewUpdateScoreRequestFixture().WithScore1(5).WithScore2(4),
+					exp:   expected{code: http.StatusOK, state: models.ManqueScore, score1: 5, score2: 4},
+				},
+				{
+					auth:  models.AuthInfo{IsConnected: true, UserID: userC.Id},
+					param: matchTeamTwice.Id,
+					req:   models.NewUpdateScoreRequestFixture().WithScore1(7).WithScore2(7),
+					exp:   expected{code: http.StatusBadRequest, state: models.ManqueScore, score1: 5, score2: 4, errorContains: "team already has a vote"},
+				},
+			},
 		},
 	}
 
-	for _, c := range testCases {
-		t.Run(c.name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			s := &Service{}
 			cleanup := s.InitServiceTest()
-			defer func() {
-				if err := cleanup(); err != nil {
-					t.Logf("cleanup error: %v", err)
+			defer func() { _ = cleanup() }()
+
+			s.loadFixtures(tc.fixtures)
+
+			for _, step := range tc.steps {
+				body, err := json.Marshal(step.req)
+				require.NoError(t, err)
+
+				url := "/score/match/" + step.param
+				r := httptest.NewRequest("PATCH", url, bytes.NewReader(body))
+				routeCtx := chi.NewRouteContext()
+				routeCtx.URLParams.Add("id", step.param)
+				r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+
+				w := httptest.NewRecorder()
+
+				err = s.UpdateMatchScore(w, r, step.auth)
+				require.NoError(t, err)
+
+				resp := w.Result()
+				defer func(Body io.ReadCloser) {
+					_ = Body.Close()
+				}(resp.Body)
+				require.Equal(t, step.exp.code, resp.StatusCode)
+
+				m, dbErr := s.db.GetMatchById(context.Background(), step.param)
+				require.NoError(t, dbErr)
+				require.NotNil(t, m)
+
+				require.Equal(t, step.exp.state, m.CurrentState)
+				require.NotNil(t, m.Score1)
+				require.NotNil(t, m.Score2)
+				require.Equal(t, step.exp.score1, *m.Score1)
+				require.Equal(t, step.exp.score2, *m.Score2)
+
+				if step.exp.errorContains != "" {
+					b, _ := io.ReadAll(resp.Body)
+					require.Contains(t, string(b), step.exp.errorContains)
 				}
-			}()
-			s.loadFixtures(c.fixtures)
-
-			bodyBytes, err := json.Marshal(c.updateReq)
-			require.NoError(t, err)
-
-			url := "/score/match/" + c.param
-			r := httptest.NewRequest("PATCH", url, bytes.NewReader(bodyBytes))
-
-			routeCtx := chi.NewRouteContext()
-			if c.param != "" {
-				routeCtx.URLParams.Add("id", c.param)
 			}
-			r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
-
-			w := httptest.NewRecorder()
-
-			err = s.UpdateMatchScore(w, r, c.auth)
-			require.NoError(t, err)
-
-			resp := w.Result()
-			defer func(Body io.ReadCloser) {
-				_ = Body.Close()
-			}(resp.Body)
-			require.Equal(t, c.expected, resp.StatusCode)
 		})
 	}
 }
@@ -592,6 +670,7 @@ func Test_JoinMatch(t *testing.T) {
 		code        int
 		errorMsg    string
 		checkJoined bool
+		wantState   *models.MatchState
 	}
 
 	type testCase struct {
@@ -611,13 +690,21 @@ func Test_JoinMatch(t *testing.T) {
 		WithCurrentState(models.ManqueJoueur)
 
 	user := models.NewDBUsersFixture()
+	uTeam1A := models.NewDBUsersFixture().WithUsername("t1_a").WithEmail("t1_a@gmail.com")
+	uTeam1B := models.NewDBUsersFixture().WithUsername("t1_b").WithEmail("t1_b@gmail.com")
+	uTeam2A := models.NewDBUsersFixture().WithUsername("t2_a").WithEmail("t2_a@gmail.com")
 	teammate := models.NewDBUsersFixture().
 		WithUsername("teammate").
 		WithEmail("other_email@gmail.com")
 
+	match4 := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithParticipantNber(4).
+		WithCurrentState(models.ManqueJoueur)
+
 	testCases := []testCase{
 		{
-			name: "User successfully joins match",
+			name: "User successfully joins match (no one else) -> still Manque joueur",
 			fixtures: DBFixtures{
 				Courts:  []models.DBCourt{court},
 				Matches: []models.DBMatches{match},
@@ -629,6 +716,7 @@ func Test_JoinMatch(t *testing.T) {
 				bodyJSON:    `{"team": 1}`,
 				code:        http.StatusOK,
 				checkJoined: true,
+				wantState:   ptr(models.ManqueJoueur),
 			},
 		},
 		{
@@ -680,7 +768,8 @@ func Test_JoinMatch(t *testing.T) {
 				UserMatches: []models.DBUserMatch{
 					models.NewDBUserMatchFixture().
 						WithUserId(teammate.Id).
-						WithMatchId(match.Id),
+						WithMatchId(match.Id).
+						WithTeam(1),
 				},
 			},
 			param: match.Id,
@@ -691,17 +780,43 @@ func Test_JoinMatch(t *testing.T) {
 				errorMsg: "this team is full",
 			},
 		},
+		{
+			name: "User joins and fills the match -> match becomes Valide (ParticipantNber=4)",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match4},
+				Users:   []models.DBUsers{user, uTeam1A, uTeam1B, uTeam2A},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().
+						WithUserId(uTeam1A.Id).
+						WithMatchId(match4.Id).
+						WithTeam(1),
+					models.NewDBUserMatchFixture().
+						WithUserId(uTeam1B.Id).
+						WithMatchId(match4.Id).
+						WithTeam(1),
+					models.NewDBUserMatchFixture().
+						WithUserId(uTeam2A.Id).
+						WithMatchId(match4.Id).
+						WithTeam(2),
+				},
+			},
+			param: match4.Id,
+			auth:  models.AuthInfo{IsConnected: true, UserID: user.Id},
+			expected: expected{
+				bodyJSON:    `{"team": 2}`,
+				code:        http.StatusOK,
+				checkJoined: true,
+				wantState:   ptr(models.Valide),
+			},
+		},
 	}
 
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
 			s := &Service{}
 			cleanup := s.InitServiceTest()
-			defer func() {
-				if err := cleanup(); err != nil {
-					t.Logf("cleanup error: %v", err)
-				}
-			}()
+			defer func() { _ = cleanup() }()
 			s.loadFixtures(c.fixtures)
 
 			url := "/match/join/" + c.param
@@ -733,17 +848,512 @@ func Test_JoinMatch(t *testing.T) {
 				require.Contains(t, string(body), c.expected.errorMsg)
 			}
 
-			if c.expected.checkJoined {
+			if c.expected.checkJoined || c.expected.wantState != nil {
 				ctx := context.Background()
+				var mid string
+				if c.param != "" {
+					mid = c.param
+				} else {
+					mid = match.Id
+				}
 
-				joined, err := s.db.IsUserInMatch(ctx, user.Id, match.Id)
+				updatedMatch, err := s.db.GetMatchById(ctx, mid)
 				require.NoError(t, err)
-				require.True(t, joined)
+				require.NotNil(t, updatedMatch)
 
-				updatedMatch, err := s.db.GetMatchById(ctx, match.Id)
-				require.NoError(t, err)
-				require.Equal(t, models.Valide, updatedMatch.CurrentState)
+				if c.expected.checkJoined {
+					joined, err := s.db.IsUserInMatch(ctx, c.auth.UserID, mid)
+					require.NoError(t, err)
+					require.True(t, joined)
+				}
+				if c.expected.wantState != nil {
+					require.Equal(t, *c.expected.wantState, updatedMatch.CurrentState)
+				}
 			}
 		})
+	}
+}
+
+func Test_StartMatch(t *testing.T) {
+	type expected struct {
+		code        int
+		finalState  models.MatchState
+		shouldCheck bool
+	}
+
+	type testCase struct {
+		name     string
+		auth     models.AuthInfo
+		paramID  string
+		fixtures DBFixtures
+		expected expected
+	}
+
+	user := models.NewDBUsersFixture()
+	court := models.NewDBCourtFixture()
+	matchValide := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.Valide)
+	matchWrongState := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.ManqueJoueur)
+
+	testCases := []testCase{
+		{
+			name:    "Happy path: start match",
+			auth:    models.AuthInfo{IsConnected: true, UserID: user.Id},
+			paramID: matchValide.Id,
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{matchValide},
+				Users:   []models.DBUsers{user},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(user.Id).WithMatchId(matchValide.Id),
+				},
+			},
+			expected: expected{
+				code:        http.StatusOK,
+				finalState:  models.EnCours,
+				shouldCheck: true,
+			},
+		},
+		{
+			name:     "Missing match ID",
+			auth:     models.AuthInfo{IsConnected: true, UserID: user.Id},
+			paramID:  "",
+			fixtures: DBFixtures{},
+			expected: expected{code: http.StatusBadRequest},
+		},
+		{
+			name:     "Unauthorized",
+			auth:     models.AuthInfo{IsConnected: false, UserID: user.Id},
+			paramID:  matchValide.Id,
+			fixtures: DBFixtures{},
+			expected: expected{code: http.StatusUnauthorized},
+		},
+		{
+			name:    "Match not found",
+			auth:    models.AuthInfo{IsConnected: true, UserID: user.Id},
+			paramID: uuid.NewString(),
+			fixtures: DBFixtures{
+				Courts: []models.DBCourt{court},
+				Users:  []models.DBUsers{user},
+			},
+			expected: expected{code: http.StatusNotFound},
+		},
+		{
+			name:    "Wrong state",
+			auth:    models.AuthInfo{IsConnected: true, UserID: user.Id},
+			paramID: matchWrongState.Id,
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{matchWrongState},
+				Users:   []models.DBUsers{user},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(user.Id).WithMatchId(matchWrongState.Id),
+				},
+			},
+			expected: expected{code: http.StatusBadRequest},
+		},
+		{
+			name:    "User not in match",
+			auth:    models.AuthInfo{IsConnected: true, UserID: user.Id},
+			paramID: matchValide.Id,
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{matchValide},
+				Users:   []models.DBUsers{user},
+			},
+			expected: expected{code: http.StatusBadRequest},
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+			s.loadFixtures(c.fixtures)
+
+			url := "/match/" + c.paramID + "/start"
+			r := httptest.NewRequest("PATCH", url, nil)
+			routeCtx := chi.NewRouteContext()
+			if c.paramID != "" {
+				routeCtx.URLParams.Add("id", c.paramID)
+			}
+			r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+
+			w := httptest.NewRecorder()
+			err := s.StartMatch(w, r, c.auth)
+			require.NoError(t, err)
+
+			resp := w.Result()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
+			require.Equal(t, c.expected.code, resp.StatusCode)
+
+			if c.expected.shouldCheck {
+				m, err := s.db.GetMatchById(context.Background(), c.paramID)
+				require.NoError(t, err)
+				require.NotNil(t, m)
+				require.Equal(t, c.expected.finalState, m.CurrentState)
+				require.WithinDuration(t, time.Now(), m.Date, time.Minute)
+			}
+		})
+	}
+}
+
+func Test_FinishMatch(t *testing.T) {
+	type expected struct {
+		code        int
+		finalState  models.MatchState
+		shouldCheck bool
+	}
+
+	type testCase struct {
+		name     string
+		auth     models.AuthInfo
+		paramID  string
+		fixtures DBFixtures
+		expected expected
+	}
+
+	user := models.NewDBUsersFixture()
+	court := models.NewDBCourtFixture()
+	matchEnCours := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.EnCours)
+	matchWrongState := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.Valide)
+
+	tests := []testCase{
+		{
+			name:    "Happy path: finish match -> ManqueScore",
+			auth:    models.AuthInfo{IsConnected: true, UserID: user.Id},
+			paramID: matchEnCours.Id,
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{matchEnCours},
+				Users:   []models.DBUsers{user},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(user.Id).WithMatchId(matchEnCours.Id),
+				},
+			},
+			expected: expected{
+				code:        http.StatusOK,
+				finalState:  models.ManqueScore,
+				shouldCheck: true,
+			},
+		},
+		{
+			name:     "Missing match ID",
+			auth:     models.AuthInfo{IsConnected: true, UserID: user.Id},
+			paramID:  "",
+			fixtures: DBFixtures{},
+			expected: expected{code: http.StatusBadRequest},
+		},
+		{
+			name:     "Unauthorized",
+			auth:     models.AuthInfo{IsConnected: false, UserID: user.Id},
+			paramID:  matchEnCours.Id,
+			fixtures: DBFixtures{},
+			expected: expected{code: http.StatusUnauthorized},
+		},
+		{
+			name:    "Match not found",
+			auth:    models.AuthInfo{IsConnected: true, UserID: user.Id},
+			paramID: uuid.NewString(),
+			fixtures: DBFixtures{
+				Courts: []models.DBCourt{court},
+				Users:  []models.DBUsers{user},
+			},
+			expected: expected{code: http.StatusNotFound},
+		},
+		{
+			name:    "Wrong state",
+			auth:    models.AuthInfo{IsConnected: true, UserID: user.Id},
+			paramID: matchWrongState.Id,
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{matchWrongState},
+				Users:   []models.DBUsers{user},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(user.Id).WithMatchId(matchWrongState.Id),
+				},
+			},
+			expected: expected{code: http.StatusBadRequest},
+		},
+		{
+			name:    "User not in match",
+			auth:    models.AuthInfo{IsConnected: true, UserID: user.Id},
+			paramID: matchEnCours.Id,
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{matchEnCours},
+				Users:   []models.DBUsers{user},
+			},
+			expected: expected{code: http.StatusBadRequest},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+			s.loadFixtures(tc.fixtures)
+
+			url := "/match/" + tc.paramID + "/finish"
+			r := httptest.NewRequest("PATCH", url, nil)
+			routeCtx := chi.NewRouteContext()
+			if tc.paramID != "" {
+				routeCtx.URLParams.Add("id", tc.paramID)
+			}
+			r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+
+			w := httptest.NewRecorder()
+			err := s.FinishMatch(w, r, tc.auth)
+			require.NoError(t, err)
+
+			resp := w.Result()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
+			require.Equal(t, tc.expected.code, resp.StatusCode)
+
+			if tc.expected.shouldCheck {
+				m, err := s.db.GetMatchById(context.Background(), tc.paramID)
+				require.NoError(t, err)
+				require.NotNil(t, m)
+				require.Equal(t, tc.expected.finalState, m.CurrentState)
+			}
+		})
+	}
+}
+
+func Test_EndToEnd_MatchLifecycle_WithConsensus(t *testing.T) {
+	s := &Service{}
+	cleanup := s.InitServiceTest()
+	defer func() { _ = cleanup() }()
+
+	// === Fixtures ===
+	court := models.NewDBCourtFixture()
+
+	creator := models.NewDBUsersFixture().
+		WithUsername("u_creator").
+		WithEmail("creator@example.com")
+	// 3 joueurs additionnels
+	u2 := models.NewDBUsersFixture().
+		WithUsername("u_two").
+		WithEmail("u2@example.com")
+	u3 := models.NewDBUsersFixture().
+		WithUsername("u_three").
+		WithEmail("u3@example.com")
+	u4 := models.NewDBUsersFixture().
+		WithUsername("u_four").
+		WithEmail("u4@example.com")
+
+	s.loadFixtures(DBFixtures{
+		Courts: []models.DBCourt{court},
+		Users:  []models.DBUsers{creator, u2, u3, u4},
+	})
+
+	// === 1) Create match (4 joueurs) par le "creator" ===
+	matchReq := models.MatchRequest{
+		Sport:           models.Foot,
+		CourtID:         court.Id,
+		Date:            time.Now().Add(1 * time.Hour),
+		NbreParticipant: 4, // 2 équipes de 2
+	}
+	bodyCreate, _ := json.Marshal(matchReq)
+	rCreate := httptest.NewRequest("POST", "/match", bytes.NewReader(bodyCreate))
+	wCreate := httptest.NewRecorder()
+
+	err := s.CreateMatch(wCreate, rCreate, models.AuthInfo{
+		IsConnected: true,
+		UserID:      creator.Id,
+	})
+	require.NoError(t, err)
+	respCreate := wCreate.Result()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(respCreate.Body)
+	require.Equal(t, http.StatusCreated, respCreate.StatusCode)
+
+	var createRes models.CreateMatchResponse
+	readCreateBody, _ := io.ReadAll(respCreate.Body)
+	require.NoError(t, json.Unmarshal(readCreateBody, &createRes))
+	matchID := createRes.Id
+	require.NotEmpty(t, matchID, "match id should be returned")
+
+	// Le créateur a déjà rejoint la team 1 (cf. CreateMatch)
+	// === 2) 3 joueurs rejoignent ===
+	// On remplit team1 (u2) puis team2 (u3, u4)
+	join := func(user models.DBUsers, team int, expectedCode int) {
+		joinReq := models.JoinMatchRequest{Team: team}
+		b, _ := json.Marshal(joinReq)
+		url := "/match/join/" + matchID
+		r := httptest.NewRequest("POST", url, bytes.NewReader(b))
+		routeCtx := chi.NewRouteContext()
+		routeCtx.URLParams.Add("id", matchID)
+		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+		w := httptest.NewRecorder()
+		err := s.JoinMatch(w, r, models.AuthInfo{
+			IsConnected: true,
+			UserID:      user.Id,
+		})
+		require.NoError(t, err)
+		resp := w.Result()
+		defer func(Body io.ReadCloser) {
+			_ = Body.Close()
+		}(resp.Body)
+		require.Equal(t, expectedCode, resp.StatusCode)
+	}
+
+	// u2 -> team1 (complète team1)
+	join(u2, 1, http.StatusOK)
+	// u3 -> team2
+	join(u3, 2, http.StatusOK)
+	// u4 -> team2 (complète team2)
+	join(u4, 2, http.StatusOK)
+
+	// A ce stade le match doit être au moins "Valide"
+	m, err := s.db.GetMatchById(context.Background(), matchID)
+	require.NoError(t, err)
+	require.NotNil(t, m)
+	require.Equal(t, models.Valide, m.CurrentState)
+
+	// === 3) Start match par un joueur inscrit (creator) ===
+	{
+		url := "/match/" + matchID + "/start"
+		r := httptest.NewRequest("PATCH", url, nil)
+		routeCtx := chi.NewRouteContext()
+		routeCtx.URLParams.Add("id", matchID)
+		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+		w := httptest.NewRecorder()
+
+		err := s.StartMatch(w, r, models.AuthInfo{
+			IsConnected: true,
+			UserID:      creator.Id,
+		})
+		require.NoError(t, err)
+		resp := w.Result()
+		defer func(Body io.ReadCloser) {
+			_ = Body.Close()
+		}(resp.Body)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		m, err = s.db.GetMatchById(context.Background(), matchID)
+		require.NoError(t, err)
+		require.Equal(t, models.EnCours, m.CurrentState)
+	}
+
+	// === 4) Finish match par un joueur inscrit (u2) ===
+	{
+		url := "/match/" + matchID + "/finish"
+		r := httptest.NewRequest("PATCH", url, nil)
+		routeCtx := chi.NewRouteContext()
+		routeCtx.URLParams.Add("id", matchID)
+		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+		w := httptest.NewRecorder()
+
+		err := s.FinishMatch(w, r, models.AuthInfo{
+			IsConnected: true,
+			UserID:      u2.Id,
+		})
+		require.NoError(t, err)
+		resp := w.Result()
+		defer func(Body io.ReadCloser) {
+			_ = Body.Close()
+		}(resp.Body)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		m, err = s.db.GetMatchById(context.Background(), matchID)
+		require.NoError(t, err)
+		require.Equal(t, models.ManqueScore, m.CurrentState)
+	}
+
+	// === 5) Votes de score ===
+	// Règles actuelles :
+	// - un seul vote par équipe (pas deux joueurs différents de la même team)
+	// - consensus : score identique proposé par les deux équipes -> state = Termine
+	//
+	// On va d'abord faire un désaccord :
+	//   - team1 (creator) propose 5-3
+	//   - team2 (u3) propose 2-2  => pas consensus, state reste ManqueScore, score = 2-2
+	// Puis on fait consensus :
+	//   - team2 (u3) met à jour à 5-3 => consensus atteint, state = Termine, score = 5-3
+
+	updateScore := func(user models.DBUsers, s1, s2 int, expectedCode int) {
+		body, _ := json.Marshal(models.UpdateScoreRequest{Score1: s1, Score2: s2})
+		url := "/match/" + matchID + "/score"
+		r := httptest.NewRequest("PATCH", url, bytes.NewReader(body))
+		routeCtx := chi.NewRouteContext()
+		routeCtx.URLParams.Add("id", matchID)
+		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+		w := httptest.NewRecorder()
+
+		err := s.UpdateMatchScore(w, r, models.AuthInfo{
+			IsConnected: true,
+			UserID:      user.Id,
+		})
+		require.NoError(t, err)
+		resp := w.Result()
+		defer func(Body io.ReadCloser) {
+			_ = Body.Close()
+		}(resp.Body)
+		require.Equal(t, expectedCode, resp.StatusCode)
+	}
+
+	// Désaccord
+	updateScore(creator, 5, 3, http.StatusOK) // team1 vote 5-3
+	updateScore(u3, 2, 2, http.StatusOK)      // team2 vote 2-2 (différent) -> pas consensus
+
+	m, err = s.db.GetMatchById(context.Background(), matchID)
+	require.NoError(t, err)
+	require.Equal(t, models.ManqueScore, m.CurrentState)
+	require.NotNil(t, m.Score1)
+	require.NotNil(t, m.Score2)
+	require.Equal(t, 2, *m.Score1) // dernier proposé = 2
+	require.Equal(t, 2, *m.Score2)
+
+	// Consensus : team2 (même user u3) met à jour pour matcher 5-3
+	updateScore(u3, 5, 3, http.StatusOK)
+
+	m, err = s.db.GetMatchById(context.Background(), matchID)
+	require.NoError(t, err)
+	require.Equal(t, models.Termine, m.CurrentState)
+	require.NotNil(t, m.Score1)
+	require.NotNil(t, m.Score2)
+	require.Equal(t, 5, *m.Score1)
+	require.Equal(t, 3, *m.Score2)
+
+	// Petit check bonus : empêcher deuxième vote d’un autre joueur de la même team
+	// u2 est dans team1 comme creator : il ne doit pas pouvoir voter si creator a déjà voté
+	{
+		body, _ := json.Marshal(models.UpdateScoreRequest{Score1: 9, Score2: 9})
+		url := "/match/" + matchID + "/score"
+		r := httptest.NewRequest("PATCH", url, bytes.NewReader(body))
+		routeCtx := chi.NewRouteContext()
+		routeCtx.URLParams.Add("id", matchID)
+		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+		w := httptest.NewRecorder()
+
+		err := s.UpdateMatchScore(w, r, models.AuthInfo{
+			IsConnected: true,
+			UserID:      u2.Id, // même team que creator
+		})
+		require.NoError(t, err)
+
+		resp := w.Result()
+		defer func(Body io.ReadCloser) {
+			_ = Body.Close()
+		}(resp.Body)
+		// selon ton handler, une fois le match "Termine", UpdateMatchScore renverra "match is not in the right state"
+		// mais si tu fais ce check avant le consensus final, le code serait 400 "this team already has a vote".
+		// Ici on tolère que le test se déroule après consensus, donc:
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	}
 }

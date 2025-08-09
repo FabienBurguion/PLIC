@@ -186,10 +186,7 @@ func (db Database) UpsertMatch(ctx context.Context, match models.DBMatches) erro
 			updated_at = NOW()
 	`, match.Id, match.Sport, match.Date, match.ParticipantNber, match.CurrentState, match.Score1, match.Score2, match.CourtID, match.CreatedAt)
 
-	if err != nil {
-		return fmt.Errorf("failed to upsert param: %w", err)
-	}
-	return nil
+	return err
 }
 
 func (db Database) CountUsersByMatchAndTeam(ctx context.Context, matchId string, team int) (int, error) {
@@ -204,4 +201,35 @@ func (db Database) CountUsersByMatchAndTeam(ctx context.Context, matchId string,
 	}
 
 	return count, nil
+}
+
+func (db Database) CountUsersByMatch(ctx context.Context, matchId string) (int, error) {
+	var count int
+	err := db.Database.GetContext(ctx, &count, `
+        SELECT COUNT(*) 
+        FROM user_match 
+        WHERE match_id = $1`, matchId)
+
+	if err != nil {
+		return 0, fmt.Errorf("échec du comptage des utilisateurs pour le param %s : %w", matchId, err)
+	}
+
+	return count, nil
+}
+
+func (db Database) GetUserInMatch(ctx context.Context, userID, matchID string) (*models.DBUserMatch, error) {
+	var um models.DBUserMatch
+	err := db.Database.GetContext(ctx, &um, `
+		SELECT user_id, match_id, team, created_at
+		FROM user_match
+		WHERE user_id = $1 AND match_id = $2
+		LIMIT 1
+	`, userID, matchID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("error querying user_match: %w", err)
+	}
+	return &um, nil
 }

@@ -638,6 +638,56 @@ const docTemplate = `{
                 }
             }
         },
+        "/match/{id}/finish": {
+            "patch": {
+                "description": "Passe un match de l’état \"En cours\" à \"Manque Score\" afin de permettre la saisie/validation des scores.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Termine un match (passage à la saisie des scores)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID du match",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "ID manquant, mauvais état, ou utilisateur non inscrit au match",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Utilisateur non autorisé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Match non trouvé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur serveur ou base de données",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/match/{id}/score": {
             "patch": {
                 "description": "Met à jour les scores (score1 et score2) d’un match via son ID",
@@ -693,6 +743,56 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/match/{id}/start": {
+            "patch": {
+                "description": "Passe un match de l’état \"Valide\" à \"En cours\" et met à jour la date de début à maintenant.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Démarre un match",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID du match",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "ID manquant, mauvais état, ou utilisateur non inscrit au match",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Utilisateur non autorisé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Match non trouvé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur serveur ou base de données",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }

@@ -162,6 +162,8 @@ func main() {
 	s.POST("/join/match/{id}", withAuthentication(s.JoinMatch))
 	s.PATCH("/score/match/{id}", withAuthentication(s.UpdateMatchScore))
 	s.DELETE("/match/{id}", withAuthentication(s.DeleteMatch))
+	s.PATCH("/match/{id}/start", withAuthentication(s.StartMatch))
+	s.PATCH("/match/{id}/finish", withAuthentication(s.FinishMatch))
 
 	//ENDPOINTS FOR USERS
 	s.GET("/users/{id}", withAuthentication(s.GetUserById))

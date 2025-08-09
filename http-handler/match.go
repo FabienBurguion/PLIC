@@ -407,10 +407,15 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to join match: "+err.Error())
 	}
 
-	match.UpdatedAt = s.clock.Now()
-	if count+1 == match.ParticipantNber/2 {
+	newCount, err := s.db.CountUsersByMatch(ctx, matchID)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to count users by match: "+err.Error())
+	}
+	if newCount == match.ParticipantNber {
 		match.CurrentState = models.Valide
 	}
+
+	match.UpdatedAt = s.clock.Now()
 	err = s.db.UpsertMatch(ctx, *match)
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to update match: "+err.Error())
@@ -490,10 +495,156 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, ai mo
 	if match == nil {
 		return httpx.WriteError(w, http.StatusNotFound, "match not found")
 	}
+
+	if match.CurrentState != models.ManqueScore {
+		return httpx.WriteError(w, http.StatusBadRequest, "match is not in the right state")
+	}
+
+	userMatch, err := s.db.GetUserInMatch(ctx, ai.UserID, id)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
+	}
+	if userMatch == nil {
+		return httpx.WriteError(w, http.StatusNotFound, "user in this match not found")
+	}
+
+	hasSameTeamOtherVote, err := s.db.HasOtherTeamVote(ctx, id, userMatch.Team, ai.UserID)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to check team vote: "+err.Error())
+	}
+	if hasSameTeamOtherVote {
+		return httpx.WriteError(w, http.StatusBadRequest, "this team already has a vote")
+	}
+
+	if err := s.db.UpsertMatchScoreVote(ctx, models.DBMatchScoreVote{
+		MatchId: id,
+		UserId:  ai.UserID,
+		Team:    userMatch.Team,
+		Score1:  req.Score1,
+		Score2:  req.Score2,
+	}); err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to upsert score vote: "+err.Error())
+	}
+
+	hasConsensus, err := s.db.HasConsensusScore(ctx, id, userMatch.Team, req.Score1, req.Score2)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to check consensus: "+err.Error())
+	}
+
 	match.Score1 = &req.Score1
 	match.Score2 = &req.Score2
 	match.UpdatedAt = s.clock.Now()
 
+	if hasConsensus {
+		match.CurrentState = models.Termine
+	}
+
+	if err := s.db.UpsertMatch(ctx, *match); err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to update match: "+err.Error())
+	}
+
+	return httpx.Write(w, http.StatusOK, nil)
+}
+
+// StartMatch godoc
+// @Summary      Démarre un match
+// @Description  Passe un match de l’état "Valide" à "En cours" et met à jour la date de début à maintenant.
+// @Tags         match
+// @Produce      json
+// @Param        id    path      string  true  "ID du match"
+// @Success      200
+// @Failure      400   {object}  models.Error  "ID manquant, mauvais état, ou utilisateur non inscrit au match"
+// @Failure      401   {object}  models.Error  "Utilisateur non autorisé"
+// @Failure      404   {object}  models.Error  "Match non trouvé"
+// @Failure      500   {object}  models.Error  "Erreur serveur ou base de données"
+// @Router       /match/{id}/start [patch]
+func (s *Service) StartMatch(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	ctx := r.Context()
+	id := chi.URLParam(r, "id")
+
+	if id == "" {
+		return httpx.WriteError(w, http.StatusBadRequest, "missing match ID")
+	}
+
+	if !ai.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
+	match, err := s.db.GetMatchById(ctx, id)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
+	}
+	if match == nil {
+		return httpx.WriteError(w, http.StatusNotFound, "match not found")
+	}
+	if match.CurrentState != models.Valide {
+		return httpx.WriteError(w, http.StatusBadRequest, "match is not in the right state")
+	}
+
+	userInMatch, err := s.db.IsUserInMatch(ctx, ai.UserID, id)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
+	}
+	if !userInMatch {
+		return httpx.WriteError(w, http.StatusBadRequest, "user is not in the match")
+	}
+
+	match.Date = s.clock.Now()
+	match.CurrentState = models.EnCours
+	match.UpdatedAt = s.clock.Now()
+	err = s.db.UpsertMatch(ctx, *match)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to update match: "+err.Error())
+	}
+
+	return httpx.Write(w, http.StatusOK, nil)
+}
+
+// FinishMatch godoc
+// @Summary      Termine un match (passage à la saisie des scores)
+// @Description  Passe un match de l’état "En cours" à "Manque Score" afin de permettre la saisie/validation des scores.
+// @Tags         match
+// @Produce      json
+// @Param        id    path      string  true  "ID du match"
+// @Success      200
+// @Failure      400   {object}  models.Error  "ID manquant, mauvais état, ou utilisateur non inscrit au match"
+// @Failure      401   {object}  models.Error  "Utilisateur non autorisé"
+// @Failure      404   {object}  models.Error  "Match non trouvé"
+// @Failure      500   {object}  models.Error  "Erreur serveur ou base de données"
+// @Router       /match/{id}/finish [patch]
+func (s *Service) FinishMatch(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	ctx := r.Context()
+	id := chi.URLParam(r, "id")
+
+	if id == "" {
+		return httpx.WriteError(w, http.StatusBadRequest, "missing match ID")
+	}
+
+	if !ai.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
+	match, err := s.db.GetMatchById(ctx, id)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
+	}
+	if match == nil {
+		return httpx.WriteError(w, http.StatusNotFound, "match not found")
+	}
+	if match.CurrentState != models.EnCours {
+		return httpx.WriteError(w, http.StatusBadRequest, "match is not in the right state")
+	}
+
+	userInMatch, err := s.db.IsUserInMatch(ctx, ai.UserID, id)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
+	}
+	if !userInMatch {
+		return httpx.WriteError(w, http.StatusBadRequest, "user is not in the match")
+	}
+
+	match.CurrentState = models.ManqueScore
+	match.UpdatedAt = s.clock.Now()
 	err = s.db.UpsertMatch(ctx, *match)
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to update match: "+err.Error())

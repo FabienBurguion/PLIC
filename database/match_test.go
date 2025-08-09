@@ -747,3 +747,108 @@ func TestDatabase_CountUsersByMatchAndTeam(t *testing.T) {
 		})
 	}
 }
+
+func TestDatabase_GetUserInMatch(t *testing.T) {
+	type expected struct {
+		found bool
+		team  int
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		userID   string
+		matchID  string
+		expected expected
+	}
+
+	user1 := models.NewDBUsersFixture().WithUsername("user1").WithEmail("email1")
+	user2 := models.NewDBUsersFixture().WithUsername("user2").WithEmail("email2")
+	court := models.NewDBCourtFixture()
+	match1 := models.NewDBMatchesFixture().WithCourtId(court.Id)
+	match2 := models.NewDBMatchesFixture().WithCourtId(court.Id)
+
+	testCases := []testCase{
+		{
+			name: "User is in the match",
+			fixtures: DBFixtures{
+				Users:   []models.DBUsers{user1, user2},
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match1, match2},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().
+						WithUserId(user1.Id).
+						WithMatchId(match1.Id).
+						WithTeam(1),
+				},
+			},
+			userID:  user1.Id,
+			matchID: match1.Id,
+			expected: expected{
+				found: true,
+				team:  1,
+			},
+		},
+		{
+			name: "User not in the match (different user)",
+			fixtures: DBFixtures{
+				Users:   []models.DBUsers{user1, user2},
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match1},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().
+						WithUserId(user1.Id).
+						WithMatchId(match1.Id).
+						WithTeam(2),
+				},
+			},
+			userID:  user2.Id,
+			matchID: match1.Id,
+			expected: expected{
+				found: false,
+			},
+		},
+		{
+			name: "Unknown match id",
+			fixtures: DBFixtures{
+				Users:   []models.DBUsers{user1},
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match1},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().
+						WithUserId(user1.Id).
+						WithMatchId(match1.Id).
+						WithTeam(1),
+				},
+			},
+			userID:  user1.Id,
+			matchID: uuid.NewString(),
+			expected: expected{
+				found: false,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+			s.loadFixtures(tc.fixtures)
+
+			ctx := context.Background()
+			got, err := s.db.GetUserInMatch(ctx, tc.userID, tc.matchID)
+			require.NoError(t, err)
+
+			if !tc.expected.found {
+				require.Nil(t, got)
+				return
+			}
+
+			require.NotNil(t, got)
+			require.Equal(t, tc.userID, got.UserID)
+			require.Equal(t, tc.matchID, got.MatchID)
+			require.Equal(t, tc.expected.team, got.Team)
+		})
+	}
+}
