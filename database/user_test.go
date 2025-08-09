@@ -47,7 +47,12 @@ func TestDatabase_CheckUserExist(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			res, err := s.db.CheckUserExist(ctx, userId)
@@ -76,7 +81,12 @@ func TestDatabase_CreateUser(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 
 			ctx := context.Background()
 
@@ -125,7 +135,12 @@ func TestDatabase_GetUserByUsername(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()
@@ -173,7 +188,12 @@ func TestDatabase_GetUserByEmail(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()
@@ -218,7 +238,12 @@ func TestDatabase_ChangePassword(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()
@@ -351,7 +376,12 @@ func TestDatabase_UpdateUser(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()
@@ -420,7 +450,12 @@ func TestDatabase_DeleteUser(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()
@@ -510,7 +545,12 @@ func TestDatabase_GetFavoriteFieldByUserID(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(tc.fixtures)
 
 			ctx := context.Background()
@@ -609,7 +649,12 @@ func TestDatabase_GetFavoriteSportByUserID(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(tc.fixtures)
 
 			ctx := context.Background()
@@ -714,7 +759,12 @@ func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(tc.fixtures)
 
 			ctx := context.Background()

@@ -35,7 +35,12 @@ func TestDatabase_CreateMatch(t *testing.T) {
 			t.Parallel()
 
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			ctx := context.Background()
 			err := s.db.InsertCourtForTest(ctx, court)
 			require.NoError(t, err)
@@ -90,7 +95,12 @@ func TestDatabase_GetMatchById(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			match, err := s.db.GetMatchById(ctx, c.param)
@@ -147,7 +157,12 @@ func TestDatabase_GetAllMatches(t *testing.T) {
 
 			ctx := context.Background()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			matches, err := s.db.GetAllMatches(ctx)
@@ -240,7 +255,12 @@ func TestDatabase_GetMatchesByUserID(t *testing.T) {
 
 			ctx := context.Background()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			matches, err := s.db.GetMatchesByUserID(ctx, c.param)
@@ -371,7 +391,12 @@ func TestDatabase_GetMatchCountByUserID(t *testing.T) {
 
 			ctx := context.Background()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			count, err := s.db.GetMatchCountByUserID(ctx, c.param)
@@ -465,7 +490,12 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()
@@ -551,7 +581,12 @@ func TestDatabase_UpsertMatch(t *testing.T) {
 			t.Parallel()
 
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()
@@ -693,7 +728,12 @@ func TestDatabase_CountUsersByMatchAndTeam(t *testing.T) {
 
 			ctx := context.Background()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			count, err := s.db.CountUsersByMatchAndTeam(ctx, c.param.matchID, c.param.team)

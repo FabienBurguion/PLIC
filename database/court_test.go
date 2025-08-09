@@ -31,7 +31,12 @@ func TestDatabase_InsertTerrain(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			ctx := context.Background()
 
 			err := s.db.InsertCourt(ctx, id, models.Place{
@@ -85,7 +90,12 @@ func TestDatabase_GetAllCourts(t *testing.T) {
 			t.Parallel()
 
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			ctx := context.Background()
 
 			err := s.db.InsertCourt(ctx, c.expected.Id, models.Place{
@@ -207,7 +217,12 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 			t.Parallel()
 
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()

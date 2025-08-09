@@ -150,7 +150,12 @@ func TestDatabase_GetRankedFieldsByUserID(t *testing.T) {
 			t.Parallel()
 
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()
@@ -226,7 +231,12 @@ func TestDatabase_InsertRanking(t *testing.T) {
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
 			s := &Service{}
-			s.InitServiceTest()
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
 			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()
@@ -243,6 +253,99 @@ func TestDatabase_InsertRanking(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, ranking)
 			require.Equal(t, c.expected, ranking.Elo)
+		})
+	}
+}
+
+func TestDatabase_GetRankingByUserAndCourt(t *testing.T) {
+	type expected struct {
+		isError bool
+		elo     int
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		userID   string
+		courtID  string
+		expected expected
+	}
+
+	user := models.NewDBUsersFixture()
+	court := models.NewDBCourtFixture()
+
+	ranking := models.NewDBRankingFixture().
+		WithUserId(user.Id).
+		WithCourtId(court.Id).
+		WithElo(1500)
+
+	testCases := []testCase{
+		{
+			name: "Ranking exists",
+			fixtures: DBFixtures{
+				Users:    []models.DBUsers{user},
+				Courts:   []models.DBCourt{court},
+				Rankings: []models.DBRanking{ranking},
+			},
+			userID:  user.Id,
+			courtID: court.Id,
+			expected: expected{
+				isError: false,
+				elo:     1500,
+			},
+		},
+		{
+			name: "Ranking not found",
+			fixtures: DBFixtures{
+				Users:  []models.DBUsers{user},
+				Courts: []models.DBCourt{court},
+			},
+			userID:  user.Id,
+			courtID: court.Id,
+			expected: expected{
+				isError: true,
+			},
+		},
+		{
+			name: "Wrong court id",
+			fixtures: DBFixtures{
+				Users:    []models.DBUsers{user},
+				Courts:   []models.DBCourt{court},
+				Rankings: []models.DBRanking{ranking},
+			},
+			userID:  user.Id,
+			courtID: uuid.NewString(),
+			expected: expected{
+				isError: true,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
+			s.loadFixtures(tc.fixtures)
+
+			ctx := context.Background()
+			got, err := s.db.GetRankingByUserAndCourt(ctx, tc.userID, tc.courtID)
+
+			if tc.expected.isError {
+				require.Error(t, err)
+				require.Nil(t, got)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Equal(t, tc.userID, got.UserID)
+			require.Equal(t, tc.courtID, got.CourtID)
+			require.Equal(t, tc.expected.elo, got.Elo)
 		})
 	}
 }

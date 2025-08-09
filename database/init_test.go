@@ -81,7 +81,7 @@ func findLatestMigrationFile(dir string) (string, error) {
 	return filepath.Join(dir, latest), nil
 }
 
-func (s *Service) InitServiceTest() {
+func (s *Service) InitServiceTest() func() error {
 	file, err := findLatestMigrationFile("../database/sql")
 	if err != nil {
 		panic(err)
@@ -94,10 +94,7 @@ func (s *Service) InitServiceTest() {
 		Database: db,
 	}
 
-	go func() {
-		<-time.After(10 * time.Second)
-		_ = cleanup()
-	}()
+	return cleanup
 }
 
 func InitDBTest(sqlFile string) (*sqlx.DB, func() error, error) {
