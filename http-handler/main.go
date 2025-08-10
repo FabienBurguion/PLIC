@@ -40,7 +40,7 @@ type Service struct {
 	configuration *models.Configuration
 }
 
-func LoadConfig() (*models.Configuration, error) {
+func loadConfig() (*models.Configuration, error) {
 	var cfg models.Configuration
 	if err := env.Parse(&cfg); err != nil {
 		return nil, err
@@ -48,9 +48,9 @@ func LoadConfig() (*models.Configuration, error) {
 	return &cfg, nil
 }
 
-func (s *Service) InitService() {
+func (s *Service) initService() {
 	_ = godotenv.Load()
-	appConfig, err := LoadConfig()
+	appConfig, err := loadConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -131,7 +131,7 @@ func (s *Service) Start() {
 
 func main() {
 	s := &Service{}
-	s.InitService()
+	s.initService()
 
 	//LOGIN
 	s.POST("/register", s.Register)
