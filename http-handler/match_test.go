@@ -406,7 +406,9 @@ func Test_GetAllMatches(t *testing.T) {
 
 func Test_CreateMatch(t *testing.T) {
 	type expected struct {
-		statusCode int
+		statusCode   int
+		checkRanking bool
+		wantElo      *int
 	}
 
 	type testCase struct {
@@ -417,15 +419,19 @@ func Test_CreateMatch(t *testing.T) {
 		param       models.MatchRequest
 		expected    expected
 	}
+
 	user := models.NewDBUsersFixture()
 	court := models.NewDBCourtFixture().
 		WithName("Test Court").
 		WithLatitude(48.8566).
 		WithLongitude(2.3522)
 
+	defaultElo := 1000
+	existingElo := 1350
+
 	testCases := []testCase{
 		{
-			name: "Successful match creation",
+			name: "Successful match creation (creates default ranking if missing)",
 			auth: models.AuthInfo{IsConnected: true, UserID: user.Id},
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{user},
@@ -434,7 +440,9 @@ func Test_CreateMatch(t *testing.T) {
 			param: models.NewMatchRequestFixture().
 				WithCourtId(court.Id),
 			expected: expected{
-				statusCode: http.StatusCreated,
+				statusCode:   http.StatusCreated,
+				checkRanking: true,
+				wantElo:      &defaultElo,
 			},
 		},
 		{
@@ -461,6 +469,31 @@ func Test_CreateMatch(t *testing.T) {
 				WithCourtId(court.Id),
 			expected: expected{
 				statusCode: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "Successful match creation (keeps existing ranking as-is)",
+			auth: models.AuthInfo{IsConnected: true, UserID: user.Id},
+			fixtures: DBFixtures{
+				Users:  []models.DBUsers{user},
+				Courts: []models.DBCourt{court},
+				Rankings: []models.DBRanking{
+					{
+						UserID:    user.Id,
+						CourtID:   court.Id,
+						Elo:       existingElo,
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+					},
+				},
+			},
+			insertCourt: false,
+			param: models.NewMatchRequestFixture().
+				WithCourtId(court.Id),
+			expected: expected{
+				statusCode:   http.StatusCreated,
+				checkRanking: true,
+				wantElo:      &existingElo,
 			},
 		},
 	}
@@ -495,6 +528,16 @@ func Test_CreateMatch(t *testing.T) {
 				_ = Body.Close()
 			}(resp.Body)
 			require.Equal(t, c.expected.statusCode, resp.StatusCode)
+
+			if c.expected.checkRanking && c.expected.statusCode == http.StatusCreated {
+				ctx := context.Background()
+				rk, err := s.db.GetRankingByUserAndCourt(ctx, user.Id, c.param.CourtID)
+				require.NoError(t, err)
+				require.NotNil(t, rk, "ranking should exist after CreateMatch")
+				if c.expected.wantElo != nil {
+					require.Equal(t, *c.expected.wantElo, rk.Elo)
+				}
+			}
 		})
 	}
 }
@@ -525,8 +568,8 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 	matchTeamTwice := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCurrentState(models.ManqueScore)
 
 	userA := models.NewDBUsersFixture()
-	userB := models.NewDBUsersFixture().WithUsername("userB").WithEmail("emailB")
-	userC := models.NewDBUsersFixture().WithUsername("userC").WithEmail("emailC")
+	userB := models.NewDBUsersFixture().WithUsername("userB").WithEmail("emailB@example.com")
+	userC := models.NewDBUsersFixture().WithUsername("userC").WithEmail("emailC@example.com")
 
 	fixtures := DBFixtures{
 		Courts:  []models.DBCourt{court},
@@ -546,7 +589,7 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:     "Consensus: two teams same score -> match becomes Termine",
+			name:     "Consensus: two teams same score -> match becomes Termine and ELO updates",
 			fixtures: fixtures,
 			steps: []struct {
 				auth  models.AuthInfo
@@ -569,7 +612,7 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 			},
 		},
 		{
-			name:     "No consensus: second team different score -> state unchanged, score is last proposed",
+			name:     "No consensus: second team different score -> state unchanged, score is last proposed, no ELO update",
 			fixtures: fixtures,
 			steps: []struct {
 				auth  models.AuthInfo
@@ -592,7 +635,7 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 			},
 		},
 		{
-			name:     "Same team second vote blocked",
+			name:     "Same team second vote blocked -> error and no ELO update",
 			fixtures: fixtures,
 			steps: []struct {
 				auth  models.AuthInfo
@@ -616,6 +659,9 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 		},
 	}
 
+	const expectedDefaultElo = 1000
+	const expectedDelta = 16
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			s := &Service{}
@@ -624,7 +670,7 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 
 			s.loadFixtures(tc.fixtures)
 
-			for _, step := range tc.steps {
+			for stepIdx, step := range tc.steps {
 				body, err := json.Marshal(step.req)
 				require.NoError(t, err)
 
@@ -648,7 +694,6 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 				m, dbErr := s.db.GetMatchById(context.Background(), step.param)
 				require.NoError(t, dbErr)
 				require.NotNil(t, m)
-
 				require.Equal(t, step.exp.state, m.CurrentState)
 				require.NotNil(t, m.Score1)
 				require.NotNil(t, m.Score2)
@@ -658,6 +703,49 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 				if step.exp.errorContains != "" {
 					b, _ := io.ReadAll(resp.Body)
 					require.Contains(t, string(b), step.exp.errorContains)
+				}
+
+				ctx := context.Background()
+
+				switch step.param {
+				case matchConsensus.Id:
+					if stepIdx == 0 {
+						rA, err := s.db.GetRankingByUserAndCourt(ctx, userA.Id, court.Id)
+						require.NoError(t, err)
+						require.Nil(t, rA)
+
+						rB, err := s.db.GetRankingByUserAndCourt(ctx, userB.Id, court.Id)
+						require.NoError(t, err)
+						require.Nil(t, rB)
+					} else {
+						rA, err := s.db.GetRankingByUserAndCourt(ctx, userA.Id, court.Id)
+						require.NoError(t, err)
+						require.NotNil(t, rA)
+						require.Equal(t, expectedDefaultElo+expectedDelta, rA.Elo)
+
+						rB, err := s.db.GetRankingByUserAndCourt(ctx, userB.Id, court.Id)
+						require.NoError(t, err)
+						require.NotNil(t, rB)
+						require.Equal(t, expectedDefaultElo-expectedDelta, rB.Elo)
+					}
+
+				case matchNoConsensus.Id:
+					rA, err := s.db.GetRankingByUserAndCourt(ctx, userA.Id, court.Id)
+					require.NoError(t, err)
+					require.Nil(t, rA)
+
+					rB, err := s.db.GetRankingByUserAndCourt(ctx, userB.Id, court.Id)
+					require.NoError(t, err)
+					require.Nil(t, rB)
+
+				case matchTeamTwice.Id:
+					rA, err := s.db.GetRankingByUserAndCourt(ctx, userA.Id, court.Id)
+					require.NoError(t, err)
+					require.Nil(t, rA)
+
+					rC, err := s.db.GetRankingByUserAndCourt(ctx, userC.Id, court.Id)
+					require.NoError(t, err)
+					require.Nil(t, rC)
 				}
 			}
 		})
@@ -671,6 +759,9 @@ func Test_JoinMatch(t *testing.T) {
 		errorMsg    string
 		checkJoined bool
 		wantState   *models.MatchState
+
+		checkRanking bool
+		wantElo      *int
 	}
 
 	type testCase struct {
@@ -702,9 +793,12 @@ func Test_JoinMatch(t *testing.T) {
 		WithParticipantNber(4).
 		WithCurrentState(models.ManqueJoueur)
 
+	defaultElo := 1000
+	existingElo := 1337
+
 	testCases := []testCase{
 		{
-			name: "User successfully joins match (no one else) -> still Manque joueur",
+			name: "User successfully joins match (no one else) -> still Manque joueur + creates default ranking",
 			fixtures: DBFixtures{
 				Courts:  []models.DBCourt{court},
 				Matches: []models.DBMatches{match},
@@ -713,10 +807,12 @@ func Test_JoinMatch(t *testing.T) {
 			param: match.Id,
 			auth:  models.AuthInfo{IsConnected: true, UserID: user.Id},
 			expected: expected{
-				bodyJSON:    `{"team": 1}`,
-				code:        http.StatusOK,
-				checkJoined: true,
-				wantState:   ptr(models.ManqueJoueur),
+				bodyJSON:     `{"team": 1}`,
+				code:         http.StatusOK,
+				checkJoined:  true,
+				wantState:    ptr(models.ManqueJoueur),
+				checkRanking: true,
+				wantElo:      &defaultElo,
 			},
 		},
 		{
@@ -781,7 +877,7 @@ func Test_JoinMatch(t *testing.T) {
 			},
 		},
 		{
-			name: "User joins and fills the match -> match becomes Valide (ParticipantNber=4)",
+			name: "User joins and fills the match -> match becomes Valide (ParticipantNber=4) + creates default ranking",
 			fixtures: DBFixtures{
 				Courts:  []models.DBCourt{court},
 				Matches: []models.DBMatches{match4},
@@ -804,10 +900,39 @@ func Test_JoinMatch(t *testing.T) {
 			param: match4.Id,
 			auth:  models.AuthInfo{IsConnected: true, UserID: user.Id},
 			expected: expected{
-				bodyJSON:    `{"team": 2}`,
-				code:        http.StatusOK,
-				checkJoined: true,
-				wantState:   ptr(models.Valide),
+				bodyJSON:     `{"team": 2}`,
+				code:         http.StatusOK,
+				checkJoined:  true,
+				wantState:    ptr(models.Valide),
+				checkRanking: true,
+				wantElo:      &defaultElo,
+			},
+		},
+		{
+			name: "Ranking already exists -> not overwritten",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match},
+				Users:   []models.DBUsers{user},
+				Rankings: []models.DBRanking{
+					{
+						UserID:    user.Id,
+						CourtID:   court.Id,
+						Elo:       existingElo,
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+					},
+				},
+			},
+			param: match.Id,
+			auth:  models.AuthInfo{IsConnected: true, UserID: user.Id},
+			expected: expected{
+				bodyJSON:     `{"team": 1}`,
+				code:         http.StatusOK,
+				checkJoined:  true,
+				wantState:    ptr(models.ManqueJoueur),
+				checkRanking: true,
+				wantElo:      &existingElo,
 			},
 		},
 	}
@@ -848,12 +973,10 @@ func Test_JoinMatch(t *testing.T) {
 				require.Contains(t, string(body), c.expected.errorMsg)
 			}
 
-			if c.expected.checkJoined || c.expected.wantState != nil {
+			if c.expected.checkJoined || c.expected.wantState != nil || c.expected.checkRanking {
 				ctx := context.Background()
-				var mid string
-				if c.param != "" {
-					mid = c.param
-				} else {
+				mid := c.param
+				if mid == "" {
 					mid = match.Id
 				}
 
@@ -868,6 +991,14 @@ func Test_JoinMatch(t *testing.T) {
 				}
 				if c.expected.wantState != nil {
 					require.Equal(t, *c.expected.wantState, updatedMatch.CurrentState)
+				}
+				if c.expected.checkRanking {
+					rk, err := s.db.GetRankingByUserAndCourt(ctx, c.auth.UserID, updatedMatch.CourtID)
+					require.NoError(t, err)
+					require.NotNil(t, rk)
+					if c.expected.wantElo != nil {
+						require.Equal(t, *c.expected.wantElo, rk.Elo)
+					}
 				}
 			}
 		})
@@ -1155,6 +1286,7 @@ func Test_EndToEnd_MatchLifecycle_WithConsensus(t *testing.T) {
 		WithUsername("u_four").
 		WithEmail("u4@example.com")
 
+	// IMPORTANT: pas de ranking dans les fixtures
 	s.loadFixtures(DBFixtures{
 		Courts: []models.DBCourt{court},
 		Users:  []models.DBUsers{creator, u2, u3, u4},
@@ -1188,9 +1320,7 @@ func Test_EndToEnd_MatchLifecycle_WithConsensus(t *testing.T) {
 	matchID := createRes.Id
 	require.NotEmpty(t, matchID, "match id should be returned")
 
-	// Le créateur a déjà rejoint la team 1 (cf. CreateMatch)
 	// === 2) 3 joueurs rejoignent ===
-	// On remplit team1 (u2) puis team2 (u3, u4)
 	join := func(user models.DBUsers, team int, expectedCode int) {
 		joinReq := models.JoinMatchRequest{Team: team}
 		b, _ := json.Marshal(joinReq)
@@ -1212,20 +1342,18 @@ func Test_EndToEnd_MatchLifecycle_WithConsensus(t *testing.T) {
 		require.Equal(t, expectedCode, resp.StatusCode)
 	}
 
-	// u2 -> team1 (complète team1)
-	join(u2, 1, http.StatusOK)
-	// u3 -> team2
+	// Le créateur est déjà team1 (dans CreateMatch)
+	join(u2, 1, http.StatusOK) // complète team1
 	join(u3, 2, http.StatusOK)
-	// u4 -> team2 (complète team2)
-	join(u4, 2, http.StatusOK)
+	join(u4, 2, http.StatusOK) // complète team2
 
-	// A ce stade le match doit être au moins "Valide"
+	// Le match doit être "Valide"
 	m, err := s.db.GetMatchById(context.Background(), matchID)
 	require.NoError(t, err)
 	require.NotNil(t, m)
 	require.Equal(t, models.Valide, m.CurrentState)
 
-	// === 3) Start match par un joueur inscrit (creator) ===
+	// === 3) Start match par creator ===
 	{
 		url := "/match/" + matchID + "/start"
 		r := httptest.NewRequest("PATCH", url, nil)
@@ -1250,7 +1378,7 @@ func Test_EndToEnd_MatchLifecycle_WithConsensus(t *testing.T) {
 		require.Equal(t, models.EnCours, m.CurrentState)
 	}
 
-	// === 4) Finish match par un joueur inscrit (u2) ===
+	// === 4) Finish match par u2 ===
 	{
 		url := "/match/" + matchID + "/finish"
 		r := httptest.NewRequest("PATCH", url, nil)
@@ -1276,16 +1404,6 @@ func Test_EndToEnd_MatchLifecycle_WithConsensus(t *testing.T) {
 	}
 
 	// === 5) Votes de score ===
-	// Règles actuelles :
-	// - un seul vote par équipe (pas deux joueurs différents de la même team)
-	// - consensus : score identique proposé par les deux équipes -> state = Termine
-	//
-	// On va d'abord faire un désaccord :
-	//   - team1 (creator) propose 5-3
-	//   - team2 (u3) propose 2-2  => pas consensus, state reste ManqueScore, score = 2-2
-	// Puis on fait consensus :
-	//   - team2 (u3) met à jour à 5-3 => consensus atteint, state = Termine, score = 5-3
-
 	updateScore := func(user models.DBUsers, s1, s2 int, expectedCode int) {
 		body, _ := json.Marshal(models.UpdateScoreRequest{Score1: s1, Score2: s2})
 		url := "/match/" + matchID + "/score"
@@ -1307,19 +1425,19 @@ func Test_EndToEnd_MatchLifecycle_WithConsensus(t *testing.T) {
 		require.Equal(t, expectedCode, resp.StatusCode)
 	}
 
-	// Désaccord
-	updateScore(creator, 5, 3, http.StatusOK) // team1 vote 5-3
-	updateScore(u3, 2, 2, http.StatusOK)      // team2 vote 2-2 (différent) -> pas consensus
+	// Désaccord (state reste ManqueScore, score dernier proposé)
+	updateScore(creator, 5, 3, http.StatusOK) // team1 = creator/u2 propose 5-3
+	updateScore(u3, 2, 2, http.StatusOK)      // team2 propose 2-2
 
 	m, err = s.db.GetMatchById(context.Background(), matchID)
 	require.NoError(t, err)
 	require.Equal(t, models.ManqueScore, m.CurrentState)
 	require.NotNil(t, m.Score1)
 	require.NotNil(t, m.Score2)
-	require.Equal(t, 2, *m.Score1) // dernier proposé = 2
+	require.Equal(t, 2, *m.Score1)
 	require.Equal(t, 2, *m.Score2)
 
-	// Consensus : team2 (même user u3) met à jour pour matcher 5-3
+	// Consensus (team2 met à jour 5-3) -> state = Termine
 	updateScore(u3, 5, 3, http.StatusOK)
 
 	m, err = s.db.GetMatchById(context.Background(), matchID)
@@ -1330,8 +1448,31 @@ func Test_EndToEnd_MatchLifecycle_WithConsensus(t *testing.T) {
 	require.Equal(t, 5, *m.Score1)
 	require.Equal(t, 3, *m.Score2)
 
-	// Petit check bonus : empêcher deuxième vote d’un autre joueur de la même team
-	// u2 est dans team1 comme creator : il ne doit pas pouvoir voter si creator a déjà voté
+	// === Vérification des rankings créés et MAJ ===
+	// Supposons DefaultElo=1000 et K=32 => delta par joueur = 16 (1v1 sur moyennes égales)
+	const base = 1000
+	const delta = 16
+
+	ctx := context.Background()
+	get := func(u models.DBUsers) *models.DBRanking {
+		rk, err := s.db.GetRankingByUserAndCourt(ctx, u.Id, court.Id)
+		require.NoError(t, err)
+		require.NotNil(t, rk, "ranking should exist for user %s", u.Username)
+		return rk
+	}
+
+	rCreator := get(creator)
+	rU2 := get(u2)
+	rU3 := get(u3)
+	rU4 := get(u4)
+
+	// Team1 a gagné (score1 > score2)
+	require.Equal(t, base+delta, rCreator.Elo)
+	require.Equal(t, base+delta, rU2.Elo)
+	require.Equal(t, base-delta, rU3.Elo)
+	require.Equal(t, base-delta, rU4.Elo)
+
+	// Bonus: empêcher un second vote team1 (si tenté après consensus, on tombe de toute façon sur "wrong state")
 	{
 		body, _ := json.Marshal(models.UpdateScoreRequest{Score1: 9, Score2: 9})
 		url := "/match/" + matchID + "/score"
@@ -1343,7 +1484,7 @@ func Test_EndToEnd_MatchLifecycle_WithConsensus(t *testing.T) {
 
 		err := s.UpdateMatchScore(w, r, models.AuthInfo{
 			IsConnected: true,
-			UserID:      u2.Id, // même team que creator
+			UserID:      u2.Id,
 		})
 		require.NoError(t, err)
 
@@ -1351,9 +1492,6 @@ func Test_EndToEnd_MatchLifecycle_WithConsensus(t *testing.T) {
 		defer func(Body io.ReadCloser) {
 			_ = Body.Close()
 		}(resp.Body)
-		// selon ton handler, une fois le match "Termine", UpdateMatchScore renverra "match is not in the right state"
-		// mais si tu fais ce check avant le consensus final, le code serait 400 "this team already has a vote".
-		// Ici on tolère que le test se déroule après consensus, donc:
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	}
 }

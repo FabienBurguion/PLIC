@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -319,6 +321,22 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to create match: "+err.Error())
 	}
 
+	existing, err := s.db.GetRankingByUserAndCourt(ctx, auth.UserID, match.CourtID)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to check ranking: "+err.Error())
+	}
+	if existing == nil {
+		if err := s.db.InsertRanking(ctx, models.DBRanking{
+			UserID:    auth.UserID,
+			CourtID:   match.CourtID,
+			Elo:       DefaultElo,
+			CreatedAt: s.clock.Now(),
+			UpdatedAt: s.clock.Now(),
+		}); err != nil {
+			return httpx.WriteError(w, http.StatusInternalServerError, "failed to create default ranking: "+err.Error())
+		}
+	}
+
 	if err := s.db.CreateUserMatch(ctx, models.DBUserMatch{
 		UserID:    auth.UserID,
 		MatchID:   matchDb.Id,
@@ -398,6 +416,22 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.
 		return httpx.WriteError(w, http.StatusBadRequest, "this team is full")
 	}
 
+	existing, err := s.db.GetRankingByUserAndCourt(ctx, auth.UserID, match.CourtID)
+	if err != nil {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to check ranking: "+err.Error())
+	}
+	if existing == nil {
+		if err := s.db.InsertRanking(ctx, models.DBRanking{
+			UserID:    auth.UserID,
+			CourtID:   match.CourtID,
+			Elo:       DefaultElo,
+			CreatedAt: s.clock.Now(),
+			UpdatedAt: s.clock.Now(),
+		}); err != nil {
+			return httpx.WriteError(w, http.StatusInternalServerError, "failed to create default ranking: "+err.Error())
+		}
+	}
+
 	if err := s.db.CreateUserMatch(ctx, models.DBUserMatch{
 		UserID:    auth.UserID,
 		MatchID:   matchID,
@@ -451,6 +485,124 @@ func (s *Service) DeleteMatch(w http.ResponseWriter, r *http.Request, auth model
 	}
 
 	return httpx.Write(w, http.StatusOK, nil)
+}
+
+func (s *Service) getOrCreateRanking(ctx context.Context, userID, courtID string, now time.Time) (models.DBRanking, error) {
+	rk, err := s.db.GetRankingByUserAndCourt(ctx, userID, courtID)
+	if err != nil {
+		return models.DBRanking{}, err
+	}
+	if rk != nil {
+		return *rk, nil
+	}
+	newRk := models.DBRanking{
+		UserID:    userID,
+		CourtID:   courtID,
+		Elo:       DefaultElo,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := s.db.InsertRanking(ctx, newRk); err != nil {
+		return models.DBRanking{}, err
+	}
+	return newRk, nil
+}
+
+func (s *Service) applyEloForMatch(ctx context.Context, match models.DBMatches, score1, score2 int) error {
+	userMatches, err := s.db.GetUserMatchesByMatchID(ctx, match.Id)
+	if err != nil {
+		return err
+	}
+	if len(userMatches) == 0 {
+		return nil
+	}
+
+	team1Users := make([]string, 0)
+	team2Users := make([]string, 0)
+	for _, um := range userMatches {
+		if um.Team == 1 {
+			team1Users = append(team1Users, um.UserID)
+		} else if um.Team == 2 {
+			team2Users = append(team2Users, um.UserID)
+		}
+	}
+	if len(team1Users) == 0 || len(team2Users) == 0 {
+		return nil
+	}
+
+	now := s.clock.Now()
+
+	getRanks := func(userIDs []string) ([]models.DBRanking, error) {
+		out := make([]models.DBRanking, 0, len(userIDs))
+		for _, uid := range userIDs {
+			rk, err := s.getOrCreateRanking(ctx, uid, match.CourtID, now)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, rk)
+		}
+		return out, nil
+	}
+
+	r1, err := getRanks(team1Users)
+	if err != nil {
+		return err
+	}
+	r2, err := getRanks(team2Users)
+	if err != nil {
+		return err
+	}
+
+	avg := func(rs []models.DBRanking) float64 {
+		if len(rs) == 0 {
+			return float64(DefaultElo)
+		}
+		sum := 0
+		for _, r := range rs {
+			sum += r.Elo
+		}
+		return float64(sum) / float64(len(rs))
+	}
+
+	rTeam1 := avg(r1)
+	rTeam2 := avg(r2)
+
+	var s1, s2 float64
+	switch {
+	case score1 > score2:
+		s1, s2 = 1.0, 0.0
+	case score1 < score2:
+		s1, s2 = 0.0, 1.0
+	default:
+		s1, s2 = 0.5, 0.5
+	}
+
+	exp := func(rA, rB float64) float64 {
+		return 1.0 / (1.0 + math.Pow(10, (rB-rA)/400.0))
+	}
+	e1 := exp(rTeam1, rTeam2)
+	e2 := exp(rTeam2, rTeam1)
+
+	applyDelta := func(rs []models.DBRanking, S, E float64) []models.DBRanking {
+		out := make([]models.DBRanking, len(rs))
+		for i, rk := range rs {
+			delta := int(math.Round(float64(KFactor) * (S - E)))
+			rk.Elo = rk.Elo + delta
+			rk.UpdatedAt = now
+			out[i] = rk
+		}
+		return out
+	}
+
+	r1New := applyDelta(r1, s1, e1)
+	r2New := applyDelta(r2, s2, e2)
+
+	for _, rk := range append(r1New, r2New...) {
+		if err := s.db.InsertRanking(ctx, rk); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateMatchScore godoc
@@ -537,6 +689,10 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, ai mo
 
 	if hasConsensus {
 		match.CurrentState = models.Termine
+
+		if err := s.applyEloForMatch(ctx, *match, req.Score1, req.Score2); err != nil {
+			return httpx.WriteError(w, http.StatusInternalServerError, "failed to update rankings: "+err.Error())
+		}
 	}
 
 	if err := s.db.UpsertMatch(ctx, *match); err != nil {

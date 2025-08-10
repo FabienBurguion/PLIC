@@ -259,8 +259,8 @@ func TestDatabase_InsertRanking(t *testing.T) {
 
 func TestDatabase_GetRankingByUserAndCourt(t *testing.T) {
 	type expected struct {
-		isError bool
-		elo     int
+		found bool
+		elo   int
 	}
 
 	type testCase struct {
@@ -290,8 +290,8 @@ func TestDatabase_GetRankingByUserAndCourt(t *testing.T) {
 			userID:  user.Id,
 			courtID: court.Id,
 			expected: expected{
-				isError: false,
-				elo:     1500,
+				found: true,
+				elo:   1500,
 			},
 		},
 		{
@@ -303,7 +303,7 @@ func TestDatabase_GetRankingByUserAndCourt(t *testing.T) {
 			userID:  user.Id,
 			courtID: court.Id,
 			expected: expected{
-				isError: true,
+				found: false,
 			},
 		},
 		{
@@ -316,7 +316,7 @@ func TestDatabase_GetRankingByUserAndCourt(t *testing.T) {
 			userID:  user.Id,
 			courtID: uuid.NewString(),
 			expected: expected{
-				isError: true,
+				found: false,
 			},
 		},
 	}
@@ -335,13 +335,13 @@ func TestDatabase_GetRankingByUserAndCourt(t *testing.T) {
 			ctx := context.Background()
 			got, err := s.db.GetRankingByUserAndCourt(ctx, c.userID, c.courtID)
 
-			if c.expected.isError {
-				require.Error(t, err)
+			require.NoError(t, err)
+
+			if !c.expected.found {
 				require.Nil(t, got)
 				return
 			}
 
-			require.NoError(t, err)
 			require.NotNil(t, got)
 			require.Equal(t, c.userID, got.UserID)
 			require.Equal(t, c.courtID, got.CourtID)

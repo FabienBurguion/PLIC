@@ -27,6 +27,10 @@ import (
 
 const Port string = "8080"
 
+const DefaultElo = 1000
+
+const KFactor = 32
+
 type Service struct {
 	db            database.Database
 	server        *chi.Mux

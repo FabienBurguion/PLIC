@@ -4,6 +4,7 @@ import (
 	"PLIC/models"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -849,6 +850,218 @@ func TestDatabase_GetUserInMatch(t *testing.T) {
 			require.Equal(t, tc.userID, got.UserID)
 			require.Equal(t, tc.matchID, got.MatchID)
 			require.Equal(t, tc.expected.team, got.Team)
+		})
+	}
+}
+
+func TestDatabase_GetUserMatchesByMatchID(t *testing.T) {
+	type expected struct {
+		wantLen int
+		userIDs []string
+		teams   []int
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		matchID  string
+		expected expected
+	}
+
+	court := models.NewDBCourtFixture()
+
+	match1 := models.NewDBMatchesFixture().
+		WithCourtId(court.Id)
+	match2 := models.NewDBMatchesFixture().
+		WithCourtId(court.Id)
+
+	u1 := models.NewDBUsersFixture().WithUsername("u1").WithEmail("u1@example.com")
+	u2 := models.NewDBUsersFixture().WithUsername("u2").WithEmail("u2@example.com")
+	u3 := models.NewDBUsersFixture().WithUsername("u3").WithEmail("u3@example.com")
+
+	testCases := []testCase{
+		{
+			name: "User matches found for match1",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match1, match2},
+				Users:   []models.DBUsers{u1, u2, u3},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(u1.Id).WithMatchId(match1.Id).WithTeam(1),
+					models.NewDBUserMatchFixture().WithUserId(u2.Id).WithMatchId(match1.Id).WithTeam(1),
+					models.NewDBUserMatchFixture().WithUserId(u3.Id).WithMatchId(match1.Id).WithTeam(2),
+					models.NewDBUserMatchFixture().WithUserId(u1.Id).WithMatchId(match2.Id).WithTeam(2),
+				},
+			},
+			matchID: match1.Id,
+			expected: expected{
+				wantLen: 3,
+				userIDs: []string{u1.Id, u2.Id, u3.Id},
+				teams:   []int{1, 1, 2},
+			},
+		},
+		{
+			name: "No user matches for match2 (only one unrelated row)",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match1, match2},
+				Users:   []models.DBUsers{u1},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(u1.Id).WithMatchId(match1.Id).WithTeam(1),
+				},
+			},
+			matchID: match2.Id,
+			expected: expected{
+				wantLen: 0,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+			s.loadFixtures(tc.fixtures)
+
+			ctx := context.Background()
+			got, err := s.db.GetUserMatchesByMatchID(ctx, tc.matchID)
+			require.NoError(t, err)
+
+			require.Len(t, got, tc.expected.wantLen)
+
+			if tc.expected.wantLen > 0 {
+				gotUserIDs := make([]string, len(got))
+				gotTeams := make([]int, len(got))
+				for i, um := range got {
+					gotUserIDs[i] = um.UserID
+					gotTeams[i] = um.Team
+					require.Equal(t, tc.matchID, um.MatchID)
+				}
+				require.ElementsMatch(t, tc.expected.userIDs, gotUserIDs)
+				require.ElementsMatch(t, tc.expected.teams, gotTeams)
+			}
+		})
+	}
+}
+
+func TestDatabase_GetUserWinrate(t *testing.T) {
+	ptr := func(i int) *int { return &i }
+
+	type expected struct {
+		wantNil bool
+		value   int
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		userID   string
+		expected expected
+	}
+
+	court := models.NewDBCourtFixture()
+
+	mWin := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.Termine)
+	mLoss := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.Termine)
+	mDraw := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.Termine)
+	mNotFinished := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.EnCours)
+	mNoScore := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.Termine)
+
+	u1 := models.NewDBUsersFixture().WithUsername("u1").WithEmail("u1@example.com")
+	u2 := models.NewDBUsersFixture().WithUsername("u2").WithEmail("u2@example.com")
+	u3 := models.NewDBUsersFixture().WithUsername("u3").WithEmail("u3@example.com")
+	u4 := models.NewDBUsersFixture().WithUsername("u4").WithEmail("u4@example.com")
+
+	mWin.Score1 = ptr(3)
+	mWin.Score2 = ptr(1)
+	mLoss.Score1 = ptr(2)
+	mLoss.Score2 = ptr(4)
+	mDraw.Score1 = ptr(2)
+	mDraw.Score2 = ptr(2)
+	mNotFinished.Score1 = ptr(5)
+	mNotFinished.Score2 = ptr(0)
+	mNoScore.Score1 = nil
+	mNoScore.Score2 = nil
+
+	fixturesCommon := DBFixtures{
+		Courts: []models.DBCourt{court},
+		Matches: []models.DBMatches{
+			mWin, mLoss, mDraw, mNotFinished, mNoScore,
+		},
+		Users: []models.DBUsers{u1, u2, u3, u4},
+		UserMatches: []models.DBUserMatch{
+			{UserID: u1.Id, MatchID: mWin.Id, Team: 1, CreatedAt: time.Now()},
+			{UserID: u1.Id, MatchID: mLoss.Id, Team: 1, CreatedAt: time.Now()},
+			{UserID: u1.Id, MatchID: mDraw.Id, Team: 1, CreatedAt: time.Now()},
+			{UserID: u1.Id, MatchID: mNotFinished.Id, Team: 1, CreatedAt: time.Now()},
+			{UserID: u1.Id, MatchID: mNoScore.Id, Team: 1, CreatedAt: time.Now()},
+			{UserID: u2.Id, MatchID: mLoss.Id, Team: 2, CreatedAt: time.Now()},
+			{UserID: u3.Id, MatchID: mDraw.Id, Team: 2, CreatedAt: time.Now()},
+		},
+	}
+
+	testCases := []testCase{
+		{
+			name:     "u1 -> 1 win / 2 admissibles = 50%",
+			fixtures: fixturesCommon,
+			userID:   u1.Id,
+			expected: expected{wantNil: false, value: 50},
+		},
+		{
+			name:     "u2 -> 1 win / 1 admissible = 100%",
+			fixtures: fixturesCommon,
+			userID:   u2.Id,
+			expected: expected{wantNil: false, value: 100},
+		},
+		{
+			name:     "u3 -> seulement des nuls => nil",
+			fixtures: fixturesCommon,
+			userID:   u3.Id,
+			expected: expected{wantNil: true},
+		},
+		{
+			name:     "u4 -> aucun match => nil",
+			fixtures: fixturesCommon,
+			userID:   u4.Id,
+			expected: expected{wantNil: true},
+		},
+		{
+			name:     "inconnu -> nil",
+			fixtures: fixturesCommon,
+			userID:   uuid.NewString(),
+			expected: expected{wantNil: true},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+
+			s.loadFixtures(tc.fixtures)
+
+			ctx := context.Background()
+			got, err := s.db.GetUserWinrate(ctx, tc.userID)
+			require.NoError(t, err)
+
+			if tc.expected.wantNil {
+				require.Nil(t, got, "winrate should be nil")
+			} else {
+				require.NotNil(t, got, "winrate should not be nil")
+				require.Equal(t, tc.expected.value, *got)
+			}
 		})
 	}
 }

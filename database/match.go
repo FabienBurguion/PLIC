@@ -233,3 +233,53 @@ func (db Database) GetUserInMatch(ctx context.Context, userID, matchID string) (
 	}
 	return &um, nil
 }
+
+func (db Database) GetUserMatchesByMatchID(ctx context.Context, matchID string) ([]models.DBUserMatch, error) {
+	var rows []models.DBUserMatch
+	err := db.Database.SelectContext(ctx, &rows, `
+		SELECT user_id, match_id, team, created_at
+		FROM user_match
+		WHERE match_id = $1
+	`, matchID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch user_match rows: %w", err)
+	}
+	return rows, nil
+}
+
+func (db Database) GetUserWinrate(ctx context.Context, userID string) (*int, error) {
+	type winrateRow struct {
+		Wins  int `db:"wins"`
+		Total int `db:"total"`
+	}
+
+	var row winrateRow
+	err := db.Database.GetContext(ctx, &row, `
+        SELECT
+          COALESCE(SUM(
+            CASE
+              WHEN (um.team = 1 AND m.score1 > m.score2) OR
+                   (um.team = 2 AND m.score2 > m.score1)
+              THEN 1 ELSE 0
+            END
+          ), 0) AS wins,
+          COUNT(*) AS total
+        FROM user_match um
+        JOIN matches m ON m.id = um.match_id
+        WHERE um.user_id = $1
+          AND m.current_state = 'Termine'
+          AND m.score1 IS NOT NULL
+          AND m.score2 IS NOT NULL
+          AND m.score1 <> m.score2
+    `, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute winrate: %w", err)
+	}
+
+	if row.Total == 0 {
+		return nil, nil
+	}
+
+	pct := int((float64(row.Wins)/float64(row.Total))*100.0 + 0.5)
+	return &pct, nil
+}

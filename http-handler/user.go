@@ -20,6 +20,7 @@ func (s *Service) BuildUserResponse(ctx context.Context, user *models.DBUsers, p
 		favField      *string
 		sports        []models.Sport
 		fields        []models.Field
+		winrate       *int
 	)
 
 	if n, err := s.db.GetMatchCountByUserID(ctx, user.Id); err == nil {
@@ -40,6 +41,9 @@ func (s *Service) BuildUserResponse(ctx context.Context, user *models.DBUsers, p
 	if lst, err := s.db.GetRankedFieldsByUserID(ctx, user.Id); err == nil {
 		fields = lst
 	}
+	if wr, err := s.db.GetUserWinrate(ctx, user.Id); err == nil {
+		winrate = wr
+	}
 
 	return models.UserResponse{
 		Username:       user.Username,
@@ -49,7 +53,7 @@ func (s *Service) BuildUserResponse(ctx context.Context, user *models.DBUsers, p
 		CurrentFieldId: user.CurrentFieldId,
 		VisitedFields:  visitedFields,
 		NbMatches:      matchCount,
-		Winrate:        ptr(80), // TODO
+		Winrate:        winrate,
 		FavoriteCity:   nil,
 		FavoriteSport:  favSport,
 		FavoriteField:  favField,
