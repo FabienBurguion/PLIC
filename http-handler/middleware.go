@@ -3,14 +3,15 @@ package main
 import (
 	"PLIC/models"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/time/rate"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
+
+	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/time/rate"
 )
 
 var visitors = make(map[string]*rate.Limiter)

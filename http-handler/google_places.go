@@ -6,9 +6,10 @@ import (
 	"PLIC/models"
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"log"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 func (s *Service) SyncGooglePlaces(ctx context.Context, latitude, longitude float64, apiKey string) error {

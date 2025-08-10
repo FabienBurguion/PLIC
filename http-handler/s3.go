@@ -5,10 +5,11 @@ import (
 	"PLIC/models"
 	"bytes"
 	"errors"
-	"github.com/aws/smithy-go"
-	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
+
+	"github.com/aws/smithy-go"
+	"github.com/go-chi/chi/v5"
 )
 
 // UploadProfilePictureToS3 godoc

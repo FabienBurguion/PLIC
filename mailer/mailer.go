@@ -3,9 +3,10 @@ package mailer
 import (
 	"PLIC/models"
 	"fmt"
-	"gopkg.in/gomail.v2"
 	"log"
 	"time"
+
+	"gopkg.in/gomail.v2"
 )
 
 type MailSender interface {

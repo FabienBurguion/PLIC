@@ -6,15 +6,16 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 	"log"
 	"math/big"
 	"net/http"
 	"net/mail"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var tokenDuration = time.Now().Add(30 * 24 * time.Hour).Unix()

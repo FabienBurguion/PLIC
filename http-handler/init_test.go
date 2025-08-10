@@ -7,8 +7,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,6 +14,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 )
 
 type DBFixtures struct {
