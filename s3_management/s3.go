@@ -3,10 +3,11 @@ package s3_management
 import (
 	"bytes"
 	"context"
+	"net/http"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"net/http"
 )
 
 type RealS3Service struct {
