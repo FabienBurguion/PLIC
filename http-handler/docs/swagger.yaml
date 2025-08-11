@@ -4,6 +4,13 @@ definitions:
       password:
         type: string
     type: object
+  models.CourtRankingResponse:
+    properties:
+      elo:
+        type: integer
+      userId:
+        type: string
+    type: object
   models.DBCourt:
     properties:
       address:
@@ -758,6 +765,74 @@ paths:
       summary: Upload a profile picture to S3
       tags:
       - upload
+  /ranking/court/{id}:
+    get:
+      description: Retourne la liste des utilisateurs et leur ELO pour un court donné,
+        triée par ELO croissant
+      parameters:
+      - description: Identifiant du court
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.CourtRankingResponse'
+            type: array
+        "400":
+          description: ID manquant
+          schema:
+            $ref: '#/definitions/models.Error'
+        "401":
+          description: Utilisateur non autorisé
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Erreur serveur / base
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Classement ELO par terrain
+      tags:
+      - ranking
+  /ranking/user/{userId}:
+    get:
+      description: 'Retourne uniquement la liste des fields associés à un utilisateur
+        (ex: terrains classés/évalués)'
+      parameters:
+      - description: Identifiant de l'utilisateur
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Field'
+            type: array
+        "400":
+          description: userId manquant
+          schema:
+            $ref: '#/definitions/models.Error'
+        "401":
+          description: Utilisateur non autorisé
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Erreur serveur / base
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Liste des terrains (fields) d’un utilisateur
+      tags:
+      - user
   /register:
     post:
       consumes:

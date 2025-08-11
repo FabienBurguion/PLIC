@@ -174,6 +174,10 @@ func main() {
 	s.PATCH("/users/{id}", withAuthentication(s.PatchUser))
 	s.DELETE("/users/{id}", withAuthentication(s.DeleteUser))
 
+	//ENDPOINTS FOR RANKINGS
+	s.GET("/ranking/court/{id}", withAuthentication(s.GetRankingByCourtId))
+	s.GET("/ranking/user/{userId}", withAuthentication(s.GetUserFields))
+
 	if s.configuration.Lambda.FunctionName != "" {
 		fmt.Println("🚀 Démarrage sur AWS Lambda...")
 		s.Start()

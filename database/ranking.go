@@ -58,3 +58,17 @@ func (db Database) GetRankingByUserAndCourt(ctx context.Context, userID, courtID
 	}
 	return &ranking, nil
 }
+
+func (db Database) GetRankingsByCourtID(ctx context.Context, courtID string) ([]models.DBRanking, error) {
+	var rows []models.DBRanking
+	err := db.Database.SelectContext(ctx, &rows, `
+				SELECT user_id, court_id, elo, created_at, updated_at
+				FROM ranking
+				WHERE court_id = $1
+				ORDER BY elo , user_id
+			`, courtID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch rankings: %w", err)
+	}
+	return rows, nil
+}

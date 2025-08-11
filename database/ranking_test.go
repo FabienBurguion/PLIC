@@ -349,3 +349,120 @@ func TestDatabase_GetRankingByUserAndCourt(t *testing.T) {
 		})
 	}
 }
+
+func TestDatabase_GetRankingsByCourtID(t *testing.T) {
+	type expected struct {
+		wantLen   int
+		checkSort bool
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		courtID  string
+		expected expected
+	}
+
+	courtA := models.NewDBCourtFixture()
+	courtB := models.NewDBCourtFixture()
+
+	u1 := models.NewDBUsersFixture().WithUsername("alice").WithEmail("alice@example.com")
+	u2 := models.NewDBUsersFixture().WithUsername("bob").WithEmail("bob@example.com")
+	u3 := models.NewDBUsersFixture().WithUsername("carol").WithEmail("carol@example.com")
+
+	u4 := models.NewDBUsersFixture().WithUsername("dave").WithEmail("dave@example.com")
+
+	rA1 := models.NewDBRankingFixture().WithUserId(u1.Id).WithCourtId(courtA.Id).WithElo(1200)
+	rA2 := models.NewDBRankingFixture().WithUserId(u2.Id).WithCourtId(courtA.Id).WithElo(1100)
+	rA3 := models.NewDBRankingFixture().WithUserId(u3.Id).WithCourtId(courtA.Id).WithElo(1100)
+
+	rB1 := models.NewDBRankingFixture().WithUserId(u4.Id).WithCourtId(courtB.Id).WithElo(1500)
+
+	now := time.Now()
+	for _, r := range []*models.DBRanking{&rA1, &rA2, &rA3, &rB1} {
+		r.CreatedAt = now
+		r.UpdatedAt = now
+	}
+
+	testCases := []testCase{
+		{
+			name: "Nominal - tri par elo puis user_id",
+			fixtures: DBFixtures{
+				Courts:   []models.DBCourt{courtA},
+				Users:    []models.DBUsers{u1, u2, u3},
+				Rankings: []models.DBRanking{rA1, rA2, rA3},
+			},
+			courtID: courtA.Id,
+			expected: expected{
+				wantLen:   3,
+				checkSort: true,
+			},
+		},
+		{
+			name: "Aucun ranking pour ce court",
+			fixtures: DBFixtures{
+				Courts: []models.DBCourt{courtA},
+				Users:  []models.DBUsers{u1},
+			},
+			courtID: courtA.Id,
+			expected: expected{
+				wantLen:   0,
+				checkSort: false,
+			},
+		},
+		{
+			name: "Plusieurs courts - filtre par courtID",
+			fixtures: DBFixtures{
+				Courts:   []models.DBCourt{courtA, courtB},
+				Users:    []models.DBUsers{u1, u2, u3, u4},
+				Rankings: []models.DBRanking{rA1, rA2, rA3, rB1},
+			},
+			courtID: courtB.Id,
+			expected: expected{
+				wantLen:   1,
+				checkSort: true,
+			},
+		},
+		{
+			name: "Court inexistant -> renvoie liste vide (pas d'erreur)",
+			fixtures: DBFixtures{
+				Courts:   []models.DBCourt{courtA},
+				Users:    []models.DBUsers{u1, u2, u3},
+				Rankings: []models.DBRanking{rA1, rA2, rA3},
+			},
+			courtID: uuid.NewString(),
+			expected: expected{
+				wantLen:   0,
+				checkSort: false,
+			},
+		},
+	}
+
+	isSorted := func(rs []models.DBRanking) bool {
+		return sort.SliceIsSorted(rs, func(i, j int) bool {
+			if rs[i].Elo == rs[j].Elo {
+				return rs[i].UserID < rs[j].UserID
+			}
+			return rs[i].Elo < rs[j].Elo
+		})
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+
+			s.loadFixtures(tc.fixtures)
+
+			out, err := s.db.GetRankingsByCourtID(context.Background(), tc.courtID)
+			require.NoError(t, err)
+
+			require.Len(t, out, tc.expected.wantLen)
+
+			if tc.expected.checkSort {
+				require.True(t, isSorted(out), "les rankings ne sont pas triés par (elo asc, user_id asc)")
+			}
+		})
+	}
+}
