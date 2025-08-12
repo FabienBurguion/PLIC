@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_MatchLifecycle_WithConsensus(t *testing.T) {
+func Test_MatchLifecycle(t *testing.T) {
 	s := &Service{}
 	cleanup := s.InitServiceTest()
 	defer func() { _ = cleanup() }()

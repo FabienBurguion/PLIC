@@ -15,7 +15,7 @@ docker-down:
 
 .PHONY: test
 test: docker-up
-	go test -p=1 ./...
+	go test ./...
 
 .PHONY: zip-windows
 zip-windows:
