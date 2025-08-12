@@ -44,7 +44,7 @@ func (s *Service) buildMatchesResponse(ctx context.Context, matches []models.DBM
 		}
 		wg.Wait()
 
-		buildErr, matchResponse := s.buildMatchResponse(ctx, match, users, profilePictures)
+		matchResponse, buildErr := s.buildMatchResponse(ctx, match, users, profilePictures)
 		if buildErr != nil {
 			log.Printf("warning: could not build match response for match %s: %v", match.Id, buildErr)
 			continue
@@ -56,7 +56,7 @@ func (s *Service) buildMatchesResponse(ctx context.Context, matches []models.DBM
 	return responses
 }
 
-func (s *Service) buildMatchResponse(ctx context.Context, match models.DBMatches, users []models.DBUsers, profilePictures []string) (error, models.MatchResponse) {
+func (s *Service) buildMatchResponse(ctx context.Context, match models.DBMatches, users []models.DBUsers, profilePictures []string) (models.MatchResponse, error) {
 	userResponses := make([]models.UserResponse, len(users))
 	for i, u := range users {
 		var profilePicture string
@@ -72,15 +72,15 @@ func (s *Service) buildMatchResponse(ctx context.Context, match models.DBMatches
 	court, err := s.db.GetCourtByID(ctx, match.CourtID)
 	if err != nil {
 		log.Println("error getting court:", err)
-		return fmt.Errorf("error getting court %s: %s", match.CourtID, err.Error()), models.MatchResponse{}
+		return models.MatchResponse{}, fmt.Errorf("error getting court %s: %s", match.CourtID, err.Error())
 	}
 
 	if court == nil {
 		log.Println("error: no court found for match", match.Id)
-		return fmt.Errorf("error: no court found for match %s", match.Id), models.MatchResponse{}
+		return models.MatchResponse{}, fmt.Errorf("error: no court found for match %s", match.Id)
 	}
 
-	return nil, models.MatchResponse{
+	return models.MatchResponse{
 		Id:              match.Id,
 		Sport:           match.Sport,
 		Place:           court.Name,
@@ -91,7 +91,7 @@ func (s *Service) buildMatchResponse(ctx context.Context, match models.DBMatches
 		Score2:          match.Score2,
 		Users:           userResponses,
 		CreatedAt:       match.CreatedAt,
-	}
+	}, nil
 }
 
 // GetMatchByID godoc
@@ -172,7 +172,7 @@ func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, ai models
 
 	wg2.Wait()
 
-	err, response := s.buildMatchResponse(ctx, *match, users, profilePictures)
+	response, err := s.buildMatchResponse(ctx, *match, users, profilePictures)
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to build match response: "+err.Error())
 	}
@@ -520,9 +520,10 @@ func (s *Service) applyEloForMatch(ctx context.Context, match models.DBMatches, 
 	team1Users := make([]string, 0)
 	team2Users := make([]string, 0)
 	for _, um := range userMatches {
-		if um.Team == 1 {
+		switch um.Team {
+		case 1:
 			team1Users = append(team1Users, um.UserID)
-		} else if um.Team == 2 {
+		case 2:
 			team2Users = append(team2Users, um.UserID)
 		}
 	}

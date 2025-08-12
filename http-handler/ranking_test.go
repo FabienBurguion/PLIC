@@ -256,7 +256,9 @@ func Test_GetUserFields(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 			require.Equal(t, tc.expected.code, resp.StatusCode)
 
 			body, _ := io.ReadAll(resp.Body)
