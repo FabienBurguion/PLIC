@@ -287,6 +287,10 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, ai model
 // @Failure      500    {object}  models.Error         "Erreur lors de la création du match"
 // @Router       /match [post]
 func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
+	if !auth.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
 	var match models.MatchRequest
 
 	decoder := json.NewDecoder(r.Body)
@@ -302,10 +306,6 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 	}
 
 	ctx := r.Context()
-
-	if !auth.IsConnected {
-		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
-	}
 
 	court, err := s.db.GetCourtByID(ctx, match.CourtID)
 	if err != nil {
