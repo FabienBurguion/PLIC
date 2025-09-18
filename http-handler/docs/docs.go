@@ -1464,10 +1464,16 @@ const docTemplate = `{
         "models.RegisterRequest": {
             "type": "object",
             "properties": {
+                "bio": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
                 "password": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }

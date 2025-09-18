@@ -1,0 +1,51 @@
+name: Deploy Go Lambda
+
+on:
+  push:
+    branches: [ "main" ]
+
+concurrency:
+  group: deploy-lambda-main
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: eu-west-3
+  LAMBDA_FUNCTION_NAME: backend-go-lambda
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Build Linux AMD64 bootstrap
+        run: |
+          GOOS=linux GOARCH=amd64 go build -C http-handler -o ../bootstrap
+
+      - name: Zip function
+        run: |
+          zip -j function.zip bootstrap
+          rm -f bootstrap
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update Lambda code
+        run: |
+          aws lambda update-function-code \
+            --function-name "$LAMBDA_FUNCTION_NAME" \
+            --zip-file fileb://function.zip

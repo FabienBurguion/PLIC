@@ -119,9 +119,13 @@ definitions:
     - ManqueJoueur
   models.RegisterRequest:
     properties:
+      bio:
+        type: string
       email:
         type: string
       password:
+        type: string
+      username:
         type: string
     type: object
   models.Sport:
