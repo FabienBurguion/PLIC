@@ -112,11 +112,15 @@ func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.Auth
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 	id := uuid.NewString()
+	var username string
+	if req.Username != nil {
+		username = *req.Username
+	}
 	newUser := models.DBUsers{
 		Id:        id,
-		Username:  "user" + id,
+		Username:  username,
 		Email:     req.Email,
-		Bio:       nil,
+		Bio:       req.Bio,
 		Password:  string(hashedPassword),
 		CreatedAt: s.clock.Now(),
 		UpdatedAt: s.clock.Now(),

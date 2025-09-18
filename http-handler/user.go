@@ -75,7 +75,11 @@ func (s *Service) BuildUserResponse(ctx context.Context, user *models.DBUsers, p
 // @Failure      500 {object} models.Error "Internal server error"
 // @Router       /users/{id} [get]
 // @Security     BearerAuth
-func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
+func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")

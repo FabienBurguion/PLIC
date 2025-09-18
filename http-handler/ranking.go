@@ -21,14 +21,15 @@ import (
 // @Failure      500  {object}  models.Error  "Erreur serveur / base"
 // @Router       /ranking/court/{id} [get]
 func (s *Service) GetRankingByCourtId(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
 
 	if id == "" {
 		return httpx.WriteError(w, http.StatusBadRequest, "missing court ID")
-	}
-	if !ai.IsConnected {
-		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
 	rows, err := s.db.GetRankingsByCourtID(ctx, id)
@@ -58,13 +59,13 @@ func (s *Service) GetRankingByCourtId(w http.ResponseWriter, r *http.Request, ai
 // @Failure      500  {object}  models.Error  "Erreur serveur / base"
 // @Router       /ranking/user/{userId} [get]
 func (s *Service) GetUserFields(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
 	userID := chi.URLParam(r, "userId")
 	if userID == "" {
 		return httpx.WriteError(w, http.StatusBadRequest, "missing userId in url params")
-	}
-
-	if !ai.IsConnected {
-		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
 	ctx := r.Context()

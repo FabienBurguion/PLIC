@@ -158,7 +158,7 @@ func Test_GetUserById(t *testing.T) {
 
 			w := httptest.NewRecorder()
 
-			err := s.GetUserById(w, r, models.AuthInfo{})
+			err := s.GetUserById(w, r, models.AuthInfo{IsConnected: true, UserID: uuid.NewString()})
 			require.NoError(t, err)
 
 			resp := w.Result()

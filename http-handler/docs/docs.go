@@ -280,6 +280,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/join/match/{id}": {
+            "post": {
+                "description": "Permet à un utilisateur authentifié de rejoindre un match existant, si ce n’est pas déjà fait",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Un utilisateur rejoint un match",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Identifiant du match",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Informations pour rejoindre un match (team)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.JoinMatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Identifiant manquant",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Utilisateur non autorisé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Match non trouvé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Utilisateur déjà inscrit au match",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur lors de l'inscription de l'utilisateur au match",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/login": {
             "post": {
                 "description": "Authenticate a user with username and password",
@@ -471,71 +536,6 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Erreur interne serveur ou base",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/match/join/{id}": {
-            "post": {
-                "description": "Permet à un utilisateur authentifié de rejoindre un match existant, si ce n’est pas déjà fait",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "match"
-                ],
-                "summary": "Un utilisateur rejoint un match",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Identifiant du match",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Informations pour rejoindre un match (team)",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.JoinMatchRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Identifiant manquant",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "401": {
-                        "description": "Utilisateur non autorisé",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "404": {
-                        "description": "Match non trouvé",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "409": {
-                        "description": "Utilisateur déjà inscrit au match",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Erreur lors de l'inscription de l'utilisateur au match",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }

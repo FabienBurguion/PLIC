@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -68,7 +69,7 @@ func TestService_SendTestMail(t *testing.T) {
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
-			err := s.SendMail(w, req, models.AuthInfo{})
+			err := s.SendMail(w, req, models.AuthInfo{IsConnected: true, UserID: uuid.NewString()})
 			require.NoError(t, err)
 
 			resp := w.Result()

@@ -24,16 +24,16 @@ import (
 // @Failure      500 {object} models.Error "Internal server error"
 // @Router       /profile_picture/{id} [post]
 func (s *Service) UploadProfilePictureToS3(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected {
+		return httpx.WriteError(w, http.StatusForbidden, "not authorized")
+	}
+
 	ctx := r.Context()
 	bucketName := "param-profil-pictures"
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
-	}
-
-	if !ai.IsConnected {
-		return httpx.WriteError(w, http.StatusForbidden, "not authorized")
 	}
 
 	if ai.UserID != id {

@@ -107,13 +107,13 @@ func (s *Service) buildMatchResponse(ctx context.Context, match models.DBMatches
 // @Failure      500  {object}  models.Error         "Erreur serveur ou base de données"
 // @Router       /match/{id} [get]
 func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
-	}
-
-	if !ai.IsConnected {
-		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
 	var (
@@ -192,13 +192,13 @@ func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, ai models
 // @Failure      500  {object}  models.Error
 // @Router       /user/matches/{userId} [get]
 func (s *Service) GetMatchesByUserID(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
 	userId := chi.URLParam(r, "userId")
 	if userId == "" {
 		return httpx.WriteError(w, http.StatusBadRequest, "missing userId in url params")
-	}
-
-	if !ai.IsConnected {
-		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
 	ctx := r.Context()
@@ -227,13 +227,13 @@ func (s *Service) GetMatchesByUserID(w http.ResponseWriter, r *http.Request, ai 
 // @Failure      500  {object}  models.Error  "Erreur interne serveur ou base"
 // @Router       /match/court/{courtId} [get]
 func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
 	courtID := chi.URLParam(r, "courtId")
 	if courtID == "" {
 		return httpx.WriteError(w, http.StatusBadRequest, "missing courtId in url params")
-	}
-
-	if !ai.IsConnected {
-		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
 	ctx := r.Context()
@@ -286,8 +286,8 @@ func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, ai model
 // @Failure      401   {object}  models.Error       "Utilisateur non autorisé"
 // @Failure      500    {object}  models.Error         "Erreur lors de la création du match"
 // @Router       /match [post]
-func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
-	if !auth.IsConnected {
+func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected {
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
@@ -321,13 +321,13 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to create match: "+err.Error())
 	}
 
-	existing, err := s.db.GetRankingByUserAndCourt(ctx, auth.UserID, match.CourtID)
+	existing, err := s.db.GetRankingByUserAndCourt(ctx, ai.UserID, match.CourtID)
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to check ranking: "+err.Error())
 	}
 	if existing == nil {
 		if err := s.db.InsertRanking(ctx, models.DBRanking{
-			UserID:    auth.UserID,
+			UserID:    ai.UserID,
 			CourtID:   match.CourtID,
 			Elo:       DefaultElo,
 			CreatedAt: s.clock.Now(),
@@ -338,12 +338,12 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 	}
 
 	if err := s.db.CreateUserMatch(ctx, models.DBUserMatch{
-		UserID:    auth.UserID,
+		UserID:    ai.UserID,
 		MatchID:   matchDb.Id,
 		Team:      1, // When you create a match, you join the first team
 		CreatedAt: s.clock.Now(),
 	}); err != nil {
-		log.Println("User creating match:", auth.UserID)
+		log.Println("User creating match:", ai.UserID)
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to associate user to match: "+err.Error())
 	}
 
@@ -365,13 +365,13 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, auth model
 // @Failure      404   {object}  models.Error       "Match non trouvé"
 // @Failure      409   {object}  models.Error       "Utilisateur déjà inscrit au match"
 // @Failure      500   {object}  models.Error       "Erreur lors de l'inscription de l'utilisateur au match"
-// @Router       /match/join/{id} [post]
-func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
-	ctx := r.Context()
-
-	if !auth.IsConnected {
+// @Router       /join/match/{id} [post]
+func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected {
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
+
+	ctx := r.Context()
 
 	matchID := chi.URLParam(r, "id")
 	if matchID == "" {
@@ -400,7 +400,7 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.
 		return httpx.WriteError(w, http.StatusBadRequest, "match is not in the right state")
 	}
 
-	exists, err := s.db.IsUserInMatch(ctx, auth.UserID, matchID)
+	exists, err := s.db.IsUserInMatch(ctx, ai.UserID, matchID)
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to check user in match: "+err.Error())
 	}
@@ -416,13 +416,13 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.
 		return httpx.WriteError(w, http.StatusBadRequest, "this team is full")
 	}
 
-	existing, err := s.db.GetRankingByUserAndCourt(ctx, auth.UserID, match.CourtID)
+	existing, err := s.db.GetRankingByUserAndCourt(ctx, ai.UserID, match.CourtID)
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to check ranking: "+err.Error())
 	}
 	if existing == nil {
 		if err := s.db.InsertRanking(ctx, models.DBRanking{
-			UserID:    auth.UserID,
+			UserID:    ai.UserID,
 			CourtID:   match.CourtID,
 			Elo:       DefaultElo,
 			CreatedAt: s.clock.Now(),
@@ -433,7 +433,7 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.
 	}
 
 	if err := s.db.CreateUserMatch(ctx, models.DBUserMatch{
-		UserID:    auth.UserID,
+		UserID:    ai.UserID,
 		MatchID:   matchID,
 		Team:      matchRequest.Team,
 		CreatedAt: s.clock.Now(),
@@ -469,8 +469,8 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, auth models.
 // @Failure      401  {object}  models.Error      "Utilisateur non autorisé"
 // @Failure      500  {object}  models.Error      "Erreur lors de la suppression du match"
 // @Router       /match/{id} [delete]
-func (s *Service) DeleteMatch(w http.ResponseWriter, r *http.Request, auth models.AuthInfo) error {
-	if !auth.IsConnected {
+func (s *Service) DeleteMatch(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected {
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
@@ -621,15 +621,15 @@ func (s *Service) applyEloForMatch(ctx context.Context, match models.DBMatches, 
 // @Failure      500   {object}  models.Error
 // @Router       /match/{id}/score [patch]
 func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
 
 	if id == "" {
 		return httpx.WriteError(w, http.StatusBadRequest, "missing match ID")
-	}
-
-	if !ai.IsConnected {
-		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
 	var req models.UpdateScoreRequest
@@ -716,15 +716,15 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, ai mo
 // @Failure      500   {object}  models.Error  "Erreur serveur ou base de données"
 // @Router       /match/{id}/start [patch]
 func (s *Service) StartMatch(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
 
 	if id == "" {
 		return httpx.WriteError(w, http.StatusBadRequest, "missing match ID")
-	}
-
-	if !ai.IsConnected {
-		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
 	match, err := s.db.GetMatchById(ctx, id)
@@ -770,15 +770,15 @@ func (s *Service) StartMatch(w http.ResponseWriter, r *http.Request, ai models.A
 // @Failure      500   {object}  models.Error  "Erreur serveur ou base de données"
 // @Router       /match/{id}/finish [patch]
 func (s *Service) FinishMatch(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected {
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
 
 	if id == "" {
 		return httpx.WriteError(w, http.StatusBadRequest, "missing match ID")
-	}
-
-	if !ai.IsConnected {
-		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
 	match, err := s.db.GetMatchById(ctx, id)

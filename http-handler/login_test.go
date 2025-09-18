@@ -149,19 +149,22 @@ func TestService_Login(t *testing.T) {
 
 func TestService_Register(t *testing.T) {
 	type testCase struct {
-		name     string
-		fixtures DBFixtures
-		param    models.RegisterRequest
-		expected int
+		name          string
+		fixtures      DBFixtures
+		param         models.RegisterRequest
+		expected      int
+		expectPersist bool
 	}
 
 	userId := uuid.NewString()
 	email := "NewEmail"
 	password := "NewPassword"
 
+	strPtr := func(s string) *string { return &s }
+
 	testCases := []testCase{
 		{
-			name: "User does not exist -> can register and receives token",
+			name: "User does not exist -> can register and receives token (no username/bio provided)",
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{},
 			},
@@ -169,7 +172,22 @@ func TestService_Register(t *testing.T) {
 				Email:    email,
 				Password: password,
 			},
-			expected: http.StatusCreated,
+			expected:      http.StatusCreated,
+			expectPersist: true,
+		},
+		{
+			name: "User does not exist -> can register and receives token (with username & bio)",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{},
+			},
+			param: models.RegisterRequest{
+				Email:    "with-username@example.com",
+				Password: "pwd",
+				Username: strPtr("Neo"),
+				Bio:      ptr("The One"),
+			},
+			expected:      http.StatusCreated,
+			expectPersist: true,
 		},
 		{
 			name: "Empty email => bad request",
@@ -232,9 +250,7 @@ func TestService_Register(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer func(Body io.ReadCloser) {
-				_ = Body.Close()
-			}(resp.Body)
+			defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
 			require.Equal(t, c.expected, resp.StatusCode)
 
 			if c.expected != http.StatusCreated {
@@ -254,6 +270,30 @@ func TestService_Register(t *testing.T) {
 			claims, ok := parsedToken.Claims.(jwt.MapClaims)
 			require.True(t, ok)
 			require.NotEmpty(t, claims["user_id"])
+
+			if c.expectPersist {
+				ctx := context.Background()
+				createdEmail := c.param.Email
+				u, err := s.db.GetUserByEmail(ctx, createdEmail)
+				require.NoError(t, err)
+				require.NotNil(t, u)
+
+				if c.param.Username == nil {
+					require.Equal(t, "", u.Username)
+				} else {
+					require.Equal(t, *c.param.Username, u.Username)
+				}
+
+				require.Equal(t, c.param.Bio, u.Bio)
+
+				require.NotEmpty(t, u.Password)
+				require.NotEqual(t, c.param.Password, u.Password)
+
+				require.False(t, u.CreatedAt.IsZero())
+				require.False(t, u.UpdatedAt.IsZero())
+
+				require.NotEmpty(t, u.Id)
+			}
 		})
 	}
 }

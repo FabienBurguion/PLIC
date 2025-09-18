@@ -16,7 +16,10 @@ import (
 // @Success      200  {array}   models.DBCourt   "Liste des terrains"
 // @Failure      500  {object}  models.Error       "Erreur lors de la récupération des terrains"
 // @Router       /court/all [get]
-func (s *Service) GetAllCourts(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
+func (s *Service) GetAllCourts(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected{
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
 	terrains, err := s.db.GetAllCourts(r.Context())
 	if err != nil {
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch terrains: "+err.Error())
@@ -35,7 +38,10 @@ func (s *Service) GetAllCourts(w http.ResponseWriter, r *http.Request, _ models.
 // @Failure      404  {object}  models.Error    "Terrain non trouvé"
 // @Failure      500  {object}  models.Error    "Erreur serveur ou base de données"
 // @Router       /court/{id} [get]
-func (s *Service) GetCourtByID(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
+func (s *Service) GetCourtByID(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	if !ai.IsConnected{
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")

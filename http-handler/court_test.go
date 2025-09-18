@@ -93,7 +93,7 @@ func Test_GetCourtByID(t *testing.T) {
 			}
 
 			w := httptest.NewRecorder()
-			err := s.GetCourtByID(w, r, models.AuthInfo{})
+			err := s.GetCourtByID(w, r, models.AuthInfo{IsConnected: true, UserID: uuid.NewString()})
 			require.NoError(t, err)
 
 			resp := w.Result()
