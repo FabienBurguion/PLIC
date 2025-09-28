@@ -6,7 +6,6 @@ import (
 	"PLIC/models"
 	"PLIC/s3_management"
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -22,6 +21,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
+	sqltrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/database/sql"
 	chiTrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/go-chi/chi"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -117,7 +117,10 @@ func (s *Service) initDb() database.Database {
 		panic("DATABASE_URL environment variable is not set")
 	}
 
-	db, err := sql.Open("pgx", connStr)
+	db, err := sqltrace.Open("pgx", connStr,
+		sqltrace.WithServiceName("postgres"),
+		sqltrace.WithAnalytics(true),
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -141,7 +144,7 @@ func (s *Service) Start() {
 	log.Println("🚀 Serveur démarré sur AWS Lambda")
 	lambdaHandler := httpadapter.NewV2(s.server)
 
-	lambda.Start(ddlambda.WrapHandler(lambdaHandler.ProxyWithContext, nil))
+	lambda.Start(lambdaHandler.ProxyWithContext)
 }
 
 func main() {
