@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"time"
 
+	ddlambda "github.com/DataDog/datadog-lambda-go"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -62,8 +63,16 @@ func (s *Service) initService() {
 	s.server.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			rw := &models.ResponseWriter{ResponseWriter: w, StatusCode: http.StatusOK}
+			start := time.Now()
 			next.ServeHTTP(rw, r)
-			log.Printf("➡️ %s %s - %d", r.Method, r.URL.Path, rw.StatusCode)
+			d := time.Since(start)
+
+			log.Printf("➡️ %s %s - %d (%s)", r.Method, r.URL.Path, rw.StatusCode, d)
+
+			ddlambda.Metric("plic.http.request.duration_ms", float64(d.Milliseconds()),
+				"route:"+r.URL.Path, "method:"+r.Method, fmt.Sprintf("status:%d", rw.StatusCode))
+			ddlambda.Metric("plic.http.request.count", 1,
+				"route:"+r.URL.Path, "method:"+r.Method, fmt.Sprintf("status:%d", rw.StatusCode))
 		})
 	})
 	s.server.Use(middleware.Recoverer)
@@ -94,8 +103,7 @@ func (s *Service) initService() {
 
 func (s *Service) initDb() database.Database {
 	if s.configuration.Lambda.FunctionName == "" {
-		err := godotenv.Load()
-		if err != nil {
+		if err := godotenv.Load(); err != nil {
 			log.Println("Warning: No .env file found, using environment variables")
 		}
 	}
@@ -115,9 +123,11 @@ func (s *Service) initDb() database.Database {
 		panic(err)
 	}
 	fmt.Printf("version=%s\n", version)
+
 	db.SetConnMaxLifetime(5 * time.Minute)
 	db.SetMaxIdleConns(10)
 	db.SetMaxOpenConns(20)
+
 	return database.Database{
 		Database: sqlx.NewDb(db, "pgx"),
 	}
@@ -126,14 +136,15 @@ func (s *Service) initDb() database.Database {
 func (s *Service) Start() {
 	log.Println("🚀 Serveur démarré sur AWS Lambda")
 	lambdaHandler := httpadapter.NewV2(s.server)
-	lambda.Start(lambdaHandler.ProxyWithContext)
+
+	lambda.Start(ddlambda.WrapHandler(lambdaHandler.ProxyWithContext, nil))
 }
 
 func main() {
 	s := &Service{}
 	s.initService()
 
-	//LOGIN
+	// LOGIN
 	s.POST("/register", s.Register)
 	s.POST("/login", s.Login)
 	s.POST("/forgot-password", s.ForgetPassword)
@@ -169,12 +180,12 @@ func main() {
 	s.PATCH("/match/{id}/start", withAuthentication(s.StartMatch))
 	s.PATCH("/match/{id}/finish", withAuthentication(s.FinishMatch))
 
-	//ENDPOINTS FOR USERS
+	// ENDPOINTS FOR USERS
 	s.GET("/users/{id}", withAuthentication(s.GetUserById))
 	s.PATCH("/users/{id}", withAuthentication(s.PatchUser))
 	s.DELETE("/users/{id}", withAuthentication(s.DeleteUser))
 
-	//ENDPOINTS FOR RANKINGS
+	// ENDPOINTS FOR RANKINGS
 	s.GET("/ranking/court/{id}", withAuthentication(s.GetRankingByCourtId))
 	s.GET("/ranking/user/{userId}", withAuthentication(s.GetUserFields))
 
