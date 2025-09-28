@@ -6,7 +6,6 @@ import (
 	"PLIC/models"
 	"PLIC/s3_management"
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -22,6 +21,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
+	sqltrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/database/sql"
+	chiTrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/go-chi/chi"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -59,6 +60,9 @@ func (s *Service) initService() {
 
 	s.db = s.initDb()
 	s.server = chi.NewRouter()
+	s.server.Use(chiTrace.Middleware(
+		chiTrace.WithServiceName("http-handler"),
+	))
 	s.server.Use(middleware.Logger)
 	s.server.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -113,7 +117,10 @@ func (s *Service) initDb() database.Database {
 		panic("DATABASE_URL environment variable is not set")
 	}
 
-	db, err := sql.Open("pgx", connStr)
+	db, err := sqltrace.Open("pgx", connStr,
+		sqltrace.WithServiceName("postgres"),
+		sqltrace.WithAnalytics(true),
+	)
 	if err != nil {
 		panic(err)
 	}
