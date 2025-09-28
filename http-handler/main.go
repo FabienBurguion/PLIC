@@ -21,7 +21,6 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
-	chiTrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/go-chi/chi"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -59,10 +58,14 @@ func (s *Service) initService() {
 
 	s.db = s.initDb()
 	s.server = chi.NewRouter()
-	s.server.Use(chiTrace.Middleware(
-		chiTrace.WithServiceName("http-handler"),
-	))
 	s.server.Use(middleware.Logger)
+	s.server.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			rw := &models.ResponseWriter{ResponseWriter: w, StatusCode: http.StatusOK}
+			next.ServeHTTP(rw, r)
+			log.Printf("➡️ %s %s - %d", r.Method, r.URL.Path, rw.StatusCode)
+		})
+	})
 	s.server.Use(middleware.Recoverer)
 	s.server.Use(middleware.RequestID)
 	s.server.Use(middleware.Timeout(10 * time.Second))
@@ -91,7 +94,8 @@ func (s *Service) initService() {
 
 func (s *Service) initDb() database.Database {
 	if s.configuration.Lambda.FunctionName == "" {
-		if err := godotenv.Load(); err != nil {
+		err := godotenv.Load()
+		if err != nil {
 			log.Println("Warning: No .env file found, using environment variables")
 		}
 	}
@@ -111,11 +115,9 @@ func (s *Service) initDb() database.Database {
 		panic(err)
 	}
 	fmt.Printf("version=%s\n", version)
-
 	db.SetConnMaxLifetime(5 * time.Minute)
 	db.SetMaxIdleConns(10)
 	db.SetMaxOpenConns(20)
-
 	return database.Database{
 		Database: sqlx.NewDb(db, "pgx"),
 	}
@@ -124,7 +126,6 @@ func (s *Service) initDb() database.Database {
 func (s *Service) Start() {
 	log.Println("🚀 Serveur démarré sur AWS Lambda")
 	lambdaHandler := httpadapter.NewV2(s.server)
-
 	lambda.Start(lambdaHandler.ProxyWithContext)
 }
 
@@ -132,7 +133,7 @@ func main() {
 	s := &Service{}
 	s.initService()
 
-	// LOGIN
+	//LOGIN
 	s.POST("/register", s.Register)
 	s.POST("/login", s.Login)
 	s.POST("/forgot-password", s.ForgetPassword)
@@ -168,12 +169,12 @@ func main() {
 	s.PATCH("/match/{id}/start", withAuthentication(s.StartMatch))
 	s.PATCH("/match/{id}/finish", withAuthentication(s.FinishMatch))
 
-	// ENDPOINTS FOR USERS
+	//ENDPOINTS FOR USERS
 	s.GET("/users/{id}", withAuthentication(s.GetUserById))
 	s.PATCH("/users/{id}", withAuthentication(s.PatchUser))
 	s.DELETE("/users/{id}", withAuthentication(s.DeleteUser))
 
-	// ENDPOINTS FOR RANKINGS
+	//ENDPOINTS FOR RANKINGS
 	s.GET("/ranking/court/{id}", withAuthentication(s.GetRankingByCourtId))
 	s.GET("/ranking/user/{userId}", withAuthentication(s.GetUserFields))
 
