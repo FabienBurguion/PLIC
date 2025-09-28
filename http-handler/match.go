@@ -17,6 +17,7 @@ import (
 )
 
 func (s *Service) buildMatchesResponse(ctx context.Context, matches []models.DBMatches) []models.MatchResponse {
+	log.Printf("Building Matches")
 	responses := make([]models.MatchResponse, 0, len(matches))
 
 	for _, match := range matches {
@@ -51,6 +52,7 @@ func (s *Service) buildMatchesResponse(ctx context.Context, matches []models.DBM
 }
 
 func (s *Service) buildMatchResponse(ctx context.Context, match models.DBMatches, users []models.DBUsers, profilePictures []string) (models.MatchResponse, error) {
+	log.Printf("Building Match")
 	userResponses := make([]models.UserResponse, len(users))
 	for i, u := range users {
 		var profilePicture string
@@ -252,7 +254,9 @@ func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, ai
 // @Failure      500  {object}  models.Error          "Erreur serveur lors de la récupération des matchs"
 // @Router       /match/all [get]
 func (s *Service) GetAllMatches(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	log.Printf("Entering get all Matches")
 	if !ai.IsConnected {
+		log.Printf("User not connected")
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 

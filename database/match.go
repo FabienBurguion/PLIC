@@ -46,6 +46,7 @@ func (db Database) GetMatchById(ctx context.Context, id string) (*models.DBMatch
 }
 
 func (db Database) GetUsersByMatchId(ctx context.Context, matchId string) ([]models.DBUsers, error) {
+	log.Printf("Entering GetUsersByMatchId")
 	var users []models.DBUsers
 	err := db.Database.SelectContext(ctx, &users, `
         SELECT u.id, u.username, u.email, u.bio, u.current_field_id, u.password, u.created_at, u.updated_at
@@ -54,10 +55,10 @@ func (db Database) GetUsersByMatchId(ctx context.Context, matchId string) ([]mod
         WHERE um.match_id = $1`, matchId)
 
 	if err != nil {
-		fmt.Println("error is here")
+		log.Printf("Error: %s", err)
 		return nil, fmt.Errorf("échec de la récupération des utilisateurs du param %s : %w", matchId, err)
 	}
-
+	log.Printf("Exiting GetUsersByMatchId")
 	return users, nil
 }
 
@@ -97,7 +98,7 @@ func (db Database) GetMatchesByCourtId(ctx context.Context, courtID string) ([]m
 func (db Database) GetMatchCountByUserID(ctx context.Context, userID string) (int, error) {
 	var count int
 	err := db.Database.GetContext(ctx, &count, `
-		SELECT COUNT(*) AS match_count
+		SELECT COALESCE(COUNT(*), 0) AS match_count
 		FROM user_match um
 		JOIN matches m ON um.match_id = m.id
 		WHERE um.user_id = $1
@@ -110,13 +111,16 @@ func (db Database) GetMatchCountByUserID(ctx context.Context, userID string) (in
 }
 
 func (db Database) GetAllMatches(ctx context.Context) ([]models.DBMatches, error) {
+	log.Printf("Entering GetAllMatches")
 	var matches []models.DBMatches
 	err := db.Database.SelectContext(ctx, &matches, `
         SELECT id, sport, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
         FROM matches`)
 	if err != nil {
+		log.Printf("Error: %s", err)
 		return nil, fmt.Errorf("échec de la récupération des matchs : %w", err)
 	}
+	log.Printf("Exiting GetAllMatches")
 	return matches, nil
 }
 
@@ -273,6 +277,9 @@ func (db Database) GetUserWinrate(ctx context.Context, userID string) (*int, err
           AND m.score1 <> m.score2
     `, userID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("failed to compute winrate: %w", err)
 	}
 

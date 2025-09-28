@@ -201,6 +201,9 @@ func (db Database) GetPlayedSportsByUserID(ctx context.Context, userID string) (
 		WHERE um.user_id = $1
 	`, userID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("error fetching user sports: %w", err)
 	}
 	return sports, nil

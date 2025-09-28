@@ -3,6 +3,7 @@ package s3_management
 import (
 	"bytes"
 	"context"
+	"log"
 	"net/http"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -31,6 +32,7 @@ func (s *RealS3Service) PutObject(ctx context.Context, bucketName string, object
 }
 
 func (s *RealS3Service) GetObject(ctx context.Context, bucketName string, objectKey string) (*v4.PresignedHTTPRequest, error) {
+	log.Printf("Getting object %s", objectKey)
 	presigner := s3.NewPresignClient(s.Client)
 	return presigner.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(bucketName),

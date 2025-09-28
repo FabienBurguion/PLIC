@@ -25,6 +25,9 @@ func (db Database) GetRankedFieldsByUserID(ctx context.Context, userID string) (
 		WHERE user_id = $1
 	`, userID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("error fetching ranked fields: %w", err)
 	}
 	return fields, nil
