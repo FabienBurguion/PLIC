@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"time"
 
-	ddlambda "github.com/DataDog/datadog-lambda-go"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -64,21 +63,6 @@ func (s *Service) initService() {
 		chiTrace.WithServiceName("http-handler"),
 	))
 	s.server.Use(middleware.Logger)
-	s.server.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			rw := &models.ResponseWriter{ResponseWriter: w, StatusCode: http.StatusOK}
-			start := time.Now()
-			next.ServeHTTP(rw, r)
-			d := time.Since(start)
-
-			log.Printf("➡️ %s %s - %d (%s)", r.Method, r.URL.Path, rw.StatusCode, d)
-
-			ddlambda.Metric("plic.http.request.duration_ms", float64(d.Milliseconds()),
-				"route:"+r.URL.Path, "method:"+r.Method, fmt.Sprintf("status:%d", rw.StatusCode))
-			ddlambda.Metric("plic.http.request.count", 1,
-				"route:"+r.URL.Path, "method:"+r.Method, fmt.Sprintf("status:%d", rw.StatusCode))
-		})
-	})
 	s.server.Use(middleware.Recoverer)
 	s.server.Use(middleware.RequestID)
 	s.server.Use(middleware.Timeout(10 * time.Second))
