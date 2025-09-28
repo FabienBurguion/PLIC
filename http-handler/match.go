@@ -29,15 +29,22 @@ func (s *Service) buildMatchesResponse(ctx context.Context, matches []models.DBM
 
 		profilePictures := make([]string, len(users))
 
+		var wg sync.WaitGroup
+
 		for i, user := range users {
-			pic, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-			if err != nil {
-				log.Printf("error getting profile picture for user %s: %v", user.Id, err)
-				profilePictures[i] = ""
-			} else {
-				profilePictures[i] = pic.URL
-			}
+			wg.Add(1)
+			go func(i int, user models.DBUsers) {
+				defer wg.Done()
+				pic, err := s.s3Service.GetProfilePicture(ctx, user.Id)
+				if err != nil {
+					log.Printf("error getting profile picture for user %s: %v", user.Id, err)
+					profilePictures[i] = ""
+				} else {
+					profilePictures[i] = pic.URL
+				}
+			}(i, user)
 		}
+		wg.Wait()
 
 		matchResponse, buildErr := s.buildMatchResponse(ctx, match, users, profilePictures)
 		if buildErr != nil {

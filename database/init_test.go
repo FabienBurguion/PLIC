@@ -102,7 +102,7 @@ func InitDBTest(sqlFile string) (*sqlx.DB, func() error, error) {
 	dockerHost := "localhost"
 	adminDsn := "host=" + dockerHost + " port=5433 user=test password=test dbname=postgres sslmode=disable"
 
-	adminDb, err := sql.Open("postgres", adminDsn)
+	adminDb, err := sql.Open("pgx", adminDsn)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -116,7 +116,7 @@ func InitDBTest(sqlFile string) (*sqlx.DB, func() error, error) {
 	}
 
 	testDsn := fmt.Sprintf("host=%s port=5433 user=test password=test dbname=%s sslmode=disable", dockerHost, dbName)
-	testDb, err := sql.Open("postgres", testDsn)
+	testDb, err := sql.Open("pgx", testDsn)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -138,7 +138,7 @@ func InitDBTest(sqlFile string) (*sqlx.DB, func() error, error) {
 		return err
 	}
 
-	return sqlx.NewDb(testDb, "postgres"), cleanup, nil
+	return sqlx.NewDb(testDb, "pgx"), cleanup, nil
 }
 
 func (s *Service) loadFixtures(fixtures DBFixtures) {

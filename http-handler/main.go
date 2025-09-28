@@ -119,7 +119,7 @@ func (s *Service) initDb() database.Database {
 	db.SetMaxIdleConns(10)
 	db.SetMaxOpenConns(20)
 	return database.Database{
-		Database: sqlx.NewDb(db, "postgres"),
+		Database: sqlx.NewDb(db, "pgx"),
 	}
 }
 
