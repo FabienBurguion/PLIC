@@ -67,7 +67,7 @@ func withRateLimit(handler httpHandler) httpHandler {
 func withAuthentication(handler httpHandler) httpHandler {
 	return withRateLimit(func(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
 		log.Println("Entering authent middleware")
-		auth := models.AuthInfo{IsConnected: true} // TODO: Update quand le front saura coder
+		auth := models.AuthInfo{IsConnected: false}
 
 		authHeader := r.Header.Get("Authorization")
 		if strings.HasPrefix(authHeader, "Bearer ") {
