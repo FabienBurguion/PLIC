@@ -105,7 +105,7 @@ func (s *Service) initDb() database.Database {
 		panic("DATABASE_URL environment variable is not set")
 	}
 
-	db, err := sql.Open("postgres", connStr)
+	db, err := sql.Open("pgx", connStr)
 	if err != nil {
 		panic(err)
 	}
