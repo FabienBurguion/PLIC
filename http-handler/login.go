@@ -1,10 +1,12 @@
 package main
 
 import (
+	"PLIC/database"
 	"PLIC/httpx"
 	"PLIC/models"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -97,27 +99,17 @@ func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.Auth
 		log.Printf("Username or Password empty")
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
-	user, err := s.db.GetUserByEmail(ctx, req.Email)
-	if err != nil {
-		log.Println("Erreur DB:", err)
-		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
-	}
-	if user != nil {
-		log.Println("Erreur DB: User exists")
-		return httpx.WriteError(w, http.StatusUnauthorized, httpx.UnauthorizedError)
-	}
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Println("Erreur hash:", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
-	id := uuid.NewString()
 	var username string
 	if req.Username != nil {
 		username = *req.Username
 	}
 	newUser := models.DBUsers{
-		Id:        id,
+		Id:        uuid.NewString(),
 		Username:  username,
 		Email:     req.Email,
 		Bio:       req.Bio,
@@ -125,15 +117,19 @@ func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.Auth
 		CreatedAt: s.clock.Now(),
 		UpdatedAt: s.clock.Now(),
 	}
+	if err := s.db.CreateUser(ctx, newUser); err != nil {
+		switch {
+		case errors.Is(err, database.ErrEmailTaken):
+			return httpx.WriteError(w, http.StatusConflict, "email_taken")
+		case errors.Is(err, database.ErrUsernameTaken):
+			return httpx.WriteError(w, http.StatusConflict, "username_taken")
+		default:
+			return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
+		}
+	}
 	token, err := GenerateJWT(newUser.Id)
 	if err != nil {
 		log.Println("Erreur Token:", err)
-		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
-	}
-
-	err = s.db.CreateUser(ctx, newUser)
-	if err != nil {
-		log.Println("Erreur DB à la création:", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 	return httpx.Write(w, http.StatusCreated, models.LoginResponse{Token: token})

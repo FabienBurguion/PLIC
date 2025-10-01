@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -148,21 +149,25 @@ func TestService_Login(t *testing.T) {
 }
 
 func TestService_Register(t *testing.T) {
-	type testCase struct {
-		name          string
-		fixtures      DBFixtures
-		param         models.RegisterRequest
-		expected      int
-		expectPersist bool
+	type expected struct {
+		statusCode int
+		persist    bool
+		body       *string
 	}
 
-	userId := uuid.NewString()
-	email := "NewEmail"
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		param    models.RegisterRequest
+		expected expected
+	}
+
+	email := "new@example.com"
 	password := "NewPassword"
 
 	strPtr := func(s string) *string { return &s }
 
-	testCases := []testCase{
+	tcs := []testCase{
 		{
 			name: "User does not exist -> can register and receives token (no username/bio provided)",
 			fixtures: DBFixtures{
@@ -172,8 +177,10 @@ func TestService_Register(t *testing.T) {
 				Email:    email,
 				Password: password,
 			},
-			expected:      http.StatusCreated,
-			expectPersist: true,
+			expected: expected{
+				statusCode: http.StatusCreated,
+				persist:    true,
+			},
 		},
 		{
 			name: "User does not exist -> can register and receives token (with username & bio)",
@@ -186,8 +193,10 @@ func TestService_Register(t *testing.T) {
 				Username: strPtr("Neo"),
 				Bio:      ptr("The One"),
 			},
-			expected:      http.StatusCreated,
-			expectPersist: true,
+			expected: expected{
+				statusCode: http.StatusCreated,
+				persist:    true,
+			},
 		},
 		{
 			name: "Empty email => bad request",
@@ -198,7 +207,9 @@ func TestService_Register(t *testing.T) {
 				Email:    "",
 				Password: password,
 			},
-			expected: http.StatusBadRequest,
+			expected: expected{
+				statusCode: http.StatusBadRequest,
+			},
 		},
 		{
 			name: "Empty password => bad request",
@@ -209,28 +220,56 @@ func TestService_Register(t *testing.T) {
 				Email:    email,
 				Password: "",
 			},
-			expected: http.StatusBadRequest,
+			expected: expected{
+				statusCode: http.StatusBadRequest,
+			},
 		},
 		{
-			name: "User already exists -> 401",
+			name: "Email already exists => 409 email_taken",
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{
 					models.NewDBUsersFixture().
-						WithId(userId).
-						WithEmail(email),
+						WithId(uuid.NewString()).
+						WithEmail("dup@example.com").
+						WithUsername("someone"),
 				},
 			},
 			param: models.RegisterRequest{
-				Email:    email,
-				Password: password,
+				Email:    "dup@example.com",
+				Password: "pwd",
+				Username: strPtr("anyone"),
 			},
-			expected: http.StatusUnauthorized,
+			expected: expected{
+				statusCode: http.StatusConflict,
+				body:       strPtr(`{"message":"email_taken"}`),
+			},
+		},
+		{
+			name: "Username already exists => 409 username_taken",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{
+					models.NewDBUsersFixture().
+						WithId(uuid.NewString()).
+						WithEmail("existing@example.com").
+						WithUsername("takenName"),
+				},
+			},
+			param: models.RegisterRequest{
+				Email:    "new-email-for-username-conflict@example.com",
+				Password: "pwd",
+				Username: strPtr("takenName"),
+			},
+			expected: expected{
+				statusCode: http.StatusConflict,
+				body:       strPtr(`{"message":"username_taken"}`),
+			},
 		},
 	}
 
-	for _, c := range testCases {
+	for _, c := range tcs {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
+
 			s := &Service{}
 			cleanup := s.InitServiceTest()
 			defer func() {
@@ -250,10 +289,17 @@ func TestService_Register(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
-			require.Equal(t, c.expected, resp.StatusCode)
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
+			require.Equal(t, c.expected.statusCode, resp.StatusCode)
 
-			if c.expected != http.StatusCreated {
+			if c.expected.body != nil {
+				respBytes, _ := io.ReadAll(resp.Body)
+				require.Equal(t, *c.expected.body, strings.TrimSpace(string(respBytes)))
+			}
+
+			if c.expected.statusCode != http.StatusCreated {
 				return
 			}
 
@@ -271,10 +317,9 @@ func TestService_Register(t *testing.T) {
 			require.True(t, ok)
 			require.NotEmpty(t, claims["user_id"])
 
-			if c.expectPersist {
+			if c.expected.persist {
 				ctx := context.Background()
-				createdEmail := c.param.Email
-				u, err := s.db.GetUserByEmail(ctx, createdEmail)
+				u, err := s.db.GetUserByEmail(ctx, c.param.Email)
 				require.NoError(t, err)
 				require.NotNil(t, u)
 
@@ -283,7 +328,6 @@ func TestService_Register(t *testing.T) {
 				} else {
 					require.Equal(t, *c.param.Username, u.Username)
 				}
-
 				require.Equal(t, c.param.Bio, u.Bio)
 
 				require.NotEmpty(t, u.Password)
@@ -291,7 +335,6 @@ func TestService_Register(t *testing.T) {
 
 				require.False(t, u.CreatedAt.IsZero())
 				require.False(t, u.UpdatedAt.IsZero())
-
 				require.NotEmpty(t, u.Id)
 			}
 		})

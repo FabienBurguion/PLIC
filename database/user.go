@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func (db Database) CheckUserExist(ctx context.Context, id string) (bool, error) {
@@ -118,14 +120,29 @@ func (db Database) UpdateUser(ctx context.Context, data models.UserPatchRequest,
 	return err
 }
 
+var (
+	ErrEmailTaken    = errors.New("email already taken")
+	ErrUsernameTaken = errors.New("username already taken")
+)
+
 func (db Database) CreateUser(ctx context.Context, user models.DBUsers) error {
 	_, err := db.Database.NamedExecContext(ctx, `
 		INSERT INTO users (id, username, email, bio, password, created_at, updated_at)
 		VALUES (:id, :username, :email, :bio, :password, :created_at, :updated_at)`, user)
-	if err != nil {
-		return fmt.Errorf("échec de len'insertion utilisateur : %w", err)
+	if err == nil {
+		return nil
 	}
-	return nil
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		switch pgErr.ConstraintName {
+		case "users_email_uniq", "users_email_key":
+			return ErrEmailTaken
+		case "users_username_uniq", "users_username_key":
+			return ErrUsernameTaken
+		}
+	}
+	return err
 }
 
 func (db Database) ChangePassword(ctx context.Context, email string, newPasswordHash string) error {
