@@ -61,9 +61,10 @@ func (s *Service) initService() {
 	s.server.Use(middleware.Logger)
 	s.server.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log.Printf("Starting resquest➡️ %s %s", r.Method, r.URL.Path)
 			rw := &models.ResponseWriter{ResponseWriter: w, StatusCode: http.StatusOK}
 			next.ServeHTTP(rw, r)
-			log.Printf("➡️ %s %s - %d", r.Method, r.URL.Path, rw.StatusCode)
+			log.Printf("Request Result ➡️ %s %s - %d", r.Method, r.URL.Path, rw.StatusCode)
 		})
 	})
 	s.server.Use(middleware.Recoverer)
