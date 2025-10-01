@@ -471,7 +471,7 @@ func TestService_ResetPassword(t *testing.T) {
 			var err error
 			switch c.name {
 			case "Valid token, password updated, mail sent":
-				token, err = GenerateResetToken(userEmail)
+				token, err = generateResetToken(userEmail)
 				require.NoError(t, err)
 			case "Invalid token → 500":
 				token = "invalid.token.value"

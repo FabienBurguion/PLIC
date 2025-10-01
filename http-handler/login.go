@@ -153,7 +153,7 @@ func generatePassword(length int) (string, error) {
 	return string(password), nil
 }
 
-func GenerateResetToken(email string) (string, error) {
+func generateResetToken(email string) (string, error) {
 	claims := jwt.MapClaims{
 		"email": email,
 		"exp":   time.Now().Add(15 * time.Minute).Unix(),
@@ -162,7 +162,7 @@ func GenerateResetToken(email string) (string, error) {
 	return token.SignedString([]byte(jwtSecret))
 }
 
-func ParseResetToken(tokenStr string) (string, error) {
+func parseResetToken(tokenStr string) (string, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		return []byte(jwtSecret), nil
 	})
@@ -214,7 +214,7 @@ func (s *Service) ForgetPassword(w http.ResponseWriter, r *http.Request, _ model
 		log.Println("User does not exist")
 		return httpx.Write(w, http.StatusOK, nil)
 	}
-	token, err := GenerateResetToken(req.Email)
+	token, err := generateResetToken(req.Email)
 	if err != nil {
 		log.Println("Erreur Token:", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
@@ -244,7 +244,7 @@ func (s *Service) ResetPassword(w http.ResponseWriter, r *http.Request, _ models
 		log.Println("Token empty")
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
-	email, err := ParseResetToken(token)
+	email, err := parseResetToken(token)
 	if err != nil {
 		log.Println("Erreur Token:", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)

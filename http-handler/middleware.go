@@ -89,6 +89,11 @@ func withAuthentication(handler httpHandler) httpHandler {
 				}
 			}
 		}
+		if auth.IsConnected {
+			log.Printf("Starting the request with the user '%s'", auth.UserID)
+		} else {
+			log.Println("Starting the request with an unauthenticated user")
+		}
 		return handler(w, r, auth)
 	})
 }
