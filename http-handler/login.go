@@ -75,6 +75,11 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, _ models.AuthInf
 	return httpx.Write(w, http.StatusOK, models.LoginResponse{Token: token})
 }
 
+func isValidEmail(email string) bool {
+	_, err := mail.ParseAddress(email)
+	return err == nil
+}
+
 // Register godoc
 // @Summary      Register a new user
 // @Description  Register a user with username and password
@@ -88,29 +93,31 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, _ models.AuthInf
 // @Failure      500 {object} models.Error "Internal server error"
 // @Router       /register [post]
 func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
-	log.Println("Entering Register")
 	ctx := r.Context()
 	var req models.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Println("Erreur JSON:", err)
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
-	if req.Email == "" || req.Password == "" {
-		log.Printf("Username or Password empty")
-		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
+	log.Println("Entering Register with request:", req)
+	if !isValidEmail(req.Email) {
+		msg := "Invalid Email"
+		log.Printf(msg)
+		return httpx.WriteError(w, http.StatusBadRequest, msg)
+	}
+	if req.Password == "" || req.Username == "" {
+		msg := "Password and username shouldn't be empty"
+		log.Println(msg)
+		return httpx.WriteError(w, http.StatusBadRequest, msg)
 	}
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Println("Erreur hash:", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
-	var username string
-	if req.Username != nil {
-		username = *req.Username
-	}
 	newUser := models.DBUsers{
 		Id:        uuid.NewString(),
-		Username:  username,
+		Username:  req.Username,
 		Email:     req.Email,
 		Bio:       req.Bio,
 		Password:  string(hashedPassword),

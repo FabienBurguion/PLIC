@@ -162,10 +162,8 @@ func TestService_Register(t *testing.T) {
 		expected expected
 	}
 
-	email := "new@example.com"
+	email := "new@gmail.com"
 	password := "NewPassword"
-
-	strPtr := func(s string) *string { return &s }
 
 	tcs := []testCase{
 		{
@@ -176,6 +174,7 @@ func TestService_Register(t *testing.T) {
 			param: models.RegisterRequest{
 				Email:    email,
 				Password: password,
+				Username: "user1",
 			},
 			expected: expected{
 				statusCode: http.StatusCreated,
@@ -190,7 +189,7 @@ func TestService_Register(t *testing.T) {
 			param: models.RegisterRequest{
 				Email:    "with-username@example.com",
 				Password: "pwd",
-				Username: strPtr("Neo"),
+				Username: "Neo",
 				Bio:      ptr("The One"),
 			},
 			expected: expected{
@@ -237,11 +236,11 @@ func TestService_Register(t *testing.T) {
 			param: models.RegisterRequest{
 				Email:    "dup@example.com",
 				Password: "pwd",
-				Username: strPtr("anyone"),
+				Username: "anyone",
 			},
 			expected: expected{
 				statusCode: http.StatusConflict,
-				body:       strPtr(`{"message":"email_taken"}`),
+				body:       ptr(`{"message":"email_taken"}`),
 			},
 		},
 		{
@@ -257,11 +256,11 @@ func TestService_Register(t *testing.T) {
 			param: models.RegisterRequest{
 				Email:    "new-email-for-username-conflict@example.com",
 				Password: "pwd",
-				Username: strPtr("takenName"),
+				Username: "takenName",
 			},
 			expected: expected{
 				statusCode: http.StatusConflict,
-				body:       strPtr(`{"message":"username_taken"}`),
+				body:       ptr(`{"message":"username_taken"}`),
 			},
 		},
 	}
@@ -323,11 +322,8 @@ func TestService_Register(t *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, u)
 
-				if c.param.Username == nil {
-					require.Equal(t, "", u.Username)
-				} else {
-					require.Equal(t, *c.param.Username, u.Username)
-				}
+				require.Equal(t, c.param.Username, u.Username)
+
 				require.Equal(t, c.param.Bio, u.Bio)
 
 				require.NotEmpty(t, u.Password)
