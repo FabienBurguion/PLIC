@@ -1065,3 +1065,139 @@ func TestDatabase_GetUserWinrate(t *testing.T) {
 		})
 	}
 }
+
+func TestDatabase_GetUsersByMatchIDs(t *testing.T) {
+	type expected struct {
+		matchUsers map[string][]string
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		matchIDs []string
+		expected expected
+	}
+
+	court := models.NewDBCourtFixture()
+	match1 := models.NewDBMatchesFixture().WithCourtId(court.Id)
+	match2 := models.NewDBMatchesFixture().WithCourtId(court.Id)
+	user1 := models.NewDBUsersFixture().WithUsername("Alice").WithEmail("email1@gmail.com")
+	user2 := models.NewDBUsersFixture().WithUsername("Bob").WithEmail("email2@gmail.com")
+	user3 := models.NewDBUsersFixture().WithUsername("Charlie").WithEmail("email3@gmail.com")
+
+	testCases := []testCase{
+		{
+			name: "Deux matchs avec des users",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match1, match2},
+				Users:   []models.DBUsers{user1, user2, user3},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(user1.Id).WithMatchId(match1.Id),
+					models.NewDBUserMatchFixture().WithUserId(user2.Id).WithMatchId(match1.Id),
+					models.NewDBUserMatchFixture().WithUserId(user3.Id).WithMatchId(match2.Id),
+				},
+			},
+			matchIDs: []string{match1.Id, match2.Id},
+			expected: expected{
+				matchUsers: map[string][]string{
+					match1.Id: {"Alice", "Bob"},
+					match2.Id: {"Charlie"},
+				},
+			},
+		},
+		{
+			name: "Aucun user pour les matchs demandés",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match1, match2},
+			},
+			matchIDs: []string{match1.Id, match2.Id},
+			expected: expected{
+				matchUsers: map[string][]string{},
+			},
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+			s.loadFixtures(c.fixtures)
+
+			ctx := context.Background()
+			got, err := s.db.GetUsersByMatchIDs(ctx, c.matchIDs)
+			require.NoError(t, err)
+
+			for mid, usernames := range c.expected.matchUsers {
+				require.Contains(t, got, mid)
+				gotUsernames := make([]string, len(got[mid]))
+				for i, u := range got[mid] {
+					gotUsernames[i] = u.Username
+				}
+				require.ElementsMatch(t, usernames, gotUsernames)
+			}
+		})
+	}
+}
+
+func TestDatabase_GetCourtsByIDs(t *testing.T) {
+	type expected struct {
+		courts map[string]string
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		ids      []string
+		expected expected
+	}
+
+	court1 := models.NewDBCourtFixture().WithName("Court A")
+	court2 := models.NewDBCourtFixture().WithName("Court B")
+
+	testCases := []testCase{
+		{
+			name: "Deux courts existants",
+			fixtures: DBFixtures{
+				Courts: []models.DBCourt{court1, court2},
+			},
+			ids: []string{court1.Id, court2.Id},
+			expected: expected{
+				courts: map[string]string{
+					court1.Id: "Court A",
+					court2.Id: "Court B",
+				},
+			},
+		},
+		{
+			name: "Aucun court trouvé",
+			fixtures: DBFixtures{
+				Courts: []models.DBCourt{},
+			},
+			ids:      []string{"nonexistent-id"},
+			expected: expected{courts: map[string]string{}},
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+			s.loadFixtures(c.fixtures)
+
+			ctx := context.Background()
+			got, err := s.db.GetCourtsByIDs(ctx, c.ids)
+			require.NoError(t, err)
+
+			gotMap := make(map[string]string)
+			for _, ct := range got {
+				gotMap[ct.Id] = ct.Name
+			}
+
+			require.Equal(t, c.expected.courts, gotMap)
+		})
+	}
+}

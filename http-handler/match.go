@@ -17,24 +17,50 @@ import (
 )
 
 func (s *Service) buildMatchesResponse(ctx context.Context, matches []models.DBMatches) []models.MatchResponse {
-	log.Printf("Building Matches")
-	responses := make([]models.MatchResponse, 0, len(matches))
+	log.Printf("Building Matches (batched)")
 
+	matchIDs := make([]string, 0, len(matches))
+	courtIDs := make(map[string]struct{})
+	for _, m := range matches {
+		matchIDs = append(matchIDs, m.Id)
+		courtIDs[m.CourtID] = struct{}{}
+	}
+
+	usersByMatch, err := s.db.GetUsersByMatchIDs(ctx, matchIDs)
+	if err != nil {
+		log.Printf("error prefetching users: %v", err)
+		return nil
+	}
+
+	courtIDsSlice := make([]string, 0, len(courtIDs))
+	for id := range courtIDs {
+		courtIDsSlice = append(courtIDsSlice, id)
+	}
+	courts, err := s.db.GetCourtsByIDs(ctx, courtIDsSlice)
+	if err != nil {
+		log.Printf("error prefetching courts: %v", err)
+		return nil
+	}
+	courtMap := make(map[string]models.DBCourt, len(courts))
+	for _, c := range courts {
+		courtMap[c.Id] = c
+	}
+
+	responses := make([]models.MatchResponse, 0, len(matches))
 	for _, match := range matches {
-		users, userErr := s.db.GetUsersByMatchId(ctx, match.Id)
-		if userErr != nil {
-			log.Printf("warning: could not fetch users for match %s: %v", match.Id, userErr)
-			continue
-		}
+		users := usersByMatch[match.Id]
 
 		profilePictures := make([]string, len(users))
-
 		var wg sync.WaitGroup
+		sem := make(chan struct{}, 10)
 
 		for i, user := range users {
 			wg.Add(1)
 			go func(i int, user models.DBUsers) {
 				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
+
 				pic, err := s.s3Service.GetProfilePicture(ctx, user.Id)
 				if err != nil {
 					log.Printf("error getting profile picture for user %s: %v", user.Id, err)
@@ -46,13 +72,29 @@ func (s *Service) buildMatchesResponse(ctx context.Context, matches []models.DBM
 		}
 		wg.Wait()
 
-		matchResponse, buildErr := s.buildMatchResponse(ctx, match, users, profilePictures)
-		if buildErr != nil {
-			log.Printf("warning: could not build match response for match %s: %v", match.Id, buildErr)
+		court, ok := courtMap[match.CourtID]
+		if !ok {
+			log.Printf("warning: no court found for match %s", match.Id)
 			continue
 		}
 
-		responses = append(responses, matchResponse)
+		userResponses := make([]models.UserResponse, len(users))
+		for i, u := range users {
+			userResponses[i] = s.BuildUserResponse(ctx, &u, profilePictures[i])
+		}
+
+		responses = append(responses, models.MatchResponse{
+			Id:              match.Id,
+			Sport:           match.Sport,
+			Place:           court.Name,
+			Date:            match.Date,
+			NbreParticipant: match.ParticipantNber,
+			CurrentState:    match.CurrentState,
+			Score1:          match.Score1,
+			Score2:          match.Score2,
+			Users:           userResponses,
+			CreatedAt:       match.CreatedAt,
+		})
 	}
 
 	return responses

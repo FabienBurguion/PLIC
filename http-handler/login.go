@@ -102,7 +102,7 @@ func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.Auth
 	log.Println("Entering Register with request:", req)
 	if !isValidEmail(req.Email) {
 		msg := "Invalid Email"
-		log.Printf(msg)
+		log.Println(msg)
 		return httpx.WriteError(w, http.StatusBadRequest, msg)
 	}
 	if req.Password == "" || req.Username == "" {

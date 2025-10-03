@@ -10,23 +10,6 @@ import (
 	"time"
 )
 
-func (db Database) CheckMatchExist(ctx context.Context, id string) (bool, error) {
-	var match models.DBMatches
-
-	err := db.Database.GetContext(ctx, &match, `
-		SELECT id, sport, date, participant_nber, current_state, score1, score2, created_at, updated_at
-		FROM matches
-		WHERE id = $1`, id)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return false, nil
-		}
-		return false, fmt.Errorf("échec de la requête SQL : %w", err)
-	}
-
-	return true, nil
-}
-
 func (db Database) GetMatchById(ctx context.Context, id string) (*models.DBMatches, error) {
 	var match models.DBMatches
 
@@ -45,6 +28,7 @@ func (db Database) GetMatchById(ctx context.Context, id string) (*models.DBMatch
 	return &match, nil
 }
 
+// TODO: test
 func (db Database) GetUsersByMatchId(ctx context.Context, matchId string) ([]models.DBUsers, error) {
 	log.Printf("Entering GetUsersByMatchId")
 	var users []models.DBUsers
@@ -156,6 +140,7 @@ func (db Database) IsUserInMatch(ctx context.Context, userID, matchID string) (b
 	return true, nil
 }
 
+// TODO: test
 func (db Database) DeleteMatch(ctx context.Context, matchID string) error {
 	_, err := db.Database.ExecContext(ctx, `
 		DELETE FROM matches
@@ -207,6 +192,7 @@ func (db Database) CountUsersByMatchAndTeam(ctx context.Context, matchId string,
 	return count, nil
 }
 
+// TODO: test
 func (db Database) CountUsersByMatch(ctx context.Context, matchId string) (int, error) {
 	var count int
 	err := db.Database.GetContext(ctx, &count, `
@@ -289,4 +275,43 @@ func (db Database) GetUserWinrate(ctx context.Context, userID string) (*int, err
 
 	pct := int((float64(row.Wins)/float64(row.Total))*100.0 + 0.5)
 	return &pct, nil
+}
+
+func (db Database) GetUsersByMatchIDs(ctx context.Context, matchIDs []string) (map[string][]models.DBUsers, error) {
+	query := `
+        SELECT mu.match_id,
+               u.id, u.username, u.email, u.bio, u.current_field_id, 
+               u.password, u.created_at, u.updated_at
+        FROM user_match mu
+        JOIN users u ON u.id = mu.user_id
+        WHERE mu.match_id = ANY($1)
+    `
+
+	type row struct {
+		MatchID string `db:"match_id"`
+		models.DBUsers
+	}
+
+	var rows []row
+	if err := db.Database.SelectContext(ctx, &rows, query, matchIDs); err != nil {
+		return nil, fmt.Errorf("failed to fetch users by matchIDs: %w", err)
+	}
+
+	result := make(map[string][]models.DBUsers)
+	for _, r := range rows {
+		result[r.MatchID] = append(result[r.MatchID], r.DBUsers)
+	}
+
+	return result, nil
+}
+
+func (db Database) GetCourtsByIDs(ctx context.Context, ids []string) ([]models.DBCourt, error) {
+	query := `
+        SELECT id, address, longitude, latitude, created_at, name
+        FROM courts
+        WHERE id = ANY($1)
+    `
+	var courts []models.DBCourt
+	err := db.Database.SelectContext(ctx, &courts, query, ids)
+	return courts, err
 }
