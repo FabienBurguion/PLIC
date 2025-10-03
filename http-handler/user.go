@@ -108,7 +108,6 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, ai models.
 
 	ctx := r.Context()
 
-	// --- USER ---
 	user, err := s.db.GetUserById(ctx, id)
 	if err != nil {
 		log.Println("error getting user by id:", err)
@@ -118,14 +117,12 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, ai models.
 		return httpx.WriteError(w, http.StatusNotFound, "user not found")
 	}
 
-	// --- PROFILE PICTURE ---
 	s3Resp, err := s.s3Service.GetProfilePicture(ctx, id)
 	if err != nil {
 		log.Println("error getting profile picture:", err)
 		s3Resp = &v4.PresignedHTTPRequest{URL: ""}
 	}
 
-	// --- BUILD FULL RESPONSE ---
 	response := s.buildUserResponse(ctx, user, s3Resp.URL)
 
 	return httpx.Write(w, http.StatusOK, response)

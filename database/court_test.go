@@ -238,3 +238,76 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 		})
 	}
 }
+
+func TestDatabase_GetCourtByID(t *testing.T) {
+	type expected struct {
+		found bool
+		name  string
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		param    string
+		expected expected
+	}
+
+	court1 := models.NewDBCourtFixture().WithName("Court One")
+	court2 := models.NewDBCourtFixture().WithName("Court Two")
+
+	testCases := []testCase{
+		{
+			name: "Court exists",
+			fixtures: DBFixtures{
+				Courts: []models.DBCourt{court1, court2},
+			},
+			param: court1.Id,
+			expected: expected{
+				found: true,
+				name:  "Court One",
+			},
+		},
+		{
+			name: "Court does not exist",
+			fixtures: DBFixtures{
+				Courts: []models.DBCourt{court1},
+			},
+			param: uuid.NewString(),
+			expected: expected{
+				found: false,
+			},
+		},
+		{
+			name:     "Empty database",
+			fixtures: DBFixtures{},
+			param:    uuid.NewString(),
+			expected: expected{
+				found: false,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+
+			s.loadFixtures(tc.fixtures)
+
+			got, err := s.db.GetCourtByID(ctx, tc.param)
+			require.NoError(t, err)
+
+			if !tc.expected.found {
+				require.Nil(t, got)
+				return
+			}
+
+			require.NotNil(t, got)
+			require.Equal(t, tc.param, got.Id)
+			require.Equal(t, tc.expected.name, got.Name)
+		})
+	}
+}

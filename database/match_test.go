@@ -1201,3 +1201,223 @@ func TestDatabase_GetCourtsByIDs(t *testing.T) {
 		})
 	}
 }
+
+func TestDatabase_GetUsersByMatchId(t *testing.T) {
+	type expected struct {
+		userIDs []string
+		found   bool
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		matchID  string
+		expected expected
+	}
+
+	court := models.NewDBCourtFixture()
+	match := models.NewDBMatchesFixture().WithCourtId(court.Id)
+
+	user1 := models.NewDBUsersFixture().WithUsername("alice").WithEmail("alice@test.com")
+	user2 := models.NewDBUsersFixture().WithUsername("bob").WithEmail("bob@test.com")
+
+	testCases := []testCase{
+		{
+			name: "Match with 2 users",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match},
+				Users:   []models.DBUsers{user1, user2},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(user1.Id).WithMatchId(match.Id),
+					models.NewDBUserMatchFixture().WithUserId(user2.Id).WithMatchId(match.Id),
+				},
+			},
+			matchID: match.Id,
+			expected: expected{
+				userIDs: []string{user1.Id, user2.Id},
+				found:   true,
+			},
+		},
+		{
+			name: "Match exists but no users",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match},
+			},
+			matchID: match.Id,
+			expected: expected{
+				userIDs: []string{},
+				found:   false,
+			},
+		},
+		{
+			name:     "Unknown match",
+			fixtures: DBFixtures{},
+			matchID:  uuid.NewString(),
+			expected: expected{
+				userIDs: []string{},
+				found:   false,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+			s.loadFixtures(tc.fixtures)
+
+			users, err := s.db.GetUsersByMatchId(ctx, tc.matchID)
+			require.NoError(t, err)
+
+			if !tc.expected.found {
+				require.Empty(t, users)
+				return
+			}
+
+			require.Len(t, users, len(tc.expected.userIDs))
+			gotIDs := make([]string, len(users))
+			for i, u := range users {
+				gotIDs[i] = u.Id
+			}
+			require.ElementsMatch(t, tc.expected.userIDs, gotIDs)
+		})
+	}
+}
+
+func TestDatabase_DeleteMatch(t *testing.T) {
+	type expected struct {
+		shouldExist bool
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		matchID  string
+		expected expected
+	}
+
+	court := models.NewDBCourtFixture()
+	match := models.NewDBMatchesFixture().WithCourtId(court.Id)
+
+	testCases := []testCase{
+		{
+			name: "Delete existing match",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match},
+			},
+			matchID: match.Id,
+			expected: expected{
+				shouldExist: false,
+			},
+		},
+		{
+			name: "Delete non-existing match (no error)",
+			fixtures: DBFixtures{
+				Courts: []models.DBCourt{court},
+			},
+			matchID: uuid.NewString(),
+			expected: expected{
+				shouldExist: false,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+			s.loadFixtures(tc.fixtures)
+
+			err := s.db.DeleteMatch(ctx, tc.matchID)
+			require.NoError(t, err)
+
+			got, err := s.db.GetMatchById(ctx, tc.matchID)
+			require.NoError(t, err)
+
+			if tc.expected.shouldExist {
+				require.NotNil(t, got, "Match devrait encore exister")
+			} else {
+				require.Nil(t, got, "Match ne devrait plus exister")
+			}
+		})
+	}
+}
+
+func TestDatabase_CountUsersByMatch(t *testing.T) {
+	type expected struct {
+		count int
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		matchID  string
+		expected expected
+	}
+
+	court := models.NewDBCourtFixture()
+	match1 := models.NewDBMatchesFixture().WithCourtId(court.Id)
+	match2 := models.NewDBMatchesFixture().WithCourtId(court.Id)
+
+	user1 := models.NewDBUsersFixture().WithUsername("alice").WithEmail("alice@test.com")
+	user2 := models.NewDBUsersFixture().WithUsername("bob").WithEmail("bob@test.com")
+
+	testCases := []testCase{
+		{
+			name: "Match with 2 users",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match1, match2},
+				Users:   []models.DBUsers{user1, user2},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(user1.Id).WithMatchId(match1.Id),
+					models.NewDBUserMatchFixture().WithUserId(user2.Id).WithMatchId(match1.Id),
+				},
+			},
+			matchID: match1.Id,
+			expected: expected{
+				count: 2,
+			},
+		},
+		{
+			name: "Match exists but has no users",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match2},
+			},
+			matchID: match2.Id,
+			expected: expected{
+				count: 0,
+			},
+		},
+		{
+			name:     "Match does not exist",
+			fixtures: DBFixtures{},
+			matchID:  uuid.NewString(),
+			expected: expected{
+				count: 0,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+			s.loadFixtures(tc.fixtures)
+
+			got, err := s.db.CountUsersByMatch(ctx, tc.matchID)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected.count, got)
+		})
+	}
+}

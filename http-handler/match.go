@@ -5,7 +5,6 @@ import (
 	"PLIC/models"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"math"
@@ -116,45 +115,6 @@ func (s *Service) buildMatchesResponse(ctx context.Context, matches []models.DBM
 	return responses
 }
 
-func (s *Service) buildMatchResponse(ctx context.Context, match models.DBMatches, users []models.DBUsers, profilePictures []string) (models.MatchResponse, error) {
-	log.Printf("Building Match")
-	userResponses := make([]models.UserResponse, len(users))
-	for i, u := range users {
-		var profilePicture string
-		if i >= len(profilePictures) {
-			log.Printf("profilePictures index out of range: i=%d, len=%d", i, len(profilePictures))
-			profilePicture = ""
-		} else {
-			profilePicture = profilePictures[i]
-		}
-		userResponses[i] = s.buildUserResponse(ctx, &u, profilePicture)
-	}
-
-	court, err := s.db.GetCourtByID(ctx, match.CourtID)
-	if err != nil {
-		log.Println("error getting court:", err)
-		return models.MatchResponse{}, fmt.Errorf("error getting court %s: %s", match.CourtID, err.Error())
-	}
-
-	if court == nil {
-		log.Println("error: no court found for match", match.Id)
-		return models.MatchResponse{}, fmt.Errorf("error: no court found for match %s", match.Id)
-	}
-
-	return models.MatchResponse{
-		Id:              match.Id,
-		Sport:           match.Sport,
-		Place:           court.Name,
-		Date:            match.Date,
-		NbreParticipant: match.ParticipantNber,
-		CurrentState:    match.CurrentState,
-		Score1:          match.Score1,
-		Score2:          match.Score2,
-		Users:           userResponses,
-		CreatedAt:       match.CreatedAt,
-	}, nil
-}
-
 // GetMatchByID godoc
 // @Summary      Récupère un match par son ID
 // @Description  Retourne les informations d’un match en fonction de son identifiant passé en paramètre de requête
@@ -177,67 +137,23 @@ func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, ai models
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
 	}
 
-	var (
-		match    *models.DBMatches
-		users    []models.DBUsers
-		matchErr error
-		usersErr error
-	)
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
 	ctx := r.Context()
 
-	go func() {
-		defer wg.Done()
-		match, matchErr = s.db.GetMatchById(ctx, id)
-	}()
-
-	go func() {
-		defer wg.Done()
-		users, usersErr = s.db.GetUsersByMatchId(ctx, id)
-	}()
-
-	wg.Wait()
-
-	if matchErr != nil {
-		log.Println("errored getting param by match:", matchErr)
-		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+matchErr.Error())
+	match, err := s.db.GetMatchById(ctx, id)
+	if err != nil {
+		log.Printf("error fetching match %s: %v", id, err)
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
 	}
 	if match == nil {
 		return httpx.WriteError(w, http.StatusNotFound, "match not found")
 	}
-	if usersErr != nil {
-		log.Println("error getting users fom match", usersErr)
+
+	responses := s.buildMatchesResponse(ctx, []models.DBMatches{*match})
+	if len(responses) == 0 {
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to build match response")
 	}
 
-	var (
-		profilePictures = make([]string, len(users))
-		wg2             sync.WaitGroup
-	)
-
-	for i, user := range users {
-		wg2.Add(1)
-		go func(i int, user models.DBUsers) {
-			defer wg2.Done()
-			profilePicture, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-			if err != nil {
-				log.Println("error getting profile picture:", err)
-				profilePictures[i] = ""
-			} else {
-				profilePictures[i] = profilePicture.URL
-			}
-		}(i, user)
-	}
-
-	wg2.Wait()
-
-	response, err := s.buildMatchResponse(ctx, *match, users, profilePictures)
-	if err != nil {
-		return httpx.WriteError(w, http.StatusInternalServerError, "failed to build match response: "+err.Error())
-	}
-	return httpx.Write(w, http.StatusOK, response)
+	return httpx.Write(w, http.StatusOK, responses[0])
 }
 
 // GetMatchesByUserID godoc

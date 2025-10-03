@@ -28,7 +28,6 @@ func (db Database) GetMatchById(ctx context.Context, id string) (*models.DBMatch
 	return &match, nil
 }
 
-// TODO: test
 func (db Database) GetUsersByMatchId(ctx context.Context, matchId string) ([]models.DBUsers, error) {
 	log.Printf("Entering GetUsersByMatchId")
 	var users []models.DBUsers
@@ -140,7 +139,6 @@ func (db Database) IsUserInMatch(ctx context.Context, userID, matchID string) (b
 	return true, nil
 }
 
-// TODO: test
 func (db Database) DeleteMatch(ctx context.Context, matchID string) error {
 	_, err := db.Database.ExecContext(ctx, `
 		DELETE FROM matches
@@ -192,7 +190,6 @@ func (db Database) CountUsersByMatchAndTeam(ctx context.Context, matchId string,
 	return count, nil
 }
 
-// TODO: test
 func (db Database) CountUsersByMatch(ctx context.Context, matchId string) (int, error) {
 	var count int
 	err := db.Database.GetContext(ctx, &count, `
