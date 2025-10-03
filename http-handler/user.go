@@ -12,7 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func (s *Service) BuildUserResponse(ctx context.Context, user *models.DBUsers, profilePictureUrl string) models.UserResponse {
+func (s *Service) buildUserResponse(ctx context.Context, user *models.DBUsers, profilePictureUrl string) models.UserResponse {
 	var (
 		visitedFields int
 		matchCount    int
@@ -62,6 +62,27 @@ func (s *Service) BuildUserResponse(ctx context.Context, user *models.DBUsers, p
 	}
 }
 
+func (s *Service) buildUserResponseFast(user *models.DBUsers, profilePictureURL string, st *models.UserStats) models.UserResponse {
+	if st == nil {
+		st = &models.UserStats{}
+	}
+	return models.UserResponse{
+		Username:       user.Username,
+		Bio:            user.Bio,
+		CreatedAt:      user.CreatedAt,
+		ProfilePicture: ptr(profilePictureURL),
+		CurrentFieldId: user.CurrentFieldId,
+		VisitedFields:  st.VisitedFields,
+		NbMatches:      st.MatchCount,
+		Winrate:        st.Winrate,
+		FavoriteCity:   nil,
+		FavoriteSport:  st.FavoriteSport,
+		FavoriteField:  st.FavoriteField,
+		Sports:         st.Sports,
+		Fields:         st.Fields,
+	}
+}
+
 // GetUserById godoc
 // @Summary      Get a param by ID
 // @Description  Retrieve param information, including profile picture and preferences
@@ -105,7 +126,7 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, ai models.
 	}
 
 	// --- BUILD FULL RESPONSE ---
-	response := s.BuildUserResponse(ctx, user, s3Resp.URL)
+	response := s.buildUserResponse(ctx, user, s3Resp.URL)
 
 	return httpx.Write(w, http.StatusOK, response)
 }

@@ -46,6 +46,22 @@ func (s *Service) buildMatchesResponse(ctx context.Context, matches []models.DBM
 		courtMap[c.Id] = c
 	}
 
+	userIDSet := make(map[string]struct{})
+	for _, us := range usersByMatch {
+		for _, u := range us {
+			userIDSet[u.Id] = struct{}{}
+		}
+	}
+	userIDs := make([]string, 0, len(userIDSet))
+	for id := range userIDSet {
+		userIDs = append(userIDs, id)
+	}
+
+	statsByUser, err := s.db.GetUserStatsByIDs(ctx, userIDs)
+	if err != nil {
+		log.Printf("error prefetching user stats: %v", err)
+	}
+
 	responses := make([]models.MatchResponse, 0, len(matches))
 	for _, match := range matches {
 		users := usersByMatch[match.Id]
@@ -80,7 +96,7 @@ func (s *Service) buildMatchesResponse(ctx context.Context, matches []models.DBM
 
 		userResponses := make([]models.UserResponse, len(users))
 		for i, u := range users {
-			userResponses[i] = s.BuildUserResponse(ctx, &u, profilePictures[i])
+			userResponses[i] = s.buildUserResponseFast(&u, profilePictures[i], statsByUser[u.Id])
 		}
 
 		responses = append(responses, models.MatchResponse{
@@ -111,7 +127,7 @@ func (s *Service) buildMatchResponse(ctx context.Context, match models.DBMatches
 		} else {
 			profilePicture = profilePictures[i]
 		}
-		userResponses[i] = s.BuildUserResponse(ctx, &u, profilePicture)
+		userResponses[i] = s.buildUserResponse(ctx, &u, profilePicture)
 	}
 
 	court, err := s.db.GetCourtByID(ctx, match.CourtID)

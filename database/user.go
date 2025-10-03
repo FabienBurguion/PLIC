@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -224,4 +225,214 @@ func (db Database) GetPlayedSportsByUserID(ctx context.Context, userID string) (
 		return nil, fmt.Errorf("error fetching user sports: %w", err)
 	}
 	return sports, nil
+}
+
+func (db Database) GetUserStatsByIDs(ctx context.Context, userIDs []string) (map[string]*models.UserStats, error) {
+	stats := make(map[string]*models.UserStats, len(userIDs))
+	initUser := func(uid string) *models.UserStats {
+		if s, ok := stats[uid]; ok {
+			return s
+		}
+		s := &models.UserStats{}
+		stats[uid] = s
+		return s
+	}
+
+	{
+		type row struct {
+			UserID string `db:"user_id"`
+			Cnt    int    `db:"cnt"`
+		}
+		var rows []row
+		q := `
+			SELECT um.user_id, COUNT(*) AS cnt
+			FROM user_match um
+			JOIN matches m ON m.id = um.match_id
+			WHERE um.user_id = ANY($1)
+			  AND m.current_state IN ('Termine','Manque Score')
+			GROUP BY um.user_id
+		`
+		if err := db.Database.SelectContext(ctx, &rows, q, userIDs); err != nil {
+			return nil, fmt.Errorf("GetUserStatsByIDs.match_count: %w", err)
+		}
+		for _, r := range rows {
+			initUser(r.UserID).MatchCount = r.Cnt
+		}
+	}
+
+	{
+		type row struct {
+			UserID string `db:"user_id"`
+			Cnt    int    `db:"cnt"`
+		}
+		var rows []row
+		q := `
+			SELECT um.user_id, COALESCE(COUNT(DISTINCT m.court_id), 0) AS cnt
+			FROM user_match um
+			JOIN matches m ON m.id = um.match_id
+			WHERE um.user_id = ANY($1)
+			GROUP BY um.user_id
+		`
+		if err := db.Database.SelectContext(ctx, &rows, q, userIDs); err != nil {
+			return nil, fmt.Errorf("GetUserStatsByIDs.visited_fields: %w", err)
+		}
+		for _, r := range rows {
+			initUser(r.UserID).VisitedFields = r.Cnt
+		}
+	}
+
+	{
+		type row struct {
+			UserID string  `db:"user_id"`
+			Name   *string `db:"name"`
+		}
+		var rows []row
+		q := `
+			SELECT DISTINCT ON (t.user_id) t.user_id, t.name
+			FROM (
+				SELECT um.user_id, c.name, COUNT(*) AS cnt
+				FROM user_match um
+				JOIN matches m ON m.id = um.match_id
+				JOIN courts c  ON c.id = m.court_id
+				WHERE um.user_id = ANY($1)
+				GROUP BY um.user_id, c.name
+			) AS t
+			ORDER BY t.user_id, t.cnt DESC
+		`
+		if err := db.Database.SelectContext(ctx, &rows, q, userIDs); err != nil {
+			return nil, fmt.Errorf("GetUserStatsByIDs.favorite_field: %w", err)
+		}
+		for _, r := range rows {
+			initUser(r.UserID).FavoriteField = r.Name
+		}
+	}
+
+	{
+		type row struct {
+			UserID string        `db:"user_id"`
+			Sport  *models.Sport `db:"sport"`
+		}
+		var rows []row
+		q := `
+			SELECT DISTINCT ON (t.user_id) t.user_id, t.sport
+			FROM (
+				SELECT um.user_id, m.sport, COUNT(*) AS cnt
+				FROM user_match um
+				JOIN matches m ON m.id = um.match_id
+				WHERE um.user_id = ANY($1)
+				GROUP BY um.user_id, m.sport
+			) AS t
+			ORDER BY t.user_id, t.cnt DESC
+		`
+		if err := db.Database.SelectContext(ctx, &rows, q, userIDs); err != nil {
+			return nil, fmt.Errorf("GetUserStatsByIDs.favorite_sport: %w", err)
+		}
+		for _, r := range rows {
+			initUser(r.UserID).FavoriteSport = r.Sport
+		}
+	}
+
+	{
+		type row struct {
+			UserID string `db:"user_id"`
+			Sports string `db:"sports"`
+		}
+		var rows []row
+		q := `
+			SELECT um.user_id, STRING_AGG(DISTINCT m.sport::text, ',') AS sports
+			FROM user_match um
+			JOIN matches m ON m.id = um.match_id
+			WHERE um.user_id = ANY($1)
+			GROUP BY um.user_id
+		`
+		if err := db.Database.SelectContext(ctx, &rows, q, userIDs); err != nil {
+			return nil, fmt.Errorf("GetUserStatsByIDs.played_sports: %w", err)
+		}
+		for _, r := range rows {
+			parts := strings.Split(r.Sports, ",")
+			ms := make([]models.Sport, 0, len(parts))
+			for _, s := range parts {
+				ms = append(ms, models.Sport(s))
+			}
+			initUser(r.UserID).Sports = ms
+		}
+	}
+
+	{
+		type row struct {
+			UserID  string `db:"user_id"`
+			Ranking int    `db:"ranking"`
+			Name    string `db:"name"`
+			Elo     int    `db:"elo"`
+		}
+		var rows []row
+		q := `
+			WITH ranked AS (
+				SELECT
+					r.user_id,
+					RANK() OVER (PARTITION BY r.court_id ORDER BY r.elo DESC) AS ranking,
+					c.name,
+					r.elo
+				FROM ranking r
+				JOIN courts c ON c.id = r.court_id
+				WHERE r.user_id = ANY($1)
+			)
+			SELECT user_id, ranking, name, elo
+			FROM ranked
+		`
+		if err := db.Database.SelectContext(ctx, &rows, q, userIDs); err != nil {
+			return nil, fmt.Errorf("GetUserStatsByIDs.ranked_fields: %w", err)
+		}
+		for _, r := range rows {
+			s := initUser(r.UserID)
+			s.Fields = append(s.Fields, models.Field{
+				Ranking: r.Ranking,
+				Name:    r.Name,
+				Elo:     r.Elo,
+			})
+		}
+	}
+
+	{
+		type row struct {
+			UserID string `db:"user_id"`
+			Wins   int    `db:"wins"`
+			Total  int    `db:"total"`
+		}
+		var rows []row
+		q := `
+			SELECT
+			  um.user_id,
+			  COALESCE(SUM(
+				CASE
+				  WHEN (um.team = 1 AND m.score1 > m.score2) OR
+					   (um.team = 2 AND m.score2 > m.score1)
+				  THEN 1 ELSE 0
+				END
+			  ), 0) AS wins,
+			  COUNT(*) FILTER (
+				  WHERE m.current_state = 'Termine'
+					AND m.score1 IS NOT NULL
+					AND m.score2 IS NOT NULL
+					AND m.score1 <> m.score2
+			  ) AS total
+			FROM user_match um
+			JOIN matches m ON m.id = um.match_id
+			WHERE um.user_id = ANY($1)
+			GROUP BY um.user_id
+		`
+		if err := db.Database.SelectContext(ctx, &rows, q, userIDs); err != nil {
+			return nil, fmt.Errorf("GetUserStatsByIDs.winrate: %w", err)
+		}
+		for _, r := range rows {
+			var pct *int
+			if r.Total > 0 {
+				v := int((float64(r.Wins)/float64(r.Total))*100.0 + 0.5)
+				pct = &v
+			}
+			initUser(r.UserID).Winrate = pct
+		}
+	}
+
+	return stats, nil
 }

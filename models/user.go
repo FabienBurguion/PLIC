@@ -34,3 +34,13 @@ type UserPatchRequest struct {
 	// @nullable
 	CurrentFieldId *string `json:"currentFieldId"`
 }
+
+type UserStats struct {
+	MatchCount    int
+	VisitedFields int
+	FavoriteSport *Sport
+	FavoriteField *string
+	Sports        []Sport
+	Fields        []Field
+	Winrate       *int
+}

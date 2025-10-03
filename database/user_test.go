@@ -779,3 +779,101 @@ func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
 		})
 	}
 }
+
+func TestDatabase_GetUserStatsByIDs(t *testing.T) {
+	ptrInt := func(i int) *int { return &i }
+
+	court1 := models.NewDBCourtFixture().WithName("Court A")
+	court2 := models.NewDBCourtFixture().WithName("Court B")
+
+	u1 := models.NewDBUsersFixture().WithUsername("alice").WithEmail("alice@example.com")
+	u2 := models.NewDBUsersFixture().WithUsername("bob").WithEmail("bob@example.com")
+
+	m1 := models.NewDBMatchesFixture().
+		WithCourtId(court1.Id).
+		WithCurrentState(models.Termine)
+	m1.Score1 = ptrInt(3)
+	m1.Score2 = ptrInt(1)
+
+	m2 := models.NewDBMatchesFixture().
+		WithCourtId(court2.Id).
+		WithCurrentState(models.ManqueScore)
+	m2.Score1 = nil
+	m2.Score2 = nil
+
+	m3 := models.NewDBMatchesFixture().
+		WithCourtId(court1.Id).
+		WithCurrentState(models.Termine)
+	m3.Score1 = ptrInt(2)
+	m3.Score2 = ptrInt(2)
+
+	m4 := models.NewDBMatchesFixture().
+		WithCourtId(court1.Id).
+		WithCurrentState(models.Termine)
+	m4.Score1 = ptrInt(1)
+	m4.Score2 = ptrInt(3)
+
+	ums := []models.DBUserMatch{
+		{UserID: u1.Id, MatchID: m1.Id, Team: 1, CreatedAt: time.Now()},
+		{UserID: u1.Id, MatchID: m2.Id, Team: 1, CreatedAt: time.Now()},
+		{UserID: u1.Id, MatchID: m3.Id, Team: 1, CreatedAt: time.Now()},
+		{UserID: u2.Id, MatchID: m4.Id, Team: 2, CreatedAt: time.Now()},
+	}
+
+	fixtures := DBFixtures{
+		Courts:      []models.DBCourt{court1, court2},
+		Users:       []models.DBUsers{u1, u2},
+		Matches:     []models.DBMatches{m1, m2, m3, m4},
+		UserMatches: ums,
+	}
+
+	s := &Service{}
+	cleanup := s.InitServiceTest()
+	defer func() { _ = cleanup() }()
+	s.loadFixtures(fixtures)
+
+	ctx := context.Background()
+
+	got, err := s.db.GetUserStatsByIDs(ctx, []string{u1.Id, u2.Id})
+	require.NoError(t, err)
+	require.NotNil(t, got)
+
+	statsU1, ok := got[u1.Id]
+	require.True(t, ok, "stats for u1 missing")
+
+	require.Equal(t, 3, statsU1.MatchCount)
+
+	require.Equal(t, 2, statsU1.VisitedFields)
+
+	require.NotNil(t, statsU1.FavoriteField)
+	require.Equal(t, "Court A", *statsU1.FavoriteField)
+
+	require.NotNil(t, statsU1.FavoriteSport)
+	require.GreaterOrEqual(t, len(statsU1.Sports), 1)
+
+	require.NotNil(t, statsU1.Winrate)
+	require.Equal(t, 100, *statsU1.Winrate)
+
+	statsU2, ok := got[u2.Id]
+	require.True(t, ok, "stats for u2 missing")
+
+	require.Equal(t, 1, statsU2.MatchCount)
+
+	require.Equal(t, 1, statsU2.VisitedFields)
+
+	require.NotNil(t, statsU2.FavoriteField)
+	require.Equal(t, "Court A", *statsU2.FavoriteField)
+
+	require.NotNil(t, statsU2.FavoriteSport)
+	require.GreaterOrEqual(t, len(statsU2.Sports), 1)
+
+	require.NotNil(t, statsU2.Winrate)
+	require.Equal(t, 100, *statsU2.Winrate)
+
+	unknownID := uuid.NewString()
+	got2, err := s.db.GetUserStatsByIDs(ctx, []string{unknownID})
+	require.NoError(t, err)
+	_, exists := got2[unknownID]
+
+	require.True(t, (exists && got2[unknownID] != nil) || !exists)
+}
