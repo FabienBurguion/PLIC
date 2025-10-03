@@ -6,7 +6,6 @@ import (
 	"PLIC/models"
 	"PLIC/s3_management"
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,15 +18,16 @@ import (
 	"github.com/caarlos0/env/v10"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
-
-	_ "github.com/jackc/pgx/v5/stdlib"
 
 	ddlambda "github.com/DataDog/datadog-lambda-go"
 	awstrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/aws/aws-sdk-go-v2/aws"
 	ddchi "gopkg.in/DataDog/dd-trace-go.v1/contrib/go-chi/chi.v5"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
+	sqltrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/database/sql"
 )
 
 const Port string = "8080"
@@ -99,7 +99,6 @@ func (s *Service) initService() {
 
 	s.server.Use(middleware.Recoverer)
 	s.server.Use(middleware.RequestID)
-	s.server.Use(middleware.Timeout(10 * time.Second))
 	s.server.Use(middleware.Heartbeat("/ping"))
 
 	parisLocation, err := time.LoadLocation("Europe/Paris")
@@ -138,7 +137,7 @@ func (s *Service) initDb() database.Database {
 		panic("DATABASE_URL environment variable is not set")
 	}
 
-	db, err := sql.Open("pgx", connStr)
+	db, err := sqltrace.Open("pgx", connStr, sqltrace.WithServiceName("plic-db"))
 	if err != nil {
 		panic(err)
 	}
