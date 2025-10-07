@@ -11,7 +11,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
@@ -40,8 +39,6 @@ func TestService_Login(t *testing.T) {
 
 	claims := jwt.MapClaims{
 		"user_id": userId,
-		"exp":     tokenDuration,
-		"iat":     time.Now().Unix(),
 	}
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	token, err := tok.SignedString([]byte(jwtSecret))

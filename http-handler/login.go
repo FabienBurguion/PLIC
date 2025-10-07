@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"io"
 	"math/big"
 	"net/http"
 	"net/mail"
@@ -17,16 +17,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
 )
-
-var tokenDuration = time.Now().Add(30 * 24 * time.Hour).Unix()
 
 func GenerateJWT(userID string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
-		"exp":     tokenDuration,
-		"iat":     time.Now().Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -47,31 +44,48 @@ func GenerateJWT(userID string) (string, error) {
 // @Failure      500 {object} models.Error "Internal server error"
 // @Router       /login [post]
 func (s *Service) Login(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
+	baseLogger := log.With().Logger()
+
 	ctx := r.Context()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(r.Body)
+
 	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Println(err)
+		baseLogger.Error().Err(err).Msg("invalid JSON body")
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
+
+	logger := baseLogger.With().
+		Str("username", req.Username).
+		Bool("has_password", req.Password != "").
+		Logger()
+
+	logger.Info().Msg("entering Login")
+
 	user, err := s.db.GetUserByUsername(ctx, req.Username)
 	if err != nil {
-		log.Println("Error getting the param")
+		logger.Error().Err(err).Msg("db get user by username failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 	if user == nil {
-		log.Println("No param found")
+		logger.Warn().Msg("user not found")
 		return httpx.WriteError(w, http.StatusUnauthorized, httpx.UnauthorizedError)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		log.Println("Error comparing password")
+		logger.Warn().Err(err).Msg("password comparison failed")
 		return httpx.WriteError(w, http.StatusUnauthorized, httpx.UnauthorizedError)
 	}
+
 	token, err := GenerateJWT(user.Id)
 	if err != nil {
-		log.Println("Error generating token")
+		logger.Error().Err(err).Msg("JWT generation failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
+
+	logger.Info().Str("user_id", user.Id).Msg("login succeeded")
 	return httpx.Write(w, http.StatusOK, models.LoginResponse{Token: token})
 }
 
@@ -92,29 +106,47 @@ func isValidEmail(email string) bool {
 // @Failure      401 {object} models.Error "User already exists"
 // @Failure      500 {object} models.Error "Internal server error"
 // @Router       /register [post]
-func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
+func (s *Service) Register(w http.ResponseWriter, r *http.Request) error {
+	baseLogger := log.With().Logger()
+
 	ctx := r.Context()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(r.Body)
+
 	var req models.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Println("Erreur JSON:", err)
+		baseLogger.Error().Err(err).Msg("invalid JSON body")
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
-	log.Println("Entering Register with request:", req)
+
+	logger := baseLogger.With().
+		Str("email", req.Email).
+		Str("username", req.Username).
+		Bool("has_bio", req.Bio != nil).
+		Logger()
+
+	logger.Info().Msg("entering Register")
+
 	if !isValidEmail(req.Email) {
-		msg := "Invalid Email"
-		log.Println(msg)
-		return httpx.WriteError(w, http.StatusBadRequest, msg)
+		logger.Warn().Msg("invalid email")
+		return httpx.WriteError(w, http.StatusBadRequest, "Invalid Email")
 	}
 	if req.Password == "" || req.Username == "" {
-		msg := "Password and username shouldn't be empty"
-		log.Println(msg)
-		return httpx.WriteError(w, http.StatusBadRequest, msg)
+		logger.Warn().Msg("missing username or password")
+		return httpx.WriteError(w, http.StatusBadRequest, "Password and username shouldn't be empty")
 	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Println("Erreur hash:", err)
+		if errors.Is(err, bcrypt.ErrPasswordTooLong) {
+			logger.Warn().Err(err).Msg("password too long")
+			return httpx.WriteError(w, http.StatusBadRequest, "The password is too long")
+		}
+		logger.Error().Err(err).Msg("password hashing failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
+
 	newUser := models.DBUsers{
 		Id:        uuid.NewString(),
 		Username:  req.Username,
@@ -124,21 +156,28 @@ func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.Auth
 		CreatedAt: s.clock.Now(),
 		UpdatedAt: s.clock.Now(),
 	}
+
 	if err := s.db.CreateUser(ctx, newUser); err != nil {
 		switch {
 		case errors.Is(err, database.ErrEmailTaken):
+			logger.Warn().Err(err).Msg("email already taken")
 			return httpx.WriteError(w, http.StatusConflict, "email_taken")
 		case errors.Is(err, database.ErrUsernameTaken):
+			logger.Warn().Err(err).Msg("username already taken")
 			return httpx.WriteError(w, http.StatusConflict, "username_taken")
 		default:
+			logger.Error().Err(err).Msg("db create user failed")
 			return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 		}
 	}
+
 	token, err := GenerateJWT(newUser.Id)
 	if err != nil {
-		log.Println("Erreur Token:", err)
+		logger.Error().Err(err).Msg("JWT generation failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
+
+	logger.Info().Str("user_id", newUser.Id).Msg("user registered successfully")
 	return httpx.Write(w, http.StatusCreated, models.LoginResponse{Token: token})
 }
 
@@ -197,36 +236,54 @@ func parseResetToken(tokenStr string) (string, error) {
 // @Failure      500 {object} models.Error "Internal server error"
 // @Router       /forget-password [post]
 func (s *Service) ForgetPassword(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
-	var req models.MailerRequest
+	baseLogger := log.With().Logger()
+
 	ctx := r.Context()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(r.Body)
+
+	var req models.MailerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Println("Erreur JSON:", err)
+		baseLogger.Error().Err(err).Msg("invalid JSON body")
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
-	_, err := mail.ParseAddress(req.Email)
-	if err != nil {
-		log.Println("❌ Adresse email invalide :", req.Email)
+
+	logger := baseLogger.With().
+		Str("email", req.Email).
+		Logger()
+
+	logger.Info().Msg("entering ForgetPassword")
+
+	if _, err := mail.ParseAddress(req.Email); err != nil {
+		logger.Warn().Err(err).Msg("invalid email address")
 		return httpx.WriteError(w, http.StatusBadRequest, "Invalid email address")
 	}
+
 	user, err := s.db.GetUserByEmail(ctx, req.Email)
 	if err != nil {
-		log.Println("Erreur DB:", err)
+		logger.Error().Err(err).Msg("db get user by email failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 	if user == nil {
-		log.Println("User does not exist")
+		logger.Warn().Msg("user not found (masked success)")
 		return httpx.Write(w, http.StatusOK, nil)
 	}
+
 	token, err := generateResetToken(req.Email)
 	if err != nil {
-		log.Println("Erreur Token:", err)
+		logger.Error().Err(err).Msg("reset token generation failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
-	err = s.mailer.SendLinkResetPassword(req.Email, "https://gfosd9euua.execute-api.eu-west-3.amazonaws.com/reset-password/"+token)
-	if err != nil {
-		log.Println("Erreur envoi mail:", err)
+
+	logger.Debug().Int("token_len", len(token)).Msg("reset token generated")
+
+	if err := s.mailer.SendLinkResetPassword(req.Email, "https://gfosd9euua.execute-api.eu-west-3.amazonaws.com/reset-password/"+token); err != nil {
+		logger.Error().Err(err).Msg("sending reset link failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
+
+	logger.Info().Msg("reset link sent")
 	return httpx.Write(w, http.StatusOK, nil)
 }
 
@@ -242,36 +299,45 @@ func (s *Service) ForgetPassword(w http.ResponseWriter, r *http.Request, _ model
 // @Failure      500 {object} models.Error "Erreur interne du serveur (génération du mot de passe, envoi de mail, ou mise à jour en base)"
 // @Router       /reset-password/{token} [get]
 func (s *Service) ResetPassword(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
+	logger := log.With().Logger()
+
 	token := chi.URLParam(r, "token")
 	if token == "" {
-		log.Println("Token empty")
+		logger.Warn().Msg("missing reset token")
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
+
+	logger.Info().Msg("entering ResetPassword")
+
 	email, err := parseResetToken(token)
 	if err != nil {
-		log.Println("Erreur Token:", err)
+		logger.Warn().Err(err).Msg("reset token invalid")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
+
 	newPassword, err := generatePassword(12)
 	if err != nil {
-		log.Println("Erreur génération mot de passe :", err)
+		logger.Error().Err(err).Msg("password generation failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, "Could not generate password")
 	}
+
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		log.Println("Erreur hash:", err)
+		logger.Error().Err(err).Msg("password hashing failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
-	err = s.mailer.SendPasswordResetMail(email, newPassword)
-	if err != nil {
-		log.Println("Erreur envoi mail:", err)
+
+	if err := s.mailer.SendPasswordResetMail(email, newPassword); err != nil {
+		logger.Error().Err(err).Str("email", email).Msg("sending new password failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
-	err = s.db.ChangePassword(r.Context(), email, string(passwordHash))
-	if err != nil {
-		log.Println("Erreur DB au changement de password:", err)
+
+	if err := s.db.ChangePassword(r.Context(), email, string(passwordHash)); err != nil {
+		logger.Error().Err(err).Str("email", email).Msg("db change password failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
+
+	logger.Info().Str("email", email).Msg("password reset succeeded")
 	return httpx.WriteHTMLResponse(w, http.StatusOK, "Mot de passe envoyé", "Un email contenant votre nouveau mot de passe vous a été envoyé à "+email+".")
 }
 
@@ -289,33 +355,52 @@ func (s *Service) ResetPassword(w http.ResponseWriter, r *http.Request, _ models
 // @Failure      500 {object} models.Error "Internal server error"
 // @Router       /change-password [post]
 func (s *Service) ChangePassword(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	baseLogger := log.With().Logger()
+
 	if !ai.IsConnected {
+		baseLogger.Warn().Msg("unauthorized: user not connected")
 		return httpx.WriteError(w, http.StatusUnauthorized, httpx.UnauthorizedError)
 	}
+
 	ctx := r.Context()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(r.Body)
+
 	user, err := s.db.GetUserById(ctx, ai.UserID)
 	if err != nil {
-		log.Println("Erreur DB:", err)
+		baseLogger.Error().Err(err).Str("user_id", ai.UserID).Msg("db get user by id failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 	if user == nil {
-		log.Println("User does not exist")
+		baseLogger.Warn().Str("user_id", ai.UserID).Msg("user not found")
 		return httpx.WriteError(w, http.StatusUnauthorized, httpx.UnauthorizedError)
 	}
+
 	var req models.ChangePasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Println("Erreur JSON:", err)
+		baseLogger.Error().Err(err).Str("user_id", ai.UserID).Msg("invalid JSON body")
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
+
+	logger := baseLogger.With().
+		Str("user_id", ai.UserID).
+		Bool("has_password", req.Password != "").
+		Logger()
+
+	logger.Info().Msg("entering ChangePassword")
+
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Println("Erreur hash:", err)
+		logger.Error().Err(err).Msg("password hashing failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
-	err = s.db.ChangePassword(ctx, user.Email, string(passwordHash))
-	if err != nil {
-		log.Println("Erreur DB au changement de password:", err)
+
+	if err := s.db.ChangePassword(ctx, user.Email, string(passwordHash)); err != nil {
+		logger.Error().Err(err).Msg("db change password failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
+
+	logger.Info().Msg("password changed successfully")
 	return httpx.Write(w, http.StatusOK, nil)
 }
