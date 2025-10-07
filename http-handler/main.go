@@ -8,6 +8,7 @@ import (
 	"context"
 	_ "fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
@@ -192,9 +193,6 @@ func (s *Service) Start() {
 // ----------------------
 
 func main() {
-	zerolog.TimeFieldFormat = time.RFC3339
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: zerolog.ConsoleWriter{}}).With().Timestamp().Logger()
-
 	s := &Service{}
 	s.initService()
 
@@ -234,12 +232,15 @@ func main() {
 	s.GET("/ranking/user/{userId}", withAuthentication(s.GetUserFields))
 
 	if s.isLambda {
+		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+		log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
 		tracer.Start(tracer.WithService("plic-api"))
 		defer tracer.Stop()
 
 		log.Info().Msg("🚀 Running in AWS Lambda mode...")
 		s.Start()
 	} else {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
 		log.Info().Str("port", Port).Msg("🌍 Running locally...")
 		if err := http.ListenAndServe(":"+Port, s.server); err != nil {
 			log.Fatal().Err(err).Msg("server failed")
