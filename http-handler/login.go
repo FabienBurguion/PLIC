@@ -106,7 +106,7 @@ func isValidEmail(email string) bool {
 // @Failure      401 {object} models.Error "User already exists"
 // @Failure      500 {object} models.Error "Internal server error"
 // @Router       /register [post]
-func (s *Service) Register(w http.ResponseWriter, r *http.Request) error {
+func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
 	baseLogger := log.With().Logger()
 
 	ctx := r.Context()

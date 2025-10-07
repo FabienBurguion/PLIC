@@ -205,7 +205,7 @@ info:
 paths:
   /:
     get:
-      description: Returns the current server time. If the param is not authenticated,
+      description: Returns the current server time. If the user is not authenticated,
         returns a fixed default time.
       produces:
       - application/json
@@ -302,34 +302,6 @@ paths:
       summary: Liste tous les terrains
       tags:
       - terrain
-  /email:
-    post:
-      consumes:
-      - application/json
-      description: Sends a test email to the specified address
-      parameters:
-      - description: Email request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.MailerRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-        "400":
-          description: Invalid email address or bad request
-          schema:
-            $ref: '#/definitions/models.Error'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/models.Error'
-      summary: Send test email
-      tags:
-      - mail
   /forget-password:
     post:
       consumes:
@@ -944,7 +916,7 @@ paths:
     delete:
       consumes:
       - application/json
-      description: Delete a user
+      description: Remove a user permanently
       parameters:
       - description: User ID
         in: path
@@ -976,7 +948,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieve param information, including profile picture and preferences
+      description: Retrieve user information, including profile picture and preferences
       parameters:
       - description: User ID
         in: path
@@ -1004,13 +976,13 @@ paths:
             $ref: '#/definitions/models.Error'
       security:
       - BearerAuth: []
-      summary: Get a param by ID
+      summary: Get a user by ID
       tags:
       - users
     patch:
       consumes:
       - application/json
-      description: Patch a user
+      description: Update user fields
       parameters:
       - description: User ID
         in: path

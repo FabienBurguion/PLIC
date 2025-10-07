@@ -6,8 +6,7 @@ import (
 	"PLIC/models"
 	"PLIC/s3_management"
 	"context"
-	"fmt"
-	"log"
+	_ "fmt"
 	"net/http"
 	"time"
 
@@ -19,6 +18,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	ddlambda "github.com/DataDog/datadog-lambda-go"
 	awstrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/aws/aws-sdk-go-v2/aws"
@@ -45,6 +46,10 @@ type Service struct {
 	isLambda      bool
 }
 
+// ----------------------
+// CONFIGURATION
+// ----------------------
+
 func loadConfig() (*models.Configuration, error) {
 	var cfg models.Configuration
 	if err := env.Parse(&cfg); err != nil {
@@ -54,11 +59,13 @@ func loadConfig() (*models.Configuration, error) {
 }
 
 func (s *Service) initService() {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: zerolog.ConsoleWriter{}})
+
 	_ = godotenv.Load()
 
 	appConfig, err := loadConfig()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("failed to load configuration")
 	}
 	s.configuration = appConfig
 	s.isLambda = s.configuration.Lambda.FunctionName != ""
@@ -68,18 +75,22 @@ func (s *Service) initService() {
 	s.server = chi.NewRouter()
 
 	if s.isLambda {
-		s.server.Use(ddchi.Middleware(
-			ddchi.WithServiceName("plic-api"),
-		))
+		s.server.Use(ddchi.Middleware(ddchi.WithServiceName("plic-api")))
 	}
 
 	s.server.Use(middleware.Logger)
 
+	// Middleware de logging structuré
 	s.server.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.Printf("Starting Request ➡️ %s %s", r.Method, r.URL.Path)
-			rw := &models.ResponseWriter{ResponseWriter: w, StatusCode: http.StatusOK}
 			start := time.Now()
+			rw := &models.ResponseWriter{ResponseWriter: w, StatusCode: http.StatusOK}
+
+			log.Info().
+				Str("method", r.Method).
+				Str("path", r.URL.Path).
+				Msg("➡️ Incoming request")
+
 			next.ServeHTTP(rw, r)
 			elapsed := time.Since(start)
 
@@ -92,8 +103,12 @@ func (s *Service) initService() {
 				)
 			}
 
-			log.Printf("Ending Result ➡️ %s %s", r.Method, r.URL.Path)
-			log.Printf("Status Code: %d, Duration: %s", rw.StatusCode, elapsed)
+			log.Info().
+				Str("method", r.Method).
+				Str("path", r.URL.Path).
+				Int("status", rw.StatusCode).
+				Dur("duration", elapsed).
+				Msg("✅ Request completed")
 		})
 	})
 
@@ -103,7 +118,7 @@ func (s *Service) initService() {
 
 	parisLocation, err := time.LoadLocation("Europe/Paris")
 	if err != nil {
-		panic(err)
+		log.Fatal().Err(err).Msg("failed to load Paris timezone")
 	}
 	s.clock = Clock{location: parisLocation}
 
@@ -115,38 +130,43 @@ func (s *Service) initService() {
 
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		log.Println("Failed to load AWS SDK config:", err)
+		log.Error().Err(err).Msg("failed to load AWS SDK config")
 	} else {
 		if s.isLambda {
 			awstrace.AppendMiddleware(&cfg)
 		}
 		s3Client := s3.NewFromConfig(cfg)
 		s.s3Service = &s3_management.RealS3Service{Client: s3Client}
+		log.Info().Msg("S3 service initialized successfully")
 	}
 }
+
+// ----------------------
+// DATABASE
+// ----------------------
 
 func (s *Service) initDb() database.Database {
 	if !s.isLambda {
 		if err := godotenv.Load(); err != nil {
-			log.Println("Warning: No .env file found, using environment variables")
+			log.Warn().Msg("no .env file found, using environment variables")
 		}
 	}
 
 	connStr := s.configuration.Database.ConnectionString
 	if connStr == "" {
-		panic("DATABASE_URL environment variable is not set")
+		log.Fatal().Msg("DATABASE_URL environment variable is not set")
 	}
 
 	db, err := sqltrace.Open("pgx", connStr, sqltrace.WithServiceName("plic-db"))
 	if err != nil {
-		panic(err)
+		log.Fatal().Err(err).Msg("failed to open traced SQL connection")
 	}
 
 	var version string
 	if err := db.QueryRow("select version()").Scan(&version); err != nil {
-		panic(err)
+		log.Fatal().Err(err).Msg("failed to query DB version")
 	}
-	fmt.Printf("version=%s\n", version)
+	log.Info().Str("postgres_version", version).Msg("database connection established")
 
 	db.SetConnMaxLifetime(5 * time.Minute)
 	db.SetMaxIdleConns(10)
@@ -157,42 +177,44 @@ func (s *Service) initDb() database.Database {
 	}
 }
 
+// ----------------------
+// START
+// ----------------------
+
 func (s *Service) Start() {
-	log.Println("🚀 Serveur démarré sur AWS Lambda (Datadog enabled)")
+	log.Info().Msg("🚀 Starting server on AWS Lambda (Datadog enabled)")
 	lambdaHandler := httpadapter.NewV2(s.server)
 	lambda.Start(ddlambda.WrapFunction(lambdaHandler.ProxyWithContext, nil))
 }
 
+// ----------------------
+// MAIN
+// ----------------------
+
 func main() {
+	zerolog.TimeFieldFormat = time.RFC3339
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: zerolog.ConsoleWriter{}}).With().Timestamp().Logger()
+
 	s := &Service{}
 	s.initService()
 
 	// Routes
-	// LOGIN
 	s.POST("/register", s.Register)
 	s.POST("/login", s.Login)
 	s.POST("/forgot-password", s.ForgetPassword)
 	s.GET("/reset-password/{token}", s.ResetPassword)
 	s.POST("/change-password", withAuthentication(s.ChangePassword))
 
-	// TEST
 	s.GET("/", withAuthentication(s.GetTime))
 	s.GET("/hello_world", s.GetHelloWorld)
 
-	// EMAIL
-	s.POST("/email", withAuthentication(s.SendMail))
-
-	// S3
 	s.POST("/profile_picture/{id}", withAuthentication(s.UploadProfilePictureToS3))
 
-	// GOOGLE
 	s.POST("/place", s.HandleSyncGooglePlaces)
 
-	// COURTS
 	s.GET("/court/all", withAuthentication(s.GetAllCourts))
 	s.GET("/court/{id}", withAuthentication(s.GetCourtByID))
 
-	// MATCHES
 	s.GET("/match/all", withAuthentication(s.GetAllMatches))
 	s.GET("/match/{id}", withAuthentication(s.GetMatchByID))
 	s.GET("/user/matches/{userId}", withAuthentication(s.GetMatchesByUserID))
@@ -204,26 +226,23 @@ func main() {
 	s.PATCH("/match/{id}/start", withAuthentication(s.StartMatch))
 	s.PATCH("/match/{id}/finish", withAuthentication(s.FinishMatch))
 
-	// USERS
 	s.GET("/users/{id}", withAuthentication(s.GetUserById))
 	s.PATCH("/users/{id}", withAuthentication(s.PatchUser))
 	s.DELETE("/users/{id}", withAuthentication(s.DeleteUser))
 
-	// RANKINGS
 	s.GET("/ranking/court/{id}", withAuthentication(s.GetRankingByCourtId))
 	s.GET("/ranking/user/{userId}", withAuthentication(s.GetUserFields))
 
 	if s.isLambda {
-		tracer.Start(
-			tracer.WithService("plic-api"),
-		)
+		tracer.Start(tracer.WithService("plic-api"))
 		defer tracer.Stop()
 
-		fmt.Println("🚀 Démarrage sur AWS Lambda...")
+		log.Info().Msg("🚀 Running in AWS Lambda mode...")
 		s.Start()
 	} else {
-		// Pas de Datadog en local
-		fmt.Println("🌍 Démarrage en local sur le port " + Port + "...")
-		log.Fatal(http.ListenAndServe(":"+Port, s.server))
+		log.Info().Str("port", Port).Msg("🌍 Running locally...")
+		if err := http.ListenAndServe(":"+Port, s.server); err != nil {
+			log.Fatal().Err(err).Msg("server failed")
+		}
 	}
 }

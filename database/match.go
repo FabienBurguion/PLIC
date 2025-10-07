@@ -6,8 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
-	"time"
 )
 
 func (db Database) GetMatchById(ctx context.Context, id string) (*models.DBMatches, error) {
@@ -29,7 +27,6 @@ func (db Database) GetMatchById(ctx context.Context, id string) (*models.DBMatch
 }
 
 func (db Database) GetUsersByMatchId(ctx context.Context, matchId string) ([]models.DBUsers, error) {
-	log.Printf("Entering GetUsersByMatchId")
 	var users []models.DBUsers
 	err := db.Database.SelectContext(ctx, &users, `
         SELECT u.id, u.username, u.email, u.bio, u.current_field_id, u.password, u.created_at, u.updated_at
@@ -38,10 +35,8 @@ func (db Database) GetUsersByMatchId(ctx context.Context, matchId string) ([]mod
         WHERE um.match_id = $1`, matchId)
 
 	if err != nil {
-		log.Printf("Error: %s", err)
 		return nil, fmt.Errorf("échec de la récupération des utilisateurs du param %s : %w", matchId, err)
 	}
-	log.Printf("Exiting GetUsersByMatchId")
 	return users, nil
 }
 
@@ -62,7 +57,6 @@ func (db Database) GetMatchesByUserID(ctx context.Context, userID string) ([]mod
 
 func (db Database) GetMatchesByCourtId(ctx context.Context, courtID string) ([]models.DBMatches, error) {
 	var dbMatches []models.DBMatches
-	log.Printf("🟡 Requête pour court %s à %v", courtID, time.Now())
 	err := db.Database.SelectContext(ctx, &dbMatches, `
         SELECT id, sport, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
         FROM matches
@@ -71,7 +65,6 @@ func (db Database) GetMatchesByCourtId(ctx context.Context, courtID string) ([]m
     `, courtID)
 	if err != nil {
 		msg := fmt.Errorf("error querying matches for court %s: %w", courtID, err)
-		log.Println(msg)
 		return nil, msg
 	}
 
@@ -94,16 +87,13 @@ func (db Database) GetMatchCountByUserID(ctx context.Context, userID string) (in
 }
 
 func (db Database) GetAllMatches(ctx context.Context) ([]models.DBMatches, error) {
-	log.Printf("Entering GetAllMatches")
 	var matches []models.DBMatches
 	err := db.Database.SelectContext(ctx, &matches, `
         SELECT id, sport, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
         FROM matches`)
 	if err != nil {
-		log.Printf("Error: %s", err)
 		return nil, fmt.Errorf("échec de la récupération des matchs : %w", err)
 	}
-	log.Printf("Exiting GetAllMatches")
 	return matches, nil
 }
 

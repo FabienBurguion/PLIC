@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 )
 
@@ -21,20 +22,30 @@ import (
 // @Failure      500  {object}  models.Error  "Erreur serveur / base"
 // @Router       /ranking/court/{id} [get]
 func (s *Service) GetRankingByCourtId(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	baseLogger := log.With().
+		Str("method", "GetRankingByCourtId").
+		Str("user_id", ai.UserID).
+		Logger()
+
 	if !ai.IsConnected {
+		baseLogger.Warn().Msg("unauthorized")
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
 
+	logger := baseLogger.With().Str("court_id", id).Logger()
+
 	if id == "" {
+		logger.Warn().Msg("missing court ID")
 		return httpx.WriteError(w, http.StatusBadRequest, "missing court ID")
 	}
 
 	rows, err := s.db.GetRankingsByCourtID(ctx, id)
 	if err != nil {
-		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch rankings: "+err.Error())
+		logger.Error().Err(err).Msg("db get rankings by court failed")
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch rankings")
 	}
 
 	res := lo.Map(rows, func(rnk models.DBRanking, _ int) models.CourtRankingResponse {
@@ -44,6 +55,7 @@ func (s *Service) GetRankingByCourtId(w http.ResponseWriter, r *http.Request, ai
 		}
 	})
 
+	logger.Info().Int("count", len(res)).Msg("rankings fetched")
 	return httpx.Write(w, http.StatusOK, res)
 }
 
@@ -59,20 +71,31 @@ func (s *Service) GetRankingByCourtId(w http.ResponseWriter, r *http.Request, ai
 // @Failure      500  {object}  models.Error  "Erreur serveur / base"
 // @Router       /ranking/user/{userId} [get]
 func (s *Service) GetUserFields(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	baseLogger := log.With().
+		Str("method", "GetUserFields").
+		Str("user_id", ai.UserID).
+		Logger()
+
 	if !ai.IsConnected {
+		baseLogger.Warn().Msg("unauthorized")
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
 	userID := chi.URLParam(r, "userId")
+	logger := baseLogger.With().Str("target_user_id", userID).Logger()
+
 	if userID == "" {
+		logger.Warn().Msg("missing userId in url params")
 		return httpx.WriteError(w, http.StatusBadRequest, "missing userId in url params")
 	}
 
 	ctx := r.Context()
 	fields, err := s.db.GetRankedFieldsByUserID(ctx, userID)
 	if err != nil {
-		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch fields: "+err.Error())
+		logger.Error().Err(err).Msg("db get ranked fields by user failed")
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch fields")
 	}
 
+	logger.Info().Int("count", len(fields)).Msg("user fields fetched")
 	return httpx.Write(w, http.StatusOK, fields)
 }

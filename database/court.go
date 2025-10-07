@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 )
 
@@ -67,7 +66,6 @@ func (db Database) GetVisitedFieldCountByUserID(ctx context.Context, userID stri
 }
 
 func (db Database) GetCourtByID(ctx context.Context, id string) (*models.DBCourt, error) {
-	log.Printf("Entering GetCourtByID")
 	var court models.DBCourt
 	err := db.Database.GetContext(ctx, &court, `
 		SELECT id, address, name, longitude, latitude, created_at
@@ -79,10 +77,8 @@ func (db Database) GetCourtByID(ctx context.Context, id string) (*models.DBCourt
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		log.Printf("Error getting court by id %s : %s", id, err)
 		return nil, fmt.Errorf("failed to fetch court: %w", err)
 	}
-	log.Printf("Exiting GetCourtByID")
 	return &court, nil
 }
 

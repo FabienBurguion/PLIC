@@ -17,7 +17,7 @@ const docTemplate = `{
     "paths": {
         "/": {
             "get": {
-                "description": "Returns the current server time. If the param is not authenticated, returns a fixed default time.",
+                "description": "Returns the current server time. If the user is not authenticated, returns a fixed default time.",
                 "produces": [
                     "application/json"
                 ],
@@ -158,49 +158,6 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Erreur serveur ou base de données",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/email": {
-            "post": {
-                "description": "Sends a test email to the specified address",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "mail"
-                ],
-                "summary": "Send test email",
-                "parameters": [
-                    {
-                        "description": "Email request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.MailerRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Invalid email address or bad request",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -1123,7 +1080,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve param information, including profile picture and preferences",
+                "description": "Retrieve user information, including profile picture and preferences",
                 "consumes": [
                     "application/json"
                 ],
@@ -1133,7 +1090,7 @@ const docTemplate = `{
                 "tags": [
                     "users"
                 ],
-                "summary": "Get a param by ID",
+                "summary": "Get a user by ID",
                 "parameters": [
                     {
                         "type": "string",
@@ -1176,7 +1133,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete a user",
+                "description": "Remove a user permanently",
                 "consumes": [
                     "application/json"
                 ],
@@ -1226,7 +1183,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Patch a user",
+                "description": "Update user fields",
                 "consumes": [
                     "application/json"
                 ],

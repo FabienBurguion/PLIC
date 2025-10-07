@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog/log"
 )
 
 // GetAllCourts godoc
@@ -17,13 +18,26 @@ import (
 // @Failure      500  {object}  models.Error       "Erreur lors de la récupération des terrains"
 // @Router       /court/all [get]
 func (s *Service) GetAllCourts(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
-	if !ai.IsConnected{
+	baseLogger := log.With().Logger()
+	logger := baseLogger.With().
+		Str("method", "GetAllCourts").
+		Str("user_id", ai.UserID).
+		Logger()
+
+	logger.Info().Msg("entering GetAllCourts")
+
+	if !ai.IsConnected {
+		logger.Warn().Msg("unauthorized")
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
+
 	terrains, err := s.db.GetAllCourts(r.Context())
 	if err != nil {
-		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch terrains: "+err.Error())
+		logger.Error().Err(err).Msg("db get all courts failed")
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch terrains")
 	}
+
+	logger.Info().Int("count", len(terrains)).Msg("courts fetched successfully")
 	return httpx.Write(w, http.StatusOK, terrains)
 }
 
@@ -39,21 +53,37 @@ func (s *Service) GetAllCourts(w http.ResponseWriter, r *http.Request, ai models
 // @Failure      500  {object}  models.Error    "Erreur serveur ou base de données"
 // @Router       /court/{id} [get]
 func (s *Service) GetCourtByID(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
-	if !ai.IsConnected{
+	baseLogger := log.With().Logger()
+
+	id := chi.URLParam(r, "id")
+	logger := baseLogger.With().
+		Str("method", "GetCourtByID").
+		Str("user_id", ai.UserID).
+		Str("court_id", id).
+		Logger()
+
+	logger.Info().Msg("entering GetCourtByID")
+
+	if !ai.IsConnected {
+		logger.Warn().Msg("unauthorized")
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
-	id := chi.URLParam(r, "id")
+
 	if id == "" {
+		logger.Warn().Msg("missing id in url params")
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
 	}
 
 	court, err := s.db.GetCourtByID(r.Context(), id)
 	if err != nil {
-		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch court: "+err.Error())
+		logger.Error().Err(err).Msg("db get court by id failed")
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch court")
 	}
 	if court == nil {
+		logger.Warn().Msg("court not found")
 		return httpx.WriteError(w, http.StatusNotFound, "court not found")
 	}
 
+	logger.Info().Msg("court fetched successfully")
 	return httpx.Write(w, http.StatusOK, court)
 }

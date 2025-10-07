@@ -5,11 +5,11 @@ import (
 	"PLIC/models"
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog/log"
 )
 
 func (s *Service) buildUserResponse(ctx context.Context, user *models.DBUsers, profilePictureUrl string) models.UserResponse {
@@ -84,8 +84,8 @@ func (s *Service) buildUserResponseFast(user *models.DBUsers, profilePictureURL 
 }
 
 // GetUserById godoc
-// @Summary      Get a param by ID
-// @Description  Retrieve param information, including profile picture and preferences
+// @Summary      Get a user by ID
+// @Description  Retrieve user information, including profile picture and preferences
 // @Tags         users
 // @Accept       json
 // @Produce      json
@@ -97,40 +97,49 @@ func (s *Service) buildUserResponseFast(user *models.DBUsers, profilePictureURL 
 // @Router       /users/{id} [get]
 // @Security     BearerAuth
 func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	logger := log.With().
+		Str("method", "GetUserById").
+		Str("user_id", ai.UserID).
+		Str("path", r.URL.Path).
+		Logger()
+
 	if !ai.IsConnected {
+		logger.Warn().Msg("unauthorized")
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
+		logger.Warn().Msg("missing id in url params")
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
 	}
 
 	ctx := r.Context()
-
 	user, err := s.db.GetUserById(ctx, id)
 	if err != nil {
-		log.Println("error getting user by id:", err)
-		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
+		logger.Error().Err(err).Msg("failed to get user by id")
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error")
 	}
 	if user == nil {
+		logger.Info().Str("target_id", id).Msg("user not found")
 		return httpx.WriteError(w, http.StatusNotFound, "user not found")
 	}
 
 	s3Resp, err := s.s3Service.GetProfilePicture(ctx, id)
 	if err != nil {
-		log.Println("error getting profile picture:", err)
+		logger.Warn().Err(err).Msg("failed to get profile picture from S3")
 		s3Resp = &v4.PresignedHTTPRequest{URL: ""}
 	}
 
 	response := s.buildUserResponse(ctx, user, s3Resp.URL)
+	logger.Info().Str("target_id", id).Msg("user fetched successfully")
 
 	return httpx.Write(w, http.StatusOK, response)
 }
 
 // PatchUser godoc
 // @Summary      Patch a user by ID
-// @Description  Patch a user
+// @Description  Update user fields
 // @Tags         users
 // @Accept       json
 // @Produce      json
@@ -143,35 +152,42 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, ai models.
 // @Router       /users/{id} [patch]
 // @Security     BearerAuth
 func (s *Service) PatchUser(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
-	ctx := r.Context()
+	logger := log.With().
+		Str("method", "PatchUser").
+		Str("user_id", ai.UserID).
+		Str("path", r.URL.Path).
+		Logger()
 
+	ctx := r.Context()
 	id := chi.URLParam(r, "id")
 	if id == "" {
+		logger.Warn().Msg("missing id in url params")
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
 	}
 
 	if !ai.IsConnected || ai.UserID != id {
+		logger.Warn().Msg("unauthorized user tried to patch another account")
 		return httpx.WriteError(w, http.StatusForbidden, "not authorized")
 	}
 
 	var req models.UserPatchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Println("Erreur JSON:", err)
+		logger.Warn().Err(err).Msg("invalid JSON in patch request")
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
 
-	err := s.db.UpdateUser(ctx, req, id, s.clock.Now())
-
-	if err != nil {
-		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
+	if err := s.db.UpdateUser(ctx, req, id, s.clock.Now()); err != nil {
+		logger.Error().Err(err).Msg("failed to update user in db")
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error")
 	}
 
+	logger.Info().Str("target_id", id).Msg("user updated successfully")
 	return httpx.Write(w, http.StatusOK, nil)
 }
 
 // DeleteUser godoc
 // @Summary      Delete a user by ID
-// @Description  Delete a user
+// @Description  Remove a user permanently
 // @Tags         users
 // @Accept       json
 // @Produce      json
@@ -183,22 +199,29 @@ func (s *Service) PatchUser(w http.ResponseWriter, r *http.Request, ai models.Au
 // @Router       /users/{id} [delete]
 // @Security     BearerAuth
 func (s *Service) DeleteUser(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
-	ctx := r.Context()
+	logger := log.With().
+		Str("method", "DeleteUser").
+		Str("user_id", ai.UserID).
+		Str("path", r.URL.Path).
+		Logger()
 
+	ctx := r.Context()
 	id := chi.URLParam(r, "id")
 	if id == "" {
+		logger.Warn().Msg("missing id in url params")
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
 	}
 
 	if !ai.IsConnected || ai.UserID != id {
+		logger.Warn().Msg("unauthorized user tried to delete another account")
 		return httpx.WriteError(w, http.StatusForbidden, "not authorized")
 	}
 
-	err := s.db.DeleteUser(ctx, id)
-
-	if err != nil {
-		return httpx.WriteError(w, http.StatusInternalServerError, "database error: "+err.Error())
+	if err := s.db.DeleteUser(ctx, id); err != nil {
+		logger.Error().Err(err).Msg("failed to delete user from db")
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error")
 	}
 
+	logger.Info().Str("target_id", id).Msg("user deleted successfully")
 	return httpx.Write(w, http.StatusOK, nil)
 }

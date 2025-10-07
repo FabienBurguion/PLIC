@@ -5,11 +5,11 @@ import (
 	"PLIC/models"
 	"bytes"
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/aws/smithy-go"
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog/log"
 )
 
 // UploadProfilePictureToS3 godoc
@@ -24,7 +24,14 @@ import (
 // @Failure      500 {object} models.Error "Internal server error"
 // @Router       /profile_picture/{id} [post]
 func (s *Service) UploadProfilePictureToS3(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	logger := log.With().
+		Str("method", "UploadProfilePictureToS3").
+		Str("user_id", ai.UserID).
+		Str("path", r.URL.Path).
+		Logger()
+
 	if !ai.IsConnected {
+		logger.Warn().Msg("unauthorized user tried to upload profile picture")
 		return httpx.WriteError(w, http.StatusForbidden, "not authorized")
 	}
 
@@ -33,42 +40,49 @@ func (s *Service) UploadProfilePictureToS3(w http.ResponseWriter, r *http.Reques
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
+		logger.Warn().Msg("missing id in url params")
 		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
 	}
 
 	if ai.UserID != id {
+		logger.Warn().Msg("user tried to upload for another user")
 		return httpx.WriteError(w, http.StatusBadRequest, "bad request")
 	}
 
 	objectKey := id + ".png"
+	logger = logger.With().Str("bucket", bucketName).Str("object_key", objectKey).Logger()
 
 	file, _, err := r.FormFile("image")
 	if err != nil {
-		log.Printf("fichier non trouvé: %v", err)
+		logger.Warn().Err(err).Msg("file not found in multipart form")
 		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			log.Printf("⚠️ Erreur lors de la fermeture du fichier : %v", err)
+			logger.Warn().Err(err).Msg("error closing file")
 		}
 	}()
 
 	buf := new(bytes.Buffer)
-	_, err = buf.ReadFrom(file)
-	if err != nil {
-		log.Printf("lecture fichier: %v", err)
+	if _, err := buf.ReadFrom(file); err != nil {
+		logger.Error().Err(err).Msg("failed to read uploaded file")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 
-	err = s.s3Service.PutObject(ctx, bucketName, objectKey, buf)
-	if err != nil {
+	if err := s.s3Service.PutObject(ctx, bucketName, objectKey, buf); err != nil {
 		var oe *smithy.OperationError
 		if errors.As(err, &oe) {
-			log.Printf("🛑 OperationError: service=%s, operation=%s, err=%v\n", oe.Service(), oe.Operation(), oe.Unwrap())
+			logger.Error().
+				Str("service", oe.Service()).
+				Str("operation", oe.Operation()).
+				Err(oe.Unwrap()).
+				Msg("aws operation error")
+		} else {
+			logger.Error().Err(err).Msg("failed to upload to S3")
 		}
-		log.Printf("🛑 Erreur détaillée upload S3: %#v\n", err)
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 
+	logger.Info().Msg("profile picture uploaded successfully")
 	return httpx.Write(w, http.StatusCreated, nil)
 }
