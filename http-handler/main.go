@@ -6,7 +6,6 @@ import (
 	"PLIC/models"
 	"PLIC/s3_management"
 	"context"
-	_ "fmt"
 	"net/http"
 	"os"
 	"time"
@@ -81,7 +80,6 @@ func (s *Service) initService() {
 
 	s.server.Use(middleware.Logger)
 
-	// Middleware de logging structuré
 	s.server.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
