@@ -53,6 +53,10 @@ func (s *Service) GetHelloWorld(w http.ResponseWriter, r *http.Request, _ models
 
 	logger.Info().Msg("entering GetHelloWorld")
 
+	if name == "" {
+		name = "World"
+	}
+
 	response := models.HelloWorldResponse{
 		Response: "Hello " + name,
 	}
