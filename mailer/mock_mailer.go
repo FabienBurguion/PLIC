@@ -15,11 +15,6 @@ func (m *MockMailer) SendTestMail(_ string) error {
 	return nil
 }
 
-func (m *MockMailer) SendPasswordResetMail(_ string, _ string) error {
-	m.SentCounts["password_forgot"]++
-	return nil
-}
-
 func (m *MockMailer) SendLinkResetPassword(_ string, _ string) error {
 	m.SentCounts["link_reset"]++
 	return nil

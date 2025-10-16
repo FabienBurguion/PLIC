@@ -302,7 +302,7 @@ paths:
       summary: Liste tous les terrains
       tags:
       - terrain
-  /forget-password:
+  /forgot-password:
     post:
       consumes:
       - application/json

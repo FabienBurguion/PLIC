@@ -16,7 +16,7 @@ type DatabaseConfig struct {
 	ConnectionString string `env:"DATABASE_URL"`
 }
 
-type Google struct {
+type GoogleConfig struct {
 	ApiKey string `env:"GOOGLE_APIKEY"`
 }
 
@@ -24,5 +24,5 @@ type Configuration struct {
 	Mailer   MailerConfig
 	Lambda   LambdaConfig
 	Database DatabaseConfig
-	Google   Google
+	Google   GoogleConfig
 }

@@ -11,7 +11,6 @@ import (
 
 type MailSender interface {
 	SendTestMail(to string) error
-	SendPasswordResetMail(to string, newPassword string) error
 	SendLinkResetPassword(to string, newPassword string) error
 }
 
@@ -125,53 +124,5 @@ func (mailer *Mailer) SendLinkResetPassword(to string, url string) error {
 	mailer.LastSentAt[to] = time.Now()
 
 	log.Println("📤 Email de réinitialisation envoyé à", to)
-	return nil
-}
-
-func (mailer *Mailer) SendPasswordResetMail(to string, newPassword string) error {
-	if mailer.AlreadySent[to] && time.Since(mailer.LastSentAt[to]) < 10*time.Second {
-		log.Println("⛔️ Email déjà envoyé récemment à", to, "→ annulation.")
-		return fmt.Errorf("\"⛔️ Email déjà envoyé récemment à\", to, \"→ annulation.\"")
-	}
-
-	log.Println("🚀 Envoi de l'email via Mailjet à", to)
-
-	m := gomail.NewMessage()
-	m.SetHeader("From", mailer.Config.From)
-	m.SetHeader("To", to)
-	m.SetHeader("Subject", "Récupération de mot de passe")
-
-	textBody := "Votre nouveau mot de passe est : " + newPassword + ""
-	htmlBody := fmt.Sprintf(`
-	<html>
-		<body style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
-			<div style="max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px;">
-				<h2 style="color: #333;">Bonjour,</h2>
-				<p style="font-size: 16px;">Voici votre nouveau mot de passe :</p>
-				<p style="font-size: 18px; font-weight: bold; background-color: #eee; padding: 10px; border-radius: 4px; text-align: center;">
-					%s
-				</p>
-				<p style="font-size: 14px; color: #555;">Vous pouvez le modifier après vous être connecté.</p>
-				<hr style="margin: 20px 0;">
-				<small style="color: #888;">Envoyé automatiquement depuis une application Go.</small>
-			</div>
-		</body>
-	</html>
-`, newPassword)
-
-	m.SetBody("text/plain", textBody)
-	m.AddAlternative("text/html", htmlBody)
-
-	d := gomail.NewDialer(mailer.Config.Host, mailer.Config.Port, mailer.Config.Username, mailer.Config.Password)
-
-	if err := d.DialAndSend(m); err != nil {
-		log.Println("❌ Échec de l'envoi à", to, ":", err)
-		return err
-	}
-
-	mailer.AlreadySent[to] = true
-	mailer.LastSentAt[to] = time.Now()
-
-	log.Println("📤 Email envoyé avec succès à", to)
 	return nil
 }

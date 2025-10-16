@@ -234,7 +234,7 @@ func parseResetToken(tokenStr string) (string, error) {
 // @Success      200 {object} nil "Success even if param does not exist (for security)"
 // @Failure      400 {object} models.Error "Bad request (invalid JSON or email format)"
 // @Failure      500 {object} models.Error "Internal server error"
-// @Router       /forget-password [post]
+// @Router       /forgot-password [post]
 func (s *Service) ForgetPassword(w http.ResponseWriter, r *http.Request, _ models.AuthInfo) error {
 	baseLogger := log.With().Logger()
 
@@ -327,18 +327,14 @@ func (s *Service) ResetPassword(w http.ResponseWriter, r *http.Request, _ models
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 
-	if err := s.mailer.SendPasswordResetMail(email, newPassword); err != nil {
-		logger.Error().Err(err).Str("email", email).Msg("sending new password failed")
-		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
-	}
-
 	if err := s.db.ChangePassword(r.Context(), email, string(passwordHash)); err != nil {
 		logger.Error().Err(err).Str("email", email).Msg("db change password failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 
 	logger.Info().Str("email", email).Msg("password reset succeeded")
-	return httpx.WriteHTMLResponse(w, http.StatusOK, "Mot de passe envoyé", "Un email contenant votre nouveau mot de passe vous a été envoyé à "+email+".")
+	return httpx.WriteHTMLResponse(w, http.StatusOK, "Réinitialisation du mot de passe",
+		"Votre nouveau mot de passe est "+newPassword+".")
 }
 
 // ChangePassword godoc

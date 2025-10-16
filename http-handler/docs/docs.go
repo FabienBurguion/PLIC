@@ -165,7 +165,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/forget-password": {
+        "/forgot-password": {
             "post": {
                 "description": "Generate a new password and send it via email to the param if the account exists",
                 "consumes": [
