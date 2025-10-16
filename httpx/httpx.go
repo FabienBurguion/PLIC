@@ -13,7 +13,7 @@ const (
 	InternalServerError = "Internal Server Error"
 )
 
-func WriteHTMLResponse(w http.ResponseWriter, statusCode int, title, message, password string) error {
+func WriteHTMLResponseForPasswordReset(w http.ResponseWriter, statusCode int, title, message, password string) error {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(statusCode)
 
@@ -26,7 +26,7 @@ func WriteHTMLResponse(w http.ResponseWriter, statusCode int, title, message, pa
 		<style>
 			body {
 				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-				background: linear-gradient(135deg, #007BFF 0%%, #00BFFF 100%%);
+				background-color: #ffffff;
 				display: flex;
 				align-items: center;
 				justify-content: center;
@@ -38,13 +38,14 @@ func WriteHTMLResponse(w http.ResponseWriter, statusCode int, title, message, pa
 				background: #fff;
 				padding: 40px 50px;
 				border-radius: 16px;
-				box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+				box-shadow: 0 8px 25px rgba(0,0,0,0.08);
 				max-width: 500px;
 				text-align: center;
 				animation: fadeIn 0.8s ease;
+				border-top: 5px solid #FF8C00;
 			}
 			h1 {
-				color: #007BFF;
+				color: #FF8C00;
 				margin-bottom: 20px;
 			}
 			p {
@@ -53,18 +54,18 @@ func WriteHTMLResponse(w http.ResponseWriter, statusCode int, title, message, pa
 			}
 			.password-box {
 				display: inline-block;
-				background: #f8f9fa;
+				background: #fff7f0;
 				padding: 15px 25px;
-				border: 2px dashed #007BFF;
+				border: 2px dashed #FF8C00;
 				border-radius: 8px;
-				font-size: 20px;
+				font-size: 22px;
 				font-weight: bold;
-				color: #007BFF;
+				color: #FF8C00;
 				user-select: all;
 				transition: background 0.3s;
 			}
 			.password-box:hover {
-				background: #e9f2ff;
+				background: #fff2e0;
 			}
 			.footer {
 				margin-top: 30px;

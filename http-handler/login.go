@@ -333,7 +333,7 @@ func (s *Service) ResetPassword(w http.ResponseWriter, r *http.Request, _ models
 	}
 
 	logger.Info().Str("email", email).Msg("password reset succeeded")
-	return httpx.WriteHTMLResponse(
+	return httpx.WriteHTMLResponseForPasswordReset(
 		w,
 		http.StatusOK,
 		"Réinitialisation du mot de passe",
