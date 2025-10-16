@@ -52,8 +52,13 @@ func WriteHTMLResponseForPasswordReset(w http.ResponseWriter, statusCode int, ti
 				font-size: 18px;
 				margin-bottom: 25px;
 			}
+			.password-container {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 10px;
+			}
 			.password-box {
-				display: inline-block;
 				background: #fff7f0;
 				padding: 15px 25px;
 				border: 2px dashed #FF8C00;
@@ -66,6 +71,23 @@ func WriteHTMLResponseForPasswordReset(w http.ResponseWriter, statusCode int, ti
 			}
 			.password-box:hover {
 				background: #fff2e0;
+			}
+			.copy-btn {
+				background-color: #FF8C00;
+				border: none;
+				color: white;
+				padding: 12px 18px;
+				font-size: 16px;
+				font-weight: 600;
+				border-radius: 8px;
+				cursor: pointer;
+				transition: background 0.3s;
+			}
+			.copy-btn:hover {
+				background-color: #e67600;
+			}
+			.copy-btn:active {
+				transform: scale(0.98);
 			}
 			.footer {
 				margin-top: 30px;
@@ -82,9 +104,29 @@ func WriteHTMLResponseForPasswordReset(w http.ResponseWriter, statusCode int, ti
 		<div class="container">
 			<h1>%s</h1>
 			<p>%s</p>
-			<div class="password-box">%s</div>
+			<div class="password-container">
+				<div id="password" class="password-box">%s</div>
+				<button class="copy-btn" onclick="copyPassword()">Copier</button>
+			</div>
 			<p class="footer">Conservez ce mot de passe précieusement et changez-le dès votre prochaine connexion.</p>
 		</div>
+
+		<script>
+			function copyPassword() {
+				const pwd = document.getElementById('password').textContent;
+				navigator.clipboard.writeText(pwd).then(() => {
+					const btn = document.querySelector('.copy-btn');
+					btn.textContent = 'Copié !';
+					btn.style.backgroundColor = '#28a745';
+					setTimeout(() => {
+						btn.textContent = 'Copier';
+						btn.style.backgroundColor = '#FF8C00';
+					}, 2000);
+				}).catch(err => {
+					alert('Erreur lors de la copie : ' + err);
+				});
+			}
+		</script>
 	</body>
 	</html>
 	`, title, title, message, password)
