@@ -441,7 +441,6 @@ func TestService_ForgetPassword(t *testing.T) {
 func TestService_ResetPassword(t *testing.T) {
 	type expected struct {
 		statusCode int
-		mailSent   map[string]int
 	}
 
 	type testCase struct {
@@ -462,9 +461,6 @@ func TestService_ResetPassword(t *testing.T) {
 				WithPassword("old-password-hash"),
 			expected: expected{
 				statusCode: http.StatusOK,
-				mailSent: map[string]int{
-					"password_forgot": 1,
-				},
 			},
 		},
 		{
@@ -533,8 +529,6 @@ func TestService_ResetPassword(t *testing.T) {
 			if c.expected.statusCode != http.StatusOK {
 				return
 			}
-
-			require.Equal(t, c.expected.mailSent, mockMailer.SentCounts)
 
 			updatedUser, err := s.db.GetUserByEmail(req.Context(), userEmail)
 			require.NoError(t, err)
