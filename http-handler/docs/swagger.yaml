@@ -736,6 +736,10 @@ paths:
           description: Bad request or file not found
           schema:
             $ref: '#/definitions/models.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.Error'
         "500":
           description: Internal server error
           schema:
