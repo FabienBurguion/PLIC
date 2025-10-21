@@ -35,7 +35,7 @@ func (s *Service) UploadProfilePictureToS3(w http.ResponseWriter, r *http.Reques
 	}
 
 	ctx := r.Context()
-	bucketName := "param-profil-pictures"
+	bucketName := "user-profil-pictures"
 
 	objectKey := ai.UserID + ".png"
 	logger = logger.With().Str("bucket", bucketName).Str("object_key", objectKey).Logger()
