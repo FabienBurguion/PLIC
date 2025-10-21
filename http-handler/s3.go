@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/aws/smithy-go"
-	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )
 
@@ -38,18 +37,7 @@ func (s *Service) UploadProfilePictureToS3(w http.ResponseWriter, r *http.Reques
 	ctx := r.Context()
 	bucketName := "param-profil-pictures"
 
-	id := chi.URLParam(r, "id")
-	if id == "" {
-		logger.Warn().Msg("missing id in url params")
-		return httpx.WriteError(w, http.StatusBadRequest, "missing id in url params")
-	}
-
-	if ai.UserID != id {
-		logger.Warn().Msg("user tried to upload for another user")
-		return httpx.WriteError(w, http.StatusBadRequest, "bad request")
-	}
-
-	objectKey := id + ".png"
+	objectKey := ai.UserID + ".png"
 	logger = logger.With().Str("bucket", bucketName).Str("object_key", objectKey).Logger()
 
 	file, _, err := r.FormFile("image")

@@ -204,7 +204,7 @@ func main() {
 	s.GET("/", withAuthentication(s.GetTime))
 	s.GET("/hello_world", s.GetHelloWorld)
 
-	s.POST("/profile_picture/{id}", withAuthentication(s.UploadProfilePictureToS3))
+	s.POST("/profile_picture", withAuthentication(s.UploadProfilePictureToS3))
 
 	s.POST("/place", s.HandleSyncGooglePlaces)
 
