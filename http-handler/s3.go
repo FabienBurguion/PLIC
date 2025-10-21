@@ -20,6 +20,7 @@ import (
 // @Param        image formData file true "Image file to upload"
 // @Success      201
 // @Failure      400 {object} models.Error "Bad request or file not found"
+// @Failure      401 {object} models.Error "Unauthorized"
 // @Failure      500 {object} models.Error "Internal server error"
 // @Router       /profile_picture/{id} [post]
 func (s *Service) UploadProfilePictureToS3(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
@@ -31,7 +32,7 @@ func (s *Service) UploadProfilePictureToS3(w http.ResponseWriter, r *http.Reques
 
 	if !ai.IsConnected {
 		logger.Warn().Msg("unauthorized user tried to upload profile picture")
-		return httpx.WriteError(w, http.StatusForbidden, "not authorized")
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
 	ctx := r.Context()
