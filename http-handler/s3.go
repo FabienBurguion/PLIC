@@ -43,8 +43,9 @@ func (s *Service) UploadProfilePictureToS3(w http.ResponseWriter, r *http.Reques
 
 	file, _, err := r.FormFile("image")
 	if err != nil {
-		logger.Warn().Err(err).Msg("file not found in multipart form")
-		return httpx.WriteError(w, http.StatusBadRequest, httpx.BadRequestError)
+		msg := "Image file not found or incorrect format"
+		logger.Warn().Err(err).Msg(msg)
+		return httpx.WriteError(w, http.StatusBadRequest, msg)
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
