@@ -13,7 +13,8 @@ type RegisterRequest struct {
 }
 
 type LoginResponse struct {
-	Token string `json:"token"`
+	Token  string `json:"token"`
+	UserId string `json:"userId"`
 }
 
 type ChangePasswordRequest struct {

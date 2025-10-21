@@ -61,6 +61,8 @@ definitions:
     properties:
       token:
         type: string
+      userId:
+        type: string
     type: object
   models.MailerRequest:
     properties:

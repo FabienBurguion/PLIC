@@ -86,7 +86,10 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, _ models.AuthInf
 	}
 
 	logger.Info().Str("user_id", user.Id).Msg("login succeeded")
-	return httpx.Write(w, http.StatusOK, models.LoginResponse{Token: token})
+	return httpx.Write(w, http.StatusOK, models.LoginResponse{
+		Token:  token,
+		UserId: user.Id,
+	})
 }
 
 func isValidEmail(email string) bool {
@@ -178,7 +181,10 @@ func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.Auth
 	}
 
 	logger.Info().Str("user_id", newUser.Id).Msg("user registered successfully")
-	return httpx.Write(w, http.StatusCreated, models.LoginResponse{Token: token})
+	return httpx.Write(w, http.StatusCreated, models.LoginResponse{
+		Token:  token,
+		UserId: newUser.Id,
+	})
 }
 
 const passwordCharset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

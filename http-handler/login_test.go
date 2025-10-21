@@ -60,8 +60,11 @@ func TestService_Login(t *testing.T) {
 				Password: password,
 			},
 			expected: expected{
-				code:     http.StatusOK,
-				response: models.LoginResponse{Token: token},
+				code: http.StatusOK,
+				response: models.LoginResponse{
+					Token:  token,
+					UserId: userId,
+				},
 			},
 		},
 		{
@@ -129,9 +132,13 @@ func TestService_Login(t *testing.T) {
 			if c.expected.code != http.StatusOK {
 				return
 			}
+
 			var actual models.LoginResponse
 			err = json.NewDecoder(resp.Body).Decode(&actual)
 			require.NoError(t, err)
+
+			require.NotEmpty(t, actual.UserId, "response should include UserId")
+
 			parsedToken, err := jwt.Parse(actual.Token, func(token *jwt.Token) (interface{}, error) {
 				return []byte(jwtSecret), nil
 			})
@@ -140,7 +147,12 @@ func TestService_Login(t *testing.T) {
 
 			claims, ok := parsedToken.Claims.(jwt.MapClaims)
 			require.True(t, ok)
+
 			require.Equal(t, userId, claims["user_id"])
+
+			userIDClaim, ok := claims["user_id"].(string)
+			require.True(t, ok, "user_id claim should be a string")
+			require.Equal(t, userIDClaim, actual.UserId, "UserId in response should match user_id claim")
 		})
 	}
 }
@@ -303,6 +315,8 @@ func TestService_Register(t *testing.T) {
 			err = json.NewDecoder(resp.Body).Decode(&actual)
 			require.NoError(t, err)
 
+			require.NotEmpty(t, actual.UserId, "response should include UserId")
+
 			parsedToken, err := jwt.Parse(actual.Token, func(token *jwt.Token) (interface{}, error) {
 				return []byte(jwtSecret), nil
 			})
@@ -313,6 +327,10 @@ func TestService_Register(t *testing.T) {
 			require.True(t, ok)
 			require.NotEmpty(t, claims["user_id"])
 
+			userIDClaim, ok := claims["user_id"].(string)
+			require.True(t, ok, "user_id claim should be a string")
+			require.Equal(t, actual.UserId, userIDClaim, "UserId should match JWT claim user_id")
+
 			if c.expected.persist {
 				ctx := context.Background()
 				u, err := s.db.GetUserByEmail(ctx, c.param.Email)
@@ -320,7 +338,6 @@ func TestService_Register(t *testing.T) {
 				require.NotNil(t, u)
 
 				require.Equal(t, c.param.Username, u.Username)
-
 				require.Equal(t, c.param.Bio, u.Bio)
 
 				require.NotEmpty(t, u.Password)
@@ -329,6 +346,8 @@ func TestService_Register(t *testing.T) {
 				require.False(t, u.CreatedAt.IsZero())
 				require.False(t, u.UpdatedAt.IsZero())
 				require.NotEmpty(t, u.Id)
+
+				require.Equal(t, u.Id, actual.UserId, "Persisted user ID should match UserId in response")
 			}
 		})
 	}

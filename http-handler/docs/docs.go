@@ -1335,6 +1335,9 @@ const docTemplate = `{
             "properties": {
                 "token": {
                     "type": "string"
+                },
+                "userId": {
+                    "type": "string"
                 }
             }
         },
