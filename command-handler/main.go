@@ -1,6 +1,8 @@
 package main
 
 import (
+	"PLIC/database"
+	"PLIC/models"
 	"context"
 	"flag"
 	"fmt"
@@ -16,33 +18,32 @@ import (
 )
 
 type App struct {
-	db *sqlx.DB
+	db database.Database
 }
 
 func main() {
 	// Logger façon PLIC
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
 
-	// ✅ Charge automatiquement ton fichier .env (à la racine du projet)
+	// Charge .env
 	if err := godotenv.Load(); err != nil {
 		log.Warn().Msg("⚠️  Aucun fichier .env trouvé, utilisation des variables d'environnement existantes")
 	} else {
 		log.Info().Msg("✅ Fichier .env chargé")
 	}
 
+	// Connexion DB (même esprit que ton main PLIC)
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
 		log.Fatal().Msg("❌ DATABASE_URL manquant dans le .env")
 	}
 
-	// Connexion DB (avec Datadog trace, comme ton main PLIC)
 	dbStd, err := sqltrace.Open("pgx", connStr, sqltrace.WithServiceName("plic-db"))
 	if err != nil {
 		log.Fatal().Err(err).Msg("échec ouverture connexion SQL tracée")
 	}
-	db := sqlx.NewDb(dbStd, "pgx")
+	sqlxDB := sqlx.NewDb(dbStd, "pgx")
 
-	// Vérification simple
 	var version string
 	if err := dbStd.QueryRow("select version()").Scan(&version); err != nil {
 		log.Fatal().Err(err).Msg("échec lecture version Postgres")
@@ -53,9 +54,11 @@ func main() {
 	dbStd.SetMaxIdleConns(10)
 	dbStd.SetMaxOpenConns(20)
 
-	app := &App{db: db}
+	app := &App{
+		db: database.Database{Database: sqlxDB},
+	}
 
-	// --- CLI ---
+	// CLI
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(2)
@@ -71,14 +74,12 @@ func main() {
 			sport        string
 			participants int
 			team         int
-			matchID      string
 		)
 		fs.StringVar(&userID, "user-id", "", "ID du créateur (obligatoire)")
 		fs.StringVar(&courtID, "court-id", "", "ID du court (obligatoire)")
-		fs.StringVar(&sport, "sport", "basket", "Sport (basket|foot|ping-pong)")
+		fs.StringVar(&sport, "sport", string(models.Basket), "Sport (basket|foot|ping-pong)")
 		fs.IntVar(&participants, "participants", 2, "Nombre de participants")
 		fs.IntVar(&team, "team", 1, "Équipe du créateur (1 ou 2)")
-		fs.StringVar(&matchID, "match-id", "", "UUID du match (optionnel)")
 		_ = fs.Parse(os.Args[2:])
 
 		if userID == "" || courtID == "" {
@@ -90,7 +91,6 @@ func main() {
 		defer cancel()
 
 		err := RunCreateMatch(ctx, app.db, CreateMatchOptions{
-			MatchID:      matchID,
 			UserID:       userID,
 			CourtID:      courtID,
 			Sport:        sport,
@@ -116,6 +116,5 @@ func printUsage() {
 Options:
   --sport <basket|foot|ping-pong>   Sport (défaut: basket)
   --participants <n>                Nombre de participants (défaut: 2)
-  --team <1|2>                      Équipe du créateur (défaut: 1)
-  --match-id <uuid>                 Forcer un UUID spécifique (optionnel)`)
+  --team <1|2>                      Équipe du créateur (défaut: 1)`)
 }

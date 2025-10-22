@@ -1,20 +1,18 @@
 package main
 
 import (
+	"PLIC/database"
+	"PLIC/models"
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog/log"
 )
 
 type CreateMatchOptions struct {
-	MatchID      string
 	UserID       string
 	CourtID      string
 	Sport        string
@@ -22,9 +20,9 @@ type CreateMatchOptions struct {
 	Team         int
 }
 
-func RunCreateMatch(ctx context.Context, db *sqlx.DB, opt CreateMatchOptions) error {
+func RunCreateMatch(ctx context.Context, db database.Database, opt CreateMatchOptions) error {
 	if opt.Sport == "" {
-		opt.Sport = "basket"
+		opt.Sport = string(models.Basket)
 	}
 	if !isValidSport(opt.Sport) {
 		return fmt.Errorf("sport invalide: %s (attendu: basket|foot|ping-pong)", opt.Sport)
@@ -36,46 +34,48 @@ func RunCreateMatch(ctx context.Context, db *sqlx.DB, opt CreateMatchOptions) er
 		opt.Participants = 2
 	}
 
-	if strings.TrimSpace(opt.MatchID) == "" {
-		opt.MatchID = uuid.NewString()
+	matchID := uuid.NewString()
+	now := time.Now()
+
+	match := models.DBMatches{
+		Id:              matchID,
+		Sport:           models.Sport(opt.Sport),
+		Date:            now,
+		ParticipantNber: opt.Participants,
+		CurrentState:    models.ManqueJoueur,
+		Score1:          nil,
+		Score2:          nil,
+		CourtID:         opt.CourtID,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	log.Info().
-		Str("match_id", opt.MatchID).
+		Str("match_id", matchID).
 		Str("user_id", opt.UserID).
 		Str("court_id", opt.CourtID).
 		Str("sport", opt.Sport).
 		Int("participants", opt.Participants).
 		Int("team", opt.Team).
-		Msg("🔧 create-match: paramètres")
+		Msg("🔧 create-match: création du match")
 
-	tx, err := db.BeginTxx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	const insertMatch = `
-INSERT INTO matches (id, sport, date, participant_nber, current_state, court_id, created_at, updated_at)
-VALUES ($1, $2, NOW(), $3, 'Manque joueur', $4, NOW(), NOW());
-`
-	if _, err := tx.ExecContext(ctx, insertMatch, opt.MatchID, opt.Sport, opt.Participants, opt.CourtID); err != nil {
-		return fmt.Errorf("insert matches: %w", err)
+	if err := db.CreateMatch(ctx, match); err != nil {
+		return fmt.Errorf("insert match: %w", err)
 	}
 
-	const insertUserMatch = `
-INSERT INTO user_match (user_id, match_id, team, created_at)
-VALUES ($1, $2, $3, $4);
-`
-	if _, err := tx.ExecContext(ctx, insertUserMatch, opt.UserID, opt.MatchID, opt.Team, time.Now()); err != nil {
+	um := models.DBUserMatch{
+		UserID:    opt.UserID,
+		MatchID:   matchID,
+		Team:      opt.Team,
+		CreatedAt: now,
+	}
+
+	if err := db.CreateUserMatch(ctx, um); err != nil {
+		_ = db.DeleteMatch(ctx, matchID)
 		return fmt.Errorf("insert user_match: %w", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-
-	log.Info().Str("match_id", opt.MatchID).Msg("🟢 Match créé et créateur inscrit")
+	log.Info().Str("match_id", matchID).Msg("🟢 Match créé et créateur inscrit")
 	return nil
 }
 
@@ -86,15 +86,4 @@ func isValidSport(s string) bool {
 	default:
 		return false
 	}
-}
-
-func ensureRowExists(ctx context.Context, tx *sqlx.Tx, query string, args ...any) error {
-	var exists bool
-	if err := tx.QueryRowxContext(ctx, query, args...).Scan(&exists); err != nil {
-		return err
-	}
-	if !exists {
-		return errors.New("not found")
-	}
-	return nil
 }
