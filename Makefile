@@ -15,7 +15,6 @@ docker-down:
 
 .PHONY: test
 test: docker-up
-	sleep 5
 	go test ./...
 
 .PHONY: zip-windows

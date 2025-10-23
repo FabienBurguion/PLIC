@@ -100,7 +100,7 @@ func (s *Service) InitServiceTest() func() error {
 
 func InitDBTest(sqlFile string) (*sqlx.DB, func() error, error) {
 	dockerHost := "localhost"
-	adminDsn := "host=" + dockerHost + " port=5433 user=test password=test dbname=postgres sslmode=disable"
+	adminDsn := "host=" + dockerHost + " port=5433 user=test password=test dbname=test sslmode=disable"
 
 	adminDb, err := sql.Open("pgx", adminDsn)
 	if err != nil {
