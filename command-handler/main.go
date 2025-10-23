@@ -22,17 +22,14 @@ type App struct {
 }
 
 func main() {
-	// Logger façon PLIC
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
 
-	// Charge .env
 	if err := godotenv.Load(); err != nil {
 		log.Warn().Msg("⚠️  Aucun fichier .env trouvé, utilisation des variables d'environnement existantes")
 	} else {
 		log.Info().Msg("✅ Fichier .env chargé")
 	}
 
-	// Connexion DB (même esprit que ton main PLIC)
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
 		log.Fatal().Msg("❌ DATABASE_URL manquant dans le .env")
@@ -48,7 +45,7 @@ func main() {
 	if err := dbStd.QueryRow("select version()").Scan(&version); err != nil {
 		log.Fatal().Err(err).Msg("échec lecture version Postgres")
 	}
-	log.Info().Str("postgres_version", version).Msg("✅ Connexion DB OK")
+	log.Info().Msg("✅ Connexion DB OK")
 
 	dbStd.SetConnMaxLifetime(5 * time.Minute)
 	dbStd.SetMaxIdleConns(10)
@@ -58,7 +55,6 @@ func main() {
 		db: database.Database{Database: sqlxDB},
 	}
 
-	// CLI
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(2)
@@ -111,10 +107,5 @@ func main() {
 
 func printUsage() {
 	fmt.Println(`Usage:
-  go run ./command-handler create-match --user-id <uuid> --court-id <uuid> [options]
-
-Options:
-  --sport <basket|foot|ping-pong>   Sport (défaut: basket)
-  --participants <n>                Nombre de participants (défaut: 2)
-  --team <1|2>                      Équipe du créateur (défaut: 1)`)
+  go run ./command-handler <command> [options]`)
 }
