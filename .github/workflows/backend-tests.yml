@@ -22,5 +22,8 @@ jobs:
       - name: Install dependencies
         run: go mod download
 
+      - name: Launch Docker
+        run: make docker-up
+
       - name: Run make test (with Docker)
         run: make test
