@@ -25,5 +25,16 @@ jobs:
       - name: Launch Docker
         run: make docker-up
 
+      - name: Wait for Postgres to be ready
+        run: |
+          for i in {1..30}; do
+            if docker exec pg_test pg_isready -U test -d test -h localhost -p 5432; then
+              echo "Postgres is ready!"
+              break
+            fi
+            echo "Postgres not ready yet, retrying..."
+            sleep 1
+          done
+
       - name: Run make test (with Docker)
         run: make test
