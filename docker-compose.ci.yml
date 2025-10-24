@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: pg_test
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: test
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d test -h localhost -p 5432"]
+      interval: 1s
+      timeout: 5s
+      retries: 20
+      start_period: 5s

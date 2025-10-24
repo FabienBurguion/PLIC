@@ -37,3 +37,11 @@ generate-swagger:
 .PHONY: lint
 lint:
 	go mod tidy && go mod download && golangci-lint run ./...
+
+.PHONY: docker-up-ci
+docker-up-ci:
+	docker compose -f docker-compose.ci.yml up -d
+
+.PHONY: test-ci
+test-ci:
+	go test ./...

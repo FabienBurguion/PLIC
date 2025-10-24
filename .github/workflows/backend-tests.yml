@@ -22,19 +22,31 @@ jobs:
       - name: Install dependencies
         run: go mod download
 
-      - name: Launch Docker
-        run: make docker-up
+      - name: Launch Postgres (CI compose)
+        run: make docker-up-ci
+
+      - name: Debug status (optionnel mais super utile si ça recasse)
+        run: |
+          docker ps -a
+          docker logs pg_test || true
 
       - name: Wait for Postgres to be ready
         run: |
           for i in {1..30}; do
-            if docker exec pg_test pg_isready -U test -d test -h localhost -p 5432; then
+            # Ici on teste depuis l'hôte vers le port publié 5433,
+            # pas besoin de docker exec (et ça évite l'erreur "container is not running").
+            if pg_isready -h 127.0.0.1 -p 5433 -U test -d test; then
               echo "Postgres is ready!"
-              break
+              exit 0
             fi
+
             echo "Postgres not ready yet, retrying..."
             sleep 1
           done
 
-      - name: Run make test (with Docker)
-        run: make test
+          echo "Postgres never became ready, showing logs:"
+          docker logs pg_test || true
+          exit 1
+
+      - name: Run tests
+        run: make test-ci
