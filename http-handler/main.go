@@ -59,8 +59,6 @@ func loadConfig() (*models.Configuration, error) {
 }
 
 func (s *Service) initService() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: zerolog.ConsoleWriter{}})
-
 	_ = godotenv.Load()
 
 	appConfig, err := loadConfig()
@@ -68,10 +66,20 @@ func (s *Service) initService() {
 		log.Fatal().Err(err).Msg("failed to load configuration")
 	}
 	s.configuration = appConfig
+
 	s.isLambda = s.configuration.Lambda.FunctionName != ""
 
-	s.db = s.initDb()
+	if s.isLambda {
+		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+		log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+	} else {
+		log.Logger = log.Output(zerolog.ConsoleWriter{
+			Out:        os.Stdout,
+			TimeFormat: "15:04:05",
+		})
+	}
 
+	s.db = s.initDb()
 	s.server = chi.NewRouter()
 
 	if s.isLambda {
@@ -91,6 +99,7 @@ func (s *Service) initService() {
 				Msg("➡️ Incoming request")
 
 			next.ServeHTTP(rw, r)
+
 			elapsed := time.Since(start)
 
 			if s.isLambda {
@@ -194,7 +203,6 @@ func main() {
 	s := &Service{}
 	s.initService()
 
-	// Routes
 	s.POST("/register", s.Register)
 	s.POST("/login", s.Login)
 	s.POST("/forgot-password", s.ForgetPassword)
@@ -230,15 +238,12 @@ func main() {
 	s.GET("/ranking/user/{userId}", withAuthentication(s.GetUserFields))
 
 	if s.isLambda {
-		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-		log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
 		tracer.Start(tracer.WithService("plic-api"))
 		defer tracer.Stop()
 
 		log.Info().Msg("🚀 Running in AWS Lambda mode...")
 		s.Start()
 	} else {
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
 		log.Info().Str("port", Port).Msg("🌍 Running locally...")
 		if err := http.ListenAndServe(":"+Port, s.server); err != nil {
 			log.Fatal().Err(err).Msg("server failed")
