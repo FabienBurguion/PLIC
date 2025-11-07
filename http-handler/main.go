@@ -249,4 +249,6 @@ func main() {
 			log.Fatal().Err(err).Msg("server failed")
 		}
 	}
+
+	// THIS IS USELESS
 }
