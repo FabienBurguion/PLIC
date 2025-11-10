@@ -920,3 +920,97 @@ func (s *Service) FinishMatch(w http.ResponseWriter, r *http.Request, ai models.
 	logger.Info().Msg("match finished (waiting scores)")
 	return httpx.Write(w, http.StatusOK, nil)
 }
+
+// GetMatchVoteStatus godoc
+// @Summary      Statut de vote des scores (par équipe) pour un match terminé
+// @Description  Renvoie l'équipe du joueur, si son équipe a voté et le score voté (nullable), et la même info pour l'équipe adverse. Ne fonctionne que si le match est en statut "Termine".
+// @Tags         match
+// @Produce      json
+// @Param        id   path      string  true  "ID du match"
+// @Success      200  {object}  models.MatchVoteStatusResponse
+// @Failure      400  {object}  models.Error  "ID manquant, mauvais état"
+// @Failure      401  {object}  models.Error  "Utilisateur non autorisé"
+// @Failure      404  {object}  models.Error  "Match ou utilisateur non trouvé"
+// @Failure      500  {object}  models.Error  "Erreur serveur"
+// @Router       /match/{id}/vote-status [get]
+func (s *Service) GetMatchVoteStatus(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	baseLogger := log.With().
+		Str("method", "GetMatchVoteStatus").
+		Str("user_id", ai.UserID).
+		Logger()
+
+	if !ai.IsConnected {
+		baseLogger.Warn().Msg("unauthorized")
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
+	ctx := r.Context()
+	matchID := chi.URLParam(r, "id")
+	logger := baseLogger.With().Str("match_id", matchID).Logger()
+
+	if matchID == "" {
+		logger.Warn().Msg("missing match ID")
+		return httpx.WriteError(w, http.StatusBadRequest, "missing match ID")
+	}
+
+	match, err := s.db.GetMatchById(ctx, matchID)
+	if err != nil {
+		logger.Error().Err(err).Msg("db get match failed")
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error")
+	}
+	if match == nil {
+		logger.Warn().Msg("match not found")
+		return httpx.WriteError(w, http.StatusNotFound, "match not found")
+	}
+
+	if match.CurrentState != models.Termine {
+		logger.Warn().Str("state", string(match.CurrentState)).Msg("match not in Termine")
+		return httpx.WriteError(w, http.StatusBadRequest, "vote status available only when match is 'Termine'")
+	}
+
+	um, err := s.db.GetUserInMatch(ctx, ai.UserID, matchID)
+	if err != nil {
+		logger.Error().Err(err).Msg("db get user in match failed")
+		return httpx.WriteError(w, http.StatusInternalServerError, "database error")
+	}
+	if um == nil {
+		logger.Warn().Msg("user not in match")
+		return httpx.WriteError(w, http.StatusNotFound, "user in this match not found")
+	}
+	myTeam := um.Team
+	opTeam := 1
+	if myTeam == 1 {
+		opTeam = 2
+	} else {
+		opTeam = 1
+	}
+
+	myVote, err := s.db.GetScoreVoteByMatchAndTeam(ctx, matchID, myTeam)
+	if err != nil {
+		logger.Error().Err(err).Int("team", myTeam).Msg("db get vote for my team failed")
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch team vote")
+	}
+	opVote, err := s.db.GetScoreVoteByMatchAndTeam(ctx, matchID, opTeam)
+	if err != nil {
+		logger.Error().Err(err).Int("team", opTeam).Msg("db get vote for opponent team failed")
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch opponent team vote")
+	}
+
+	toStatus := func(v *models.DBMatchScoreVote) models.TeamVoteStatus {
+		if v == nil {
+			return models.TeamVoteStatus{HasVoted: false, Score: nil}
+		}
+		sp := &models.ScorePair{Score1: v.Score1, Score2: v.Score2}
+		return models.TeamVoteStatus{HasVoted: true, Score: sp}
+	}
+
+	resp := models.MatchVoteStatusResponse{
+		MatchID:    matchID,
+		PlayerTeam: myTeam,
+		MyTeam:     toStatus(myVote),
+		Opponent:   toStatus(opVote),
+	}
+
+	logger.Info().Msg("vote status fetched")
+	return httpx.Write(w, http.StatusOK, resp)
+}

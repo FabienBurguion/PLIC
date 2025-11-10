@@ -229,6 +229,7 @@ func main() {
 	s.DELETE("/match/{id}", withAuthentication(s.DeleteMatch))
 	s.PATCH("/match/{id}/start", withAuthentication(s.StartMatch))
 	s.PATCH("/match/{id}/finish", withAuthentication(s.FinishMatch))
+	s.GET("/match/{id}/vote-status", withAuthentication(s.GetMatchVoteStatus))
 
 	s.GET("/users/{id}", withAuthentication(s.GetUserById))
 	s.PATCH("/users/{id}", withAuthentication(s.PatchUser))

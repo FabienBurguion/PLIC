@@ -154,6 +154,25 @@ func Test_MatchLifecycle(t *testing.T) {
 		require.Equal(t, models.ManqueScore, m.CurrentState)
 	}
 
+	// === 4.1) Vote-status interdit tant que le match est ManqueScore
+	{
+		url := "/match/" + matchID + "/vote-status"
+		r := httptest.NewRequest("GET", url, nil)
+		routeCtx := chi.NewRouteContext()
+		routeCtx.URLParams.Add("id", matchID)
+		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+		w := httptest.NewRecorder()
+
+		err := s.GetMatchVoteStatus(w, r, models.AuthInfo{
+			IsConnected: true,
+			UserID:      creator.Id,
+		})
+		require.NoError(t, err)
+		resp := w.Result()
+		defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	}
+
 	// === 5) Votes de score ===
 	updateScore := func(user models.DBUsers, s1, s2 int, expectedCode int) {
 		body, _ := json.Marshal(models.UpdateScoreRequest{Score1: s1, Score2: s2})
@@ -174,6 +193,25 @@ func Test_MatchLifecycle(t *testing.T) {
 			_ = Body.Close()
 		}(resp.Body)
 		require.Equal(t, expectedCode, resp.StatusCode)
+	}
+
+	// === 5.1) Toujours interdit en ManqueScore même si des votes existent
+	{
+		url := "/match/" + matchID + "/vote-status"
+		r := httptest.NewRequest("GET", url, nil)
+		routeCtx := chi.NewRouteContext()
+		routeCtx.URLParams.Add("id", matchID)
+		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+		w := httptest.NewRecorder()
+
+		err := s.GetMatchVoteStatus(w, r, models.AuthInfo{
+			IsConnected: true,
+			UserID:      u3.Id, // joueur du match (équipe 2)
+		})
+		require.NoError(t, err)
+		resp := w.Result()
+		defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	}
 
 	// Désaccord (state reste ManqueScore, score dernier proposé)
@@ -222,6 +260,76 @@ func Test_MatchLifecycle(t *testing.T) {
 	require.Equal(t, base+delta, rU2.Elo)
 	require.Equal(t, base-delta, rU3.Elo)
 	require.Equal(t, base-delta, rU4.Elo)
+
+	// === 5.2) Match Termine -> vote-status OK pour un joueur de l'équipe 1 (creator)
+	{
+		url := "/match/" + matchID + "/vote-status"
+		r := httptest.NewRequest("GET", url, nil)
+		routeCtx := chi.NewRouteContext()
+		routeCtx.URLParams.Add("id", matchID)
+		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+		w := httptest.NewRecorder()
+
+		err := s.GetMatchVoteStatus(w, r, models.AuthInfo{
+			IsConnected: true,
+			UserID:      creator.Id,
+		})
+		require.NoError(t, err)
+
+		resp := w.Result()
+		defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var st models.MatchVoteStatusResponse
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		require.NoError(t, json.Unmarshal(bodyBytes, &st))
+
+		require.Equal(t, matchID, st.MatchID)
+		require.Equal(t, 1, st.PlayerTeam)
+		require.True(t, st.MyTeam.HasVoted)
+		require.True(t, st.Opponent.HasVoted)
+		require.NotNil(t, st.MyTeam.Score)
+		require.NotNil(t, st.Opponent.Score)
+		require.Equal(t, 5, st.MyTeam.Score.Score1)
+		require.Equal(t, 3, st.MyTeam.Score.Score2)
+		require.Equal(t, 5, st.Opponent.Score.Score1)
+		require.Equal(t, 3, st.Opponent.Score.Score2)
+	}
+
+	// === 5.3) Match Termine -> vote-status OK pour un joueur de l'équipe 2 (u3)
+	{
+		url := "/match/" + matchID + "/vote-status"
+		r := httptest.NewRequest("GET", url, nil)
+		routeCtx := chi.NewRouteContext()
+		routeCtx.URLParams.Add("id", matchID)
+		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+		w := httptest.NewRecorder()
+
+		err := s.GetMatchVoteStatus(w, r, models.AuthInfo{
+			IsConnected: true,
+			UserID:      u3.Id,
+		})
+		require.NoError(t, err)
+
+		resp := w.Result()
+		defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var st models.MatchVoteStatusResponse
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		require.NoError(t, json.Unmarshal(bodyBytes, &st))
+
+		require.Equal(t, matchID, st.MatchID)
+		require.Equal(t, 2, st.PlayerTeam)
+		require.True(t, st.MyTeam.HasVoted)
+		require.True(t, st.Opponent.HasVoted)
+		require.NotNil(t, st.MyTeam.Score)
+		require.NotNil(t, st.Opponent.Score)
+		require.Equal(t, 5, st.MyTeam.Score.Score1)
+		require.Equal(t, 3, st.MyTeam.Score.Score2)
+		require.Equal(t, 5, st.Opponent.Score.Score1)
+		require.Equal(t, 3, st.Opponent.Score.Score2)
+	}
 
 	// Bonus: empêcher un second vote team1 (si tenté après consensus, on tombe de toute façon sur "wrong state")
 	{

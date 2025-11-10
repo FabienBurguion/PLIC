@@ -1263,3 +1263,230 @@ func Test_FinishMatch(t *testing.T) {
 		})
 	}
 }
+
+func Test_GetMatchVoteStatus(t *testing.T) {
+	type expected struct {
+		code        int
+		errContains string
+		wantTeam    *int
+		myHasVoted  *bool
+		opHasVoted  *bool
+		myScore     *models.ScorePair
+		opScore     *models.ScorePair
+	}
+
+	type testCase struct {
+		name     string
+		auth     models.AuthInfo
+		paramID  string
+		fixtures DBFixtures
+		prepare  func(t *testing.T, s *Service, matchID, userID string)
+		expected expected
+	}
+
+	court := models.NewDBCourtFixture()
+
+	matchTermine := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.Termine)
+
+	matchTermineOnlyOpp := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.Termine)
+
+	matchWrongState := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.ManqueScore)
+
+	userA := models.NewDBUsersFixture().WithUsername("userA").WithEmail("a@example.com")
+	userB := models.NewDBUsersFixture().WithUsername("userB").WithEmail("b@example.com")
+	userC := models.NewDBUsersFixture().WithUsername("userC").WithEmail("c@example.com")
+
+	makeBool := func(b bool) *bool { return &b }
+	makeTeam := func(t int) *int { return &t }
+	makeScore := func(s1, s2 int) *models.ScorePair { return &models.ScorePair{Score1: s1, Score2: s2} }
+
+	tests := []testCase{
+		{
+			name:    "Happy path: both teams voted, user in team 1",
+			auth:    models.AuthInfo{IsConnected: true, UserID: userA.Id},
+			paramID: matchTermine.Id,
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{matchTermine},
+				Users:   []models.DBUsers{userA, userB},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(userA.Id).WithMatchId(matchTermine.Id).WithTeam(1),
+					models.NewDBUserMatchFixture().WithUserId(userB.Id).WithMatchId(matchTermine.Id).WithTeam(2),
+				},
+			},
+			prepare: func(t *testing.T, s *Service, matchID, _ string) {
+				ctx := context.Background()
+				require.NoError(t, s.db.UpsertMatchScoreVote(ctx, models.DBMatchScoreVote{
+					MatchId: matchID, UserId: userA.Id, Team: 1, Score1: 3, Score2: 2,
+				}))
+				require.NoError(t, s.db.UpsertMatchScoreVote(ctx, models.DBMatchScoreVote{
+					MatchId: matchID, UserId: userB.Id, Team: 2, Score1: 1, Score2: 4,
+				}))
+			},
+			expected: expected{
+				code:       http.StatusOK,
+				wantTeam:   makeTeam(1),
+				myHasVoted: makeBool(true),
+				opHasVoted: makeBool(true),
+				myScore:    makeScore(3, 2),
+				opScore:    makeScore(1, 4),
+			},
+		},
+		{
+			name:    "Only opponent voted: my team has no vote",
+			auth:    models.AuthInfo{IsConnected: true, UserID: userA.Id},
+			paramID: matchTermineOnlyOpp.Id,
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{matchTermineOnlyOpp},
+				Users:   []models.DBUsers{userA, userB},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(userA.Id).WithMatchId(matchTermineOnlyOpp.Id).WithTeam(1),
+					models.NewDBUserMatchFixture().WithUserId(userB.Id).WithMatchId(matchTermineOnlyOpp.Id).WithTeam(2),
+				},
+			},
+			prepare: func(t *testing.T, s *Service, matchID, _ string) {
+				ctx := context.Background()
+				require.NoError(t, s.db.UpsertMatchScoreVote(ctx, models.DBMatchScoreVote{
+					MatchId: matchID, UserId: userB.Id, Team: 2, Score1: 9, Score2: 9,
+				}))
+			},
+			expected: expected{
+				code:       http.StatusOK,
+				wantTeam:   makeTeam(1),
+				myHasVoted: makeBool(false),
+				opHasVoted: makeBool(true),
+				myScore:    nil,
+				opScore:    makeScore(9, 9),
+			},
+		},
+		{
+			name:    "Wrong state: match not 'Termine'",
+			auth:    models.AuthInfo{IsConnected: true, UserID: userA.Id},
+			paramID: matchWrongState.Id,
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{matchWrongState},
+				Users:   []models.DBUsers{userA, userB},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(userA.Id).WithMatchId(matchWrongState.Id).WithTeam(1),
+					models.NewDBUserMatchFixture().WithUserId(userB.Id).WithMatchId(matchWrongState.Id).WithTeam(2),
+				},
+			},
+			expected: expected{
+				code:        http.StatusBadRequest,
+				errContains: "only when match is 'Termine'",
+			},
+		},
+		{
+			name:    "User not in match -> 404",
+			auth:    models.AuthInfo{IsConnected: true, UserID: userC.Id},
+			paramID: matchTermine.Id,
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{matchTermine},
+				Users:   []models.DBUsers{userA, userB, userC},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(userA.Id).WithMatchId(matchTermine.Id).WithTeam(1),
+					models.NewDBUserMatchFixture().WithUserId(userB.Id).WithMatchId(matchTermine.Id).WithTeam(2),
+				},
+			},
+			expected: expected{
+				code:        http.StatusNotFound,
+				errContains: "user in this match not found",
+			},
+		},
+		{
+			name:     "Unauthorized",
+			auth:     models.AuthInfo{IsConnected: false, UserID: userA.Id},
+			paramID:  matchTermine.Id,
+			fixtures: DBFixtures{},
+			expected: expected{
+				code:        http.StatusUnauthorized,
+				errContains: "not authorized",
+			},
+		},
+		{
+			name:     "Missing match ID",
+			auth:     models.AuthInfo{IsConnected: true, UserID: userA.Id},
+			paramID:  "",
+			fixtures: DBFixtures{},
+			expected: expected{
+				code:        http.StatusBadRequest,
+				errContains: "missing match ID",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+
+			s.loadFixtures(tc.fixtures)
+
+			if tc.prepare != nil && tc.paramID != "" && tc.auth.UserID != "" {
+				tc.prepare(t, s, tc.paramID, tc.auth.UserID)
+			}
+
+			url := "/match/" + tc.paramID + "/vote-status"
+			r := httptest.NewRequest("GET", url, nil)
+			routeCtx := chi.NewRouteContext()
+			if tc.paramID != "" {
+				routeCtx.URLParams.Add("id", tc.paramID)
+			}
+			r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+
+			w := httptest.NewRecorder()
+			err := s.GetMatchVoteStatus(w, r, tc.auth)
+			require.NoError(t, err)
+
+			resp := w.Result()
+			defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
+			require.Equal(t, tc.expected.code, resp.StatusCode)
+
+			body, _ := io.ReadAll(resp.Body)
+
+			if tc.expected.code != http.StatusOK {
+				if tc.expected.errContains != "" {
+					require.Contains(t, string(body), tc.expected.errContains)
+				}
+				return
+			}
+
+			var res models.MatchVoteStatusResponse
+			require.NoError(t, json.Unmarshal(body, &res))
+
+			if tc.expected.wantTeam != nil {
+				require.Equal(t, *tc.expected.wantTeam, res.PlayerTeam)
+			}
+			if tc.expected.myHasVoted != nil {
+				require.Equal(t, *tc.expected.myHasVoted, res.MyTeam.HasVoted)
+			}
+			if tc.expected.opHasVoted != nil {
+				require.Equal(t, *tc.expected.opHasVoted, res.Opponent.HasVoted)
+			}
+			if tc.expected.myScore != nil {
+				require.NotNil(t, res.MyTeam.Score)
+				require.Equal(t, tc.expected.myScore.Score1, res.MyTeam.Score.Score1)
+				require.Equal(t, tc.expected.myScore.Score2, res.MyTeam.Score.Score2)
+			} else {
+				require.Nil(t, res.MyTeam.Score)
+			}
+			if tc.expected.opScore != nil {
+				require.NotNil(t, res.Opponent.Score)
+				require.Equal(t, tc.expected.opScore.Score1, res.Opponent.Score.Score1)
+				require.Equal(t, tc.expected.opScore.Score2, res.Opponent.Score.Score2)
+			} else {
+				require.Nil(t, res.Opponent.Score)
+			}
+		})
+	}
+}

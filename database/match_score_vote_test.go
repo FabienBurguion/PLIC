@@ -509,3 +509,150 @@ func TestDatabase_HasOtherTeamVote(t *testing.T) {
 		})
 	}
 }
+
+func TestDatabase_GetScoreVoteByMatchAndTeam(t *testing.T) {
+	type param struct {
+		matchID string
+		team    int
+	}
+	type expected struct {
+		found  bool
+		score1 int
+		score2 int
+	}
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		prepare  func(t *testing.T, s *Service, matchID string, users []models.DBUsers)
+		param    param
+		expected expected
+	}
+
+	court := models.NewDBCourtFixture()
+	match := models.NewDBMatchesFixture().WithCourtId(court.Id)
+
+	uTeam1 := models.NewDBUsersFixture().WithUsername("t1").WithEmail("t1@example.com")
+	uTeam2 := models.NewDBUsersFixture().WithUsername("t2").WithEmail("t2@example.com")
+
+	baseFixtures := DBFixtures{
+		Courts:  []models.DBCourt{court},
+		Matches: []models.DBMatches{match},
+		Users:   []models.DBUsers{uTeam1, uTeam2},
+		UserMatches: []models.DBUserMatch{
+			models.NewDBUserMatchFixture().WithUserId(uTeam1.Id).WithMatchId(match.Id).WithTeam(1),
+			models.NewDBUserMatchFixture().WithUserId(uTeam2.Id).WithMatchId(match.Id).WithTeam(2),
+		},
+	}
+
+	tests := []testCase{
+		{
+			name:     "Vote existe pour team 1",
+			fixtures: baseFixtures,
+			prepare: func(t *testing.T, s *Service, matchID string, users []models.DBUsers) {
+				ctx := context.Background()
+				require.NoError(t, s.db.UpsertMatchScoreVote(ctx, models.DBMatchScoreVote{
+					MatchId: matchID,
+					UserId:  uTeam1.Id,
+					Team:    1,
+					Score1:  5,
+					Score2:  3,
+				}))
+			},
+			param: param{
+				matchID: match.Id,
+				team:    1,
+			},
+			expected: expected{
+				found:  true,
+				score1: 5,
+				score2: 3,
+			},
+		},
+		{
+			name:     "Pas de vote pour team 2 (alors que team 1 a voté)",
+			fixtures: baseFixtures,
+			prepare: func(t *testing.T, s *Service, matchID string, users []models.DBUsers) {
+				ctx := context.Background()
+				require.NoError(t, s.db.UpsertMatchScoreVote(ctx, models.DBMatchScoreVote{
+					MatchId: matchID,
+					UserId:  uTeam1.Id,
+					Team:    1,
+					Score1:  7,
+					Score2:  7,
+				}))
+			},
+			param: param{
+				matchID: match.Id,
+				team:    2,
+			},
+			expected: expected{
+				found: false,
+			},
+		},
+		{
+			name:    "Match inconnu -> nil, no error",
+			prepare: nil,
+			param: param{
+				matchID: uuid.NewString(),
+				team:    1,
+			},
+			expected: expected{
+				found: false,
+			},
+		},
+		{
+			name:     "Vote existe pour team 2, requête team 2 => trouvé",
+			fixtures: baseFixtures,
+			prepare: func(t *testing.T, s *Service, matchID string, users []models.DBUsers) {
+				ctx := context.Background()
+				require.NoError(t, s.db.UpsertMatchScoreVote(ctx, models.DBMatchScoreVote{
+					MatchId: matchID,
+					UserId:  uTeam2.Id,
+					Team:    2,
+					Score1:  1,
+					Score2:  4,
+				}))
+			},
+			param: param{
+				matchID: match.Id,
+				team:    2,
+			},
+			expected: expected{
+				found:  true,
+				score1: 1,
+				score2: 4,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+
+			s.loadFixtures(tc.fixtures)
+
+			if tc.prepare != nil {
+				tc.prepare(t, s, tc.param.matchID, []models.DBUsers{uTeam1, uTeam2})
+			}
+
+			ctx := context.Background()
+			got, err := s.db.GetScoreVoteByMatchAndTeam(ctx, tc.param.matchID, tc.param.team)
+			require.NoError(t, err)
+
+			if !tc.expected.found {
+				require.Nil(t, got)
+				return
+			}
+
+			require.NotNil(t, got)
+			require.Equal(t, tc.param.matchID, got.MatchId)
+			require.Equal(t, tc.param.team, got.Team)
+			require.Equal(t, tc.expected.score1, got.Score1)
+			require.Equal(t, tc.expected.score2, got.Score2)
+		})
+	}
+}

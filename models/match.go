@@ -62,3 +62,20 @@ type JoinMatchRequest struct {
 type CreateMatchResponse struct {
 	Id string `json:"id"`
 }
+
+type ScorePair struct {
+	Score1 int `json:"score1"`
+	Score2 int `json:"score2"`
+}
+
+type TeamVoteStatus struct {
+	HasVoted bool       `json:"hasVoted"`
+	Score    *ScorePair `json:"score,omitempty"`
+}
+
+type MatchVoteStatusResponse struct {
+	MatchID    string         `json:"matchId"`
+	PlayerTeam int            `json:"playerTeam"`
+	MyTeam     TeamVoteStatus `json:"myTeam"`
+	Opponent   TeamVoteStatus `json:"opponent"`
+}

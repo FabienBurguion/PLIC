@@ -71,3 +71,21 @@ func (db Database) HasOtherTeamVote(ctx context.Context, matchID string, team in
 	}
 	return exists, nil
 }
+
+func (db Database) GetScoreVoteByMatchAndTeam(ctx context.Context, matchID string, team int) (*models.DBMatchScoreVote, error) {
+	var row models.DBMatchScoreVote
+	err := db.Database.GetContext(ctx, &row, `
+		SELECT match_id, user_id, team, score1, score2, created_at
+		FROM match_score_vote
+		WHERE match_id = $1 AND team = $2
+		LIMIT 1
+	`, matchID, team)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to fetch score vote for match %s team %d: %w", matchID, team, err)
+	}
+	return &row, nil
+}

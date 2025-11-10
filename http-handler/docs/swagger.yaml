@@ -119,6 +119,17 @@ definitions:
     - EnCours
     - Valide
     - ManqueJoueur
+  models.MatchVoteStatusResponse:
+    properties:
+      matchId:
+        type: string
+      myTeam:
+        $ref: '#/definitions/models.TeamVoteStatus'
+      opponent:
+        $ref: '#/definitions/models.TeamVoteStatus'
+      playerTeam:
+        type: integer
+    type: object
   models.RegisterRequest:
     properties:
       bio:
@@ -130,6 +141,13 @@ definitions:
       username:
         type: string
     type: object
+  models.ScorePair:
+    properties:
+      score1:
+        type: integer
+      score2:
+        type: integer
+    type: object
   models.Sport:
     enum:
     - basket
@@ -140,6 +158,13 @@ definitions:
     - Basket
     - Foot
     - PingPong
+  models.TeamVoteStatus:
+    properties:
+      hasVoted:
+        type: boolean
+      score:
+        $ref: '#/definitions/models.ScorePair'
+    type: object
   models.UpdateScoreRequest:
     properties:
       score1:
@@ -638,6 +663,43 @@ paths:
           schema:
             $ref: '#/definitions/models.Error'
       summary: Démarre un match
+      tags:
+      - match
+  /match/{id}/vote-status:
+    get:
+      description: Renvoie l'équipe du joueur, si son équipe a voté et le score voté
+        (nullable), et la même info pour l'équipe adverse. Ne fonctionne que si le
+        match est en statut "Termine".
+      parameters:
+      - description: ID du match
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.MatchVoteStatusResponse'
+        "400":
+          description: ID manquant, mauvais état
+          schema:
+            $ref: '#/definitions/models.Error'
+        "401":
+          description: Utilisateur non autorisé
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Match ou utilisateur non trouvé
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Erreur serveur
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Statut de vote des scores (par équipe) pour un match terminé
       tags:
       - match
   /match/all:

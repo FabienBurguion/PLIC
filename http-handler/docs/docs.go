@@ -757,6 +757,59 @@ const docTemplate = `{
                 }
             }
         },
+        "/match/{id}/vote-status": {
+            "get": {
+                "description": "Renvoie l'équipe du joueur, si son équipe a voté et le score voté (nullable), et la même info pour l'équipe adverse. Ne fonctionne que si le match est en statut \"Termine\".",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Statut de vote des scores (par équipe) pour un match terminé",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID du match",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.MatchVoteStatusResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ID manquant, mauvais état",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Utilisateur non autorisé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Match ou utilisateur non trouvé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur serveur",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/place": {
             "post": {
                 "description": "Appelle l'API Google Places pour synchroniser les terrains autour d'une position donnée (Paris en dur pour l'instant)",
@@ -1427,6 +1480,23 @@ const docTemplate = `{
                 "ManqueJoueur"
             ]
         },
+        "models.MatchVoteStatusResponse": {
+            "type": "object",
+            "properties": {
+                "matchId": {
+                    "type": "string"
+                },
+                "myTeam": {
+                    "$ref": "#/definitions/models.TeamVoteStatus"
+                },
+                "opponent": {
+                    "$ref": "#/definitions/models.TeamVoteStatus"
+                },
+                "playerTeam": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.RegisterRequest": {
             "type": "object",
             "properties": {
@@ -1444,6 +1514,17 @@ const docTemplate = `{
                 }
             }
         },
+        "models.ScorePair": {
+            "type": "object",
+            "properties": {
+                "score1": {
+                    "type": "integer"
+                },
+                "score2": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.Sport": {
             "type": "string",
             "enum": [
@@ -1456,6 +1537,17 @@ const docTemplate = `{
                 "Foot",
                 "PingPong"
             ]
+        },
+        "models.TeamVoteStatus": {
+            "type": "object",
+            "properties": {
+                "hasVoted": {
+                    "type": "boolean"
+                },
+                "score": {
+                    "$ref": "#/definitions/models.ScorePair"
+                }
+            }
         },
         "models.UpdateScoreRequest": {
             "type": "object",
