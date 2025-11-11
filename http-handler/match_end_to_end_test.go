@@ -176,7 +176,8 @@ func Test_MatchLifecycle(t *testing.T) {
 	updateScore(u3, 2, 2, http.StatusOK)      // team2 propose 2-2
 
 	// === MAIL ASSERT: aucun mail "result" pendant le désaccord
-	require.Equal(t, 0, mockMailer.GetSentCounts("result"), "no result email should be sent before consensus")
+	require.Equal(t, 0, mockMailer.GetSentCounts("result"),
+		"no result email should be sent before consensus")
 
 	m, err = s.db.GetMatchById(context.Background(), matchID)
 	require.NoError(t, err)
@@ -189,8 +190,13 @@ func Test_MatchLifecycle(t *testing.T) {
 	// Consensus (team2 met 5-3) -> state = Termine
 	updateScore(u3, 5, 3, http.StatusOK)
 
-	// === MAIL ASSERT: un mail "result" à l’instant du consensus
-	require.Equal(t, 1, mockMailer.GetSentCounts("result"), "one result email should be sent when consensus is reached")
+	// === MAIL ASSERT: un mail "result" PAR PARTICIPANT à l’instant du consensus
+	ctx := context.Background()
+	ums, err := s.db.GetUserMatchesByMatchID(ctx, matchID)
+	require.NoError(t, err)
+	expectedEmails := len(ums) // ici: 4 joueurs
+	require.Equal(t, expectedEmails, mockMailer.GetSentCounts("result"),
+		"result emails should be sent to all participants when consensus is reached")
 
 	m, err = s.db.GetMatchById(context.Background(), matchID)
 	require.NoError(t, err)
@@ -204,7 +210,6 @@ func Test_MatchLifecycle(t *testing.T) {
 	const base = 1000
 	const delta = 16
 
-	ctx := context.Background()
 	get := func(u models.DBUsers) *models.DBRanking {
 		rk, err := s.db.GetRankingByUserAndCourt(ctx, u.Id, court.Id)
 		require.NoError(t, err)
@@ -302,6 +307,7 @@ func Test_MatchLifecycle(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
 		// MAIL ASSERT: compteur inchangé
-		require.Equal(t, 1, mockMailer.GetSentCounts("result"), "no extra result email after consensus")
+		require.Equal(t, expectedEmails, mockMailer.GetSentCounts("result"),
+			"no extra result email after consensus")
 	}
 }

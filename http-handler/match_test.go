@@ -712,7 +712,10 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 				switch step.param {
 				case matchConsensus.Id:
 					if stepIdx == 1 {
-						sentResultSoFar++
+						ctx := context.Background()
+						ums, err := s.db.GetUserMatchesByMatchID(ctx, step.param)
+						require.NoError(t, err)
+						sentResultSoFar += len(ums)
 					}
 				case matchNoConsensus.Id, matchTeamTwice.Id:
 				}

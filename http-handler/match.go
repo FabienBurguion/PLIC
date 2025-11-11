@@ -8,7 +8,6 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -777,36 +776,42 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, ai mo
 			return httpx.WriteError(w, http.StatusInternalServerError, "failed to update rankings")
 		}
 
-		u, err := s.db.GetUserById(ctx, ai.UserID)
-		if err != nil {
-			logger.Error().Err(err).Msg("db get user by id failed (email for result mail)")
-		} else if u != nil {
-
-			var sport models.Sport
-			switch strings.ToLower(string(match.Sport)) {
-			case "basket", "basketball":
-				sport = models.Basket
-			case "foot", "football", "soccer":
-				sport = models.Foot
-			case "ping-pong", "pingpong", "tabletennis", "table-tennis":
-				sport = models.PingPong
-			default:
-				sport = models.Sport(strings.ToLower(string(match.Sport)))
-			}
-
-			teamScore, oppScore := req.Score1, req.Score2
-			if userMatch.Team == 2 {
-				teamScore, oppScore = req.Score2, req.Score1
-			}
-
-			court, err := s.db.GetCourtByID(ctx, match.CourtID)
-			if err != nil || court == nil {
-				logger.Error().Err(err).Msg("db get court by id failed (email for result mail)")
+		court, err := s.db.GetCourtByID(ctx, match.CourtID)
+		if err != nil || court == nil {
+			logger.Error().Err(err).Msg("db get court by id failed (email for result mail)")
+		} else {
+			userMatches, err := s.db.GetUserMatchesByMatchID(ctx, id)
+			if err != nil {
+				logger.Error().Err(err).Msg("db get user_matches failed (email for result mail)")
 			} else {
-				if err := s.mailer.SendMatchResultEmail(u.Email, u.Username, sport, court.Name, teamScore, oppScore); err != nil {
-					logger.Error().Err(err).Msg("sending match result email failed")
-				} else {
-					logger.Info().Str("email", u.Email).Msg("match result email sent")
+				for _, um := range userMatches {
+					u, err := s.db.GetUserById(ctx, um.UserID)
+					if err != nil || u == nil {
+						logger.Error().Err(err).Str("user_id", um.UserID).Msg("db get user by id failed (email for result mail)")
+						continue
+					}
+
+					teamScore, oppScore := req.Score1, req.Score2
+					if um.Team == 2 {
+						teamScore, oppScore = req.Score2, req.Score1
+					}
+
+					if err := s.mailer.SendMatchResultEmail(u.Email, u.Username, match.Sport, court.Name, teamScore, oppScore); err != nil {
+						logger.Error().
+							Err(err).
+							Str("email", u.Email).
+							Int("team", um.Team).
+							Int("team_score", teamScore).
+							Int("opp_score", oppScore).
+							Msg("sending match result email failed")
+					} else {
+						logger.Info().
+							Str("email", u.Email).
+							Int("team", um.Team).
+							Int("team_score", teamScore).
+							Int("opp_score", oppScore).
+							Msg("match result email sent")
+					}
 				}
 			}
 		}
