@@ -2,15 +2,17 @@ package mailer
 
 import (
 	"PLIC/models"
+	"crypto/tls"
 	"fmt"
-	"log"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 	"gopkg.in/gomail.v2"
 )
 
 type MailSender interface {
-	SendLinkResetPassword(to string, newPassword string) error
+	SendLinkResetPassword(to string, url string) error
 	SendWelcomeEmail(to string, username string) error
 }
 
@@ -20,13 +22,39 @@ type Mailer struct {
 	Config      *models.MailerConfig
 }
 
+func (mailer *Mailer) dialer() *gomail.Dialer {
+	d := gomail.NewDialer(mailer.Config.Host, mailer.Config.Port, mailer.Config.Username, mailer.Config.Password)
+	d.TLSConfig = &tls.Config{
+		ServerName: mailer.Config.Host,
+		MinVersion: tls.VersionTLS12,
+	}
+	return d
+}
+
+func (mailer *Mailer) setCommonHeaders(m *gomail.Message, subject, to string) {
+	from := mailer.Config.From
+	m.SetHeader("From", from)
+	m.SetHeader("To", to)
+	m.SetHeader("Subject", subject)
+	m.SetHeader("Reply-To", "support@tondomaine.tld")
+	msgID := fmt.Sprintf("<%s@%s>", uuid.NewString(), "tondomaine.tld")
+	m.SetHeader("Message-ID", msgID)
+}
+
 func (mailer *Mailer) SendLinkResetPassword(to string, url string) error {
+	baseLogger := log.With().
+		Str("mail_kind", "reset_password").
+		Str("to", to).
+		Logger()
+
 	if mailer.AlreadySent[to] && time.Since(mailer.LastSentAt[to]) < 10*time.Second {
-		log.Println("⛔️ Email déjà envoyé récemment à", to, "→ annulation.")
-		return fmt.Errorf("⛔️ Email déjà envoyé récemment à %s → annulation", to)
+		baseLogger.Warn().
+			Dur("since_last", time.Since(mailer.LastSentAt[to])).
+			Msg("email recently sent → throttled")
+		return fmt.Errorf("email recently sent to %s → throttled", to)
 	}
 
-	log.Println("🚀 Envoi de l'email de réinitialisation à", to)
+	baseLogger.Info().Msg("sending reset password email")
 
 	m := gomail.NewMessage()
 	m.SetHeader("From", mailer.Config.From)
@@ -35,15 +63,15 @@ func (mailer *Mailer) SendLinkResetPassword(to string, url string) error {
 
 	textBody := fmt.Sprintf(`Bonjour,
 
-	Vous avez demandé à réinitialiser votre mot de passe.
-	
-	Veuillez cliquer sur le lien suivant pour définir un nouveau mot de passe (valable 15 minutes) :
-	%s
-	
-	Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail.
-	
-	Cordialement,
-	L'équipe Support`, url)
+Vous avez demandé à réinitialiser votre mot de passe.
+
+Veuillez cliquer sur le lien suivant pour définir un nouveau mot de passe (valable 15 minutes) :
+%s
+
+Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail.
+
+Cordialement,
+L'équipe Support`, url)
 
 	htmlBody := fmt.Sprintf(`
 	<html>
@@ -68,28 +96,46 @@ func (mailer *Mailer) SendLinkResetPassword(to string, url string) error {
 	m.SetBody("text/plain", textBody)
 	m.AddAlternative("text/html", htmlBody)
 
-	d := gomail.NewDialer(mailer.Config.Host, mailer.Config.Port, mailer.Config.Username, mailer.Config.Password)
+	start := time.Now()
+	d := mailer.dialer()
 
 	if err := d.DialAndSend(m); err != nil {
-		log.Println("❌ Échec de l'envoi à", to, ":", err)
+		baseLogger.Error().Err(err).Dur("latency", time.Since(start)).Msg("mail send failed")
 		return err
+	}
+
+	if mailer.AlreadySent == nil {
+		mailer.AlreadySent = map[string]bool{}
+	}
+	if mailer.LastSentAt == nil {
+		mailer.LastSentAt = map[string]time.Time{}
 	}
 
 	mailer.AlreadySent[to] = true
 	mailer.LastSentAt[to] = time.Now()
 
-	log.Println("📤 Email de réinitialisation envoyé à", to)
+	baseLogger.Info().Dur("latency", time.Since(start)).Msg("mail sent successfully")
 	return nil
 }
 
 func (mailer *Mailer) SendWelcomeEmail(to string, username string) error {
 	key := to + ":welcome"
+
+	baseLogger := log.With().
+		Str("mail_kind", "welcome").
+		Str("to", to).
+		Str("username", username).
+		Logger()
+
+	// anti-spam spécifique au mail de bienvenue
 	if mailer.AlreadySent[key] && time.Since(mailer.LastSentAt[key]) < time.Minute {
-		log.Println("⛔️ Email de bienvenue déjà envoyé récemment à", to, "→ annulation.")
-		return fmt.Errorf("⛔️ Email de bienvenue déjà envoyé récemment à %s → annulation", to)
+		baseLogger.Warn().
+			Dur("since_last", time.Since(mailer.LastSentAt[key])).
+			Msg("welcome email recently sent → throttled")
+		return fmt.Errorf("welcome email recently sent to %s → throttled", to)
 	}
 
-	log.Println("🚀 Envoi de l'email de bienvenue à", to)
+	baseLogger.Info().Msg("sending welcome email")
 
 	m := gomail.NewMessage()
 	m.SetHeader("From", mailer.Config.From)
@@ -116,9 +162,6 @@ L’équipe Play The Street`, username)
 						<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:94%%;">
 							<tr>
 								<td align="center" style="padding:8px 0 20px 0;">
-									<!-- Si logo embarqué -->
-									<!-- <img src="cid:logoPTS" alt="Play The Street" width="120" style="display:block;"> -->
-									<!-- Sinon un titre simple -->
 									<div style="font-size:22px;color:#FF6A00;font-weight:700;letter-spacing:.3px;">
 										PLAY THE STREET
 									</div>
@@ -138,7 +181,7 @@ L’équipe Play The Street`, username)
 										<tr>
 											<td style="background:#2B2B2B;border-radius:12px;padding:14px 16px;border:1px solid #3A3A3A;">
 												<ul style="padding-left:18px;margin:0;color:#D9D9D9;font-size:14px;line-height:22px;">
-													<li>Crée un match en 10 secondes</li>
+													<li>Crée un match en 10&nbsp;secondes</li>
 													<li>Invite tes amis ou des joueurs proches</li>
 													<li>Suis tes victoires et ton classement</li>
 												</ul>
@@ -175,15 +218,24 @@ L’équipe Play The Street`, username)
 	m.SetBody("text/plain", textBody)
 	m.AddAlternative("text/html", htmlBody)
 
-	d := gomail.NewDialer(mailer.Config.Host, mailer.Config.Port, mailer.Config.Username, mailer.Config.Password)
+	start := time.Now()
+	d := mailer.dialer()
+
 	if err := d.DialAndSend(m); err != nil {
-		log.Println("❌ Échec de l'envoi (welcome) à", to, ":", err)
+		baseLogger.Error().Err(err).Dur("latency", time.Since(start)).Msg("mail send failed")
 		return err
+	}
+
+	if mailer.AlreadySent == nil {
+		mailer.AlreadySent = map[string]bool{}
+	}
+	if mailer.LastSentAt == nil {
+		mailer.LastSentAt = map[string]time.Time{}
 	}
 
 	mailer.AlreadySent[key] = true
 	mailer.LastSentAt[key] = time.Now()
 
-	log.Println("📤 Email de bienvenue envoyé à", to)
+	baseLogger.Info().Dur("latency", time.Since(start)).Msg("mail sent successfully")
 	return nil
 }
