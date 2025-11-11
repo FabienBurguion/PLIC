@@ -8,6 +8,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -774,6 +775,41 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, ai mo
 		if err := s.applyEloForMatch(ctx, *match, req.Score1, req.Score2); err != nil {
 			logger.Error().Err(err).Msg("apply ELO failed")
 			return httpx.WriteError(w, http.StatusInternalServerError, "failed to update rankings")
+		}
+
+		u, err := s.db.GetUserById(ctx, ai.UserID)
+		if err != nil {
+			logger.Error().Err(err).Msg("db get user by id failed (email for result mail)")
+		} else if u != nil {
+			didWin := false
+			if userMatch.Team == 1 {
+				didWin = req.Score1 > req.Score2
+			} else if userMatch.Team == 2 {
+				didWin = req.Score2 > req.Score1
+			}
+
+			var sport models.Sport
+			switch strings.ToLower(string(match.Sport)) {
+			case "basket", "basketball":
+				sport = models.Basket
+			case "foot", "football", "soccer":
+				sport = models.Foot
+			case "ping-pong", "pingpong", "tabletennis", "table-tennis":
+				sport = models.PingPong
+			default:
+				sport = models.Sport(strings.ToLower(string(match.Sport)))
+			}
+
+			court, err := s.db.GetCourtByID(ctx, match.CourtID)
+			if err != nil || court == nil {
+				logger.Error().Err(err).Msg("db get court by id failed (email for result mail)")
+			} else {
+				if err := s.mailer.SendMatchResultEmail(u.Email, u.Username, sport, court.Name, req.Score1, req.Score2, didWin); err != nil {
+					logger.Error().Err(err).Msg("sending match result email failed")
+				} else {
+					logger.Info().Str("email", u.Email).Msg("match result email sent")
+				}
+			}
 		}
 	}
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"PLIC/database"
+	"PLIC/httpx"
 	"PLIC/mailer"
 	"PLIC/models"
 	"PLIC/s3_management"
@@ -195,6 +196,15 @@ func (s *Service) Start() {
 	lambda.Start(ddlambda.WrapFunction(lambdaHandler.ProxyWithContext, nil))
 }
 
+func (s *Service) Temp(w http.ResponseWriter, _ *http.Request, _ models.AuthInfo) error {
+	err := s.mailer.SendMatchResultEmail("fabien.burguion@epita.fr", "Fabien", models.PingPong, "Amphi 401", 11, 6, true)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to send email")
+		return httpx.WriteError(w, http.StatusInternalServerError, "failed to send email")
+	}
+	return httpx.Write(w, http.StatusOK, nil)
+}
+
 // ----------------------
 // MAIN
 // ----------------------
@@ -202,6 +212,8 @@ func (s *Service) Start() {
 func main() {
 	s := &Service{}
 	s.initService()
+
+	s.GET("/email", s.Temp)
 
 	s.POST("/register", s.Register)
 	s.POST("/login", s.Login)
@@ -236,7 +248,7 @@ func main() {
 	s.DELETE("/users/{id}", withAuthentication(s.DeleteUser))
 
 	s.GET("/ranking/court/{id}", withAuthentication(s.GetRankingByCourtId))
-	s.GET("/ranking/user/{userId}", withAuthentication(s.GetUserFields))
+	s.GET("/ranking/user/{userId}", withAuthentication(s.GetRankedFieldsByUserID))
 
 	if s.isLambda {
 		tracer.Start(tracer.WithService("plic-api"))

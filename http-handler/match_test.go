@@ -1,6 +1,7 @@
 package main
 
 import (
+	"PLIC/mailer"
 	"PLIC/models"
 	"bytes"
 	"context"
@@ -668,7 +669,12 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 			cleanup := s.InitServiceTest()
 			defer func() { _ = cleanup() }()
 
+			mockMailer := mailer.NewMockMailer()
+			s.mailer = mockMailer
+
 			s.loadFixtures(tc.fixtures)
+
+			sentResultSoFar := 0
 
 			for stepIdx, step := range tc.steps {
 				body, err := json.Marshal(step.req)
@@ -686,9 +692,7 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 				require.NoError(t, err)
 
 				resp := w.Result()
-				defer func(Body io.ReadCloser) {
-					_ = Body.Close()
-				}(resp.Body)
+				defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
 				require.Equal(t, step.exp.code, resp.StatusCode)
 
 				m, dbErr := s.db.GetMatchById(context.Background(), step.param)
@@ -705,8 +709,18 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 					require.Contains(t, string(b), step.exp.errorContains)
 				}
 
-				ctx := context.Background()
+				switch step.param {
+				case matchConsensus.Id:
+					if stepIdx == 1 {
+						sentResultSoFar++
+					}
+				case matchNoConsensus.Id, matchTeamTwice.Id:
+				}
 
+				require.Equal(t, sentResultSoFar, mockMailer.GetSentCounts("result"),
+					"unexpected number of result emails after step %d of %q", stepIdx, tc.name)
+
+				ctx := context.Background()
 				switch step.param {
 				case matchConsensus.Id:
 					if stepIdx == 0 {

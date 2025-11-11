@@ -14,6 +14,7 @@ import (
 type MailSender interface {
 	SendLinkResetPassword(to string, url string) error
 	SendWelcomeEmail(to string, username string) error
+	SendMatchResultEmail(to string, username string, sport models.Sport, fieldName string, teamScore, oppScore int, didWin bool) error
 }
 
 type Mailer struct {
@@ -266,6 +267,154 @@ L’équipe Play The Street`, username)
 		mailer.LastSentAt = map[string]time.Time{}
 	}
 
+	mailer.AlreadySent[key] = true
+	mailer.LastSentAt[key] = time.Now()
+
+	baseLogger.Info().Dur("latency", time.Since(start)).Msg("mail sent successfully")
+	return nil
+}
+
+func sportMeta(s models.Sport) (label, emoji string) {
+	switch s {
+	case models.Basket:
+		return "Basket", "🏀"
+	case models.Foot:
+		return "Football", "⚽️"
+	case models.PingPong:
+		return "Ping-pong", "🏓"
+	default:
+		return string(s), "🎯"
+	}
+}
+
+func (mailer *Mailer) SendMatchResultEmail(to string, username string, sport models.Sport, fieldName string, teamScore, oppScore int, didWin bool) error {
+	baseLogger := log.With().
+		Str("mail_kind", "match_result").
+		Str("to", to).
+		Str("username", username).
+		Str("sport", string(sport)).
+		Str("field", fieldName).
+		Int("team_score", teamScore).
+		Int("opp_score", oppScore).
+		Bool("win", didWin).
+		Logger()
+
+	key := to + ":match_result"
+	if mailer.AlreadySent[key] && time.Since(mailer.LastSentAt[key]) < 10*time.Second {
+		baseLogger.Warn().Dur("since_last", time.Since(mailer.LastSentAt[key])).Msg("match result email throttled")
+		return fmt.Errorf("match result email recently sent to %s → throttled", to)
+	}
+
+	label, emoji := sportMeta(sport)
+	resultWord := "Match nul"
+	resultBadgeBg := "#3F3F46"
+	if didWin {
+		resultWord = "Victoire"
+		resultBadgeBg = "#22C55E"
+	} else if teamScore < oppScore {
+		resultWord = "Défaite"
+		resultBadgeBg = "#EF4444"
+	}
+
+	subject := fmt.Sprintf("%s • %s à %s — %s %d–%d", label, emoji, fieldName, resultWord, teamScore, oppScore)
+
+	baseLogger.Info().Msg("sending match result email")
+
+	m := gomail.NewMessage()
+	m.SetHeader("From", mailer.Config.From)
+	m.SetHeader("To", to)
+	m.SetHeader("Subject", subject)
+
+	textBody := fmt.Sprintf(`Salut %s,
+
+Résultat de ton match de %s à %s :
+%s — %d-%d
+
+À bientôt sur le terrain !
+Play The Street`,
+		username, label, fieldName, resultWord, teamScore, oppScore)
+
+	htmlBody := fmt.Sprintf(`
+<html>
+	<body style="margin:0;padding:0;background:#0E0E0E;font-family: Inter, Arial, sans-serif;">
+		<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="padding:24px 0;">
+			<tr>
+				<td align="center">
+					<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:94%%;">
+						<tr>
+							<td align="center" style="padding:8px 0 20px 0;">
+								<div style="font-size:22px;color:#FF6A00;font-weight:700;letter-spacing:.3px;">
+									PLAY THE STREET
+								</div>
+							</td>
+						</tr>
+
+						<tr>
+							<td style="background:#1A1A1A;border-radius:16px;padding:28px 22px;border:1px solid #2B2B2B;">
+								
+								<h1 style="margin:0 0 14px 0;font-size:22px;line-height:28px;color:#EDEDED;text-align:center;font-weight:600;">
+									%s — %s
+								</h1>
+								<p style="margin:0 0 6px 0;font-size:14px;line-height:20px;color:#BDBDBD;text-align:center;">
+									%s • %s
+								</p>
+
+								<div style="text-align:center;margin:18px 0 8px 0;">
+									<span style="display:inline-block;padding:8px 14px;border-radius:999px;background:%s;color:#0E0E0E;font-weight:800;font-size:13px;">
+										%s
+									</span>
+								</div>
+
+								<div style="text-align:center;margin:14px 0 20px 0;">
+									<span style="display:inline-block;font-size:34px;line-height:38px;color:#FFFFFF;font-weight:800;">
+										%d&nbsp;–&nbsp;%d
+									</span>
+								</div>
+
+								<p style="margin:6px 0 0 0;font-size:14px;line-height:22px;color:#FF6A00;text-align:center;font-weight:600;">
+									%s, %s ! Continue sur ta lancée.
+								</p>
+							</td>
+						</tr>
+
+						<tr>
+							<td style="padding:18px 6px 0 6px;text-align:center;color:#7A7A7A;font-size:12px;">
+								© %d Play The Street • Paris, France
+							</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		</table>
+	</body>
+</html>
+`, label, emoji, fieldName, username, resultBadgeBg, resultWord, teamScore, oppScore,
+		func() string {
+			if didWin {
+				return "belle victoire"
+			}
+			if teamScore == oppScore {
+				return "beau match"
+			}
+			return "ce n’est que partie remise"
+		}(), username, time.Now().Year())
+
+	m.SetBody("text/plain", textBody)
+	m.AddAlternative("text/html", htmlBody)
+
+	start := time.Now()
+	d := mailer.dialer()
+	if err := d.DialAndSend(m); err != nil {
+		baseLogger.Error().Err(err).Dur("latency", time.Since(start)).Msg("mail send failed")
+		return err
+	}
+
+	if mailer.AlreadySent == nil {
+		mailer.AlreadySent = map[string]bool{}
+	}
+	if mailer.LastSentAt == nil {
+		mailer.LastSentAt = map[string]time.Time{}
+	}
 	mailer.AlreadySent[key] = true
 	mailer.LastSentAt[key] = time.Now()
 

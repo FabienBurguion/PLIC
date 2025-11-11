@@ -1,6 +1,7 @@
 package main
 
 import (
+	"PLIC/mailer"
 	"PLIC/models"
 	"bytes"
 	"context"
@@ -20,13 +21,16 @@ func Test_MatchLifecycle(t *testing.T) {
 	cleanup := s.InitServiceTest()
 	defer func() { _ = cleanup() }()
 
+	// --- Injecter le mock mailer
+	mockMailer := mailer.NewMockMailer()
+	s.mailer = mockMailer
+
 	// === Fixtures ===
 	court := models.NewDBCourtFixture()
 
 	creator := models.NewDBUsersFixture().
 		WithUsername("u_creator").
 		WithEmail("creator@example.com")
-	// 3 joueurs additionnels
 	u2 := models.NewDBUsersFixture().
 		WithUsername("u_two").
 		WithEmail("u2@example.com")
@@ -37,7 +41,6 @@ func Test_MatchLifecycle(t *testing.T) {
 		WithUsername("u_four").
 		WithEmail("u4@example.com")
 
-	// IMPORTANT: pas de ranking dans les fixtures
 	s.loadFixtures(DBFixtures{
 		Courts: []models.DBCourt{court},
 		Users:  []models.DBUsers{creator, u2, u3, u4},
@@ -48,7 +51,7 @@ func Test_MatchLifecycle(t *testing.T) {
 		Sport:           models.Foot,
 		CourtID:         court.Id,
 		Date:            time.Now().Add(1 * time.Hour),
-		NbreParticipant: 4, // 2 équipes de 2
+		NbreParticipant: 4,
 	}
 	bodyCreate, _ := json.Marshal(matchReq)
 	rCreate := httptest.NewRequest("POST", "/match", bytes.NewReader(bodyCreate))
@@ -60,16 +63,14 @@ func Test_MatchLifecycle(t *testing.T) {
 	})
 	require.NoError(t, err)
 	respCreate := wCreate.Result()
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(respCreate.Body)
+	defer func(Body io.ReadCloser) { _ = Body.Close() }(respCreate.Body)
 	require.Equal(t, http.StatusCreated, respCreate.StatusCode)
 
 	var createRes models.CreateMatchResponse
 	readCreateBody, _ := io.ReadAll(respCreate.Body)
 	require.NoError(t, json.Unmarshal(readCreateBody, &createRes))
 	matchID := createRes.Id
-	require.NotEmpty(t, matchID, "match id should be returned")
+	require.NotEmpty(t, matchID)
 
 	// === 2) 3 joueurs rejoignent ===
 	join := func(user models.DBUsers, team int, expectedCode int) {
@@ -81,24 +82,17 @@ func Test_MatchLifecycle(t *testing.T) {
 		routeCtx.URLParams.Add("id", matchID)
 		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
 		w := httptest.NewRecorder()
-		err := s.JoinMatch(w, r, models.AuthInfo{
-			IsConnected: true,
-			UserID:      user.Id,
-		})
+		err := s.JoinMatch(w, r, models.AuthInfo{IsConnected: true, UserID: user.Id})
 		require.NoError(t, err)
 		resp := w.Result()
-		defer func(Body io.ReadCloser) {
-			_ = Body.Close()
-		}(resp.Body)
+		defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
 		require.Equal(t, expectedCode, resp.StatusCode)
 	}
 
-	// Le créateur est déjà team1 (dans CreateMatch)
-	join(u2, 1, http.StatusOK) // complète team1
+	join(u2, 1, http.StatusOK)
 	join(u3, 2, http.StatusOK)
-	join(u4, 2, http.StatusOK) // complète team2
+	join(u4, 2, http.StatusOK)
 
-	// Le match doit être "Valide"
 	m, err := s.db.GetMatchById(context.Background(), matchID)
 	require.NoError(t, err)
 	require.NotNil(t, m)
@@ -113,15 +107,10 @@ func Test_MatchLifecycle(t *testing.T) {
 		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
 		w := httptest.NewRecorder()
 
-		err := s.StartMatch(w, r, models.AuthInfo{
-			IsConnected: true,
-			UserID:      creator.Id,
-		})
+		err := s.StartMatch(w, r, models.AuthInfo{IsConnected: true, UserID: creator.Id})
 		require.NoError(t, err)
 		resp := w.Result()
-		defer func(Body io.ReadCloser) {
-			_ = Body.Close()
-		}(resp.Body)
+		defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
 		m, err = s.db.GetMatchById(context.Background(), matchID)
@@ -138,15 +127,10 @@ func Test_MatchLifecycle(t *testing.T) {
 		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
 		w := httptest.NewRecorder()
 
-		err := s.FinishMatch(w, r, models.AuthInfo{
-			IsConnected: true,
-			UserID:      u2.Id,
-		})
+		err := s.FinishMatch(w, r, models.AuthInfo{IsConnected: true, UserID: u2.Id})
 		require.NoError(t, err)
 		resp := w.Result()
-		defer func(Body io.ReadCloser) {
-			_ = Body.Close()
-		}(resp.Body)
+		defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
 		m, err = s.db.GetMatchById(context.Background(), matchID)
@@ -154,7 +138,7 @@ func Test_MatchLifecycle(t *testing.T) {
 		require.Equal(t, models.ManqueScore, m.CurrentState)
 	}
 
-	// === 4.1) Vote-status interdit tant que le match est ManqueScore
+	// === 4.1) Vote-status interdit tant que ManqueScore
 	{
 		url := "/match/" + matchID + "/vote-status"
 		r := httptest.NewRequest("GET", url, nil)
@@ -163,10 +147,7 @@ func Test_MatchLifecycle(t *testing.T) {
 		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
 		w := httptest.NewRecorder()
 
-		err := s.GetMatchVoteStatus(w, r, models.AuthInfo{
-			IsConnected: true,
-			UserID:      creator.Id,
-		})
+		err := s.GetMatchVoteStatus(w, r, models.AuthInfo{IsConnected: true, UserID: creator.Id})
 		require.NoError(t, err)
 		resp := w.Result()
 		defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
@@ -183,40 +164,19 @@ func Test_MatchLifecycle(t *testing.T) {
 		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
 		w := httptest.NewRecorder()
 
-		err := s.UpdateMatchScore(w, r, models.AuthInfo{
-			IsConnected: true,
-			UserID:      user.Id,
-		})
-		require.NoError(t, err)
-		resp := w.Result()
-		defer func(Body io.ReadCloser) {
-			_ = Body.Close()
-		}(resp.Body)
-		require.Equal(t, expectedCode, resp.StatusCode)
-	}
-
-	// === 5.1) Toujours interdit en ManqueScore même si des votes existent
-	{
-		url := "/match/" + matchID + "/vote-status"
-		r := httptest.NewRequest("GET", url, nil)
-		routeCtx := chi.NewRouteContext()
-		routeCtx.URLParams.Add("id", matchID)
-		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
-		w := httptest.NewRecorder()
-
-		err := s.GetMatchVoteStatus(w, r, models.AuthInfo{
-			IsConnected: true,
-			UserID:      u3.Id, // joueur du match (équipe 2)
-		})
+		err := s.UpdateMatchScore(w, r, models.AuthInfo{IsConnected: true, UserID: user.Id})
 		require.NoError(t, err)
 		resp := w.Result()
 		defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
-		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.Equal(t, expectedCode, resp.StatusCode)
 	}
 
-	// Désaccord (state reste ManqueScore, score dernier proposé)
-	updateScore(creator, 5, 3, http.StatusOK) // team1 = creator/u2 propose 5-3
+	// Désaccord
+	updateScore(creator, 5, 3, http.StatusOK) // team1 propose 5-3
 	updateScore(u3, 2, 2, http.StatusOK)      // team2 propose 2-2
+
+	// === MAIL ASSERT: aucun mail "result" pendant le désaccord
+	require.Equal(t, 0, mockMailer.GetSentCounts("result"), "no result email should be sent before consensus")
 
 	m, err = s.db.GetMatchById(context.Background(), matchID)
 	require.NoError(t, err)
@@ -226,8 +186,11 @@ func Test_MatchLifecycle(t *testing.T) {
 	require.Equal(t, 2, *m.Score1)
 	require.Equal(t, 2, *m.Score2)
 
-	// Consensus (team2 met à jour 5-3) -> state = Termine
+	// Consensus (team2 met 5-3) -> state = Termine
 	updateScore(u3, 5, 3, http.StatusOK)
+
+	// === MAIL ASSERT: un mail "result" à l’instant du consensus
+	require.Equal(t, 1, mockMailer.GetSentCounts("result"), "one result email should be sent when consensus is reached")
 
 	m, err = s.db.GetMatchById(context.Background(), matchID)
 	require.NoError(t, err)
@@ -237,8 +200,7 @@ func Test_MatchLifecycle(t *testing.T) {
 	require.Equal(t, 5, *m.Score1)
 	require.Equal(t, 3, *m.Score2)
 
-	// === Vérification des rankings créés et MAJ ===
-	// Supposons DefaultElo=1000 et K=32 => delta par joueur = 16 (1v1 sur moyennes égales)
+	// === Vérification ELO
 	const base = 1000
 	const delta = 16
 
@@ -255,13 +217,12 @@ func Test_MatchLifecycle(t *testing.T) {
 	rU3 := get(u3)
 	rU4 := get(u4)
 
-	// Team1 a gagné (score1 > score2)
 	require.Equal(t, base+delta, rCreator.Elo)
 	require.Equal(t, base+delta, rU2.Elo)
 	require.Equal(t, base-delta, rU3.Elo)
 	require.Equal(t, base-delta, rU4.Elo)
 
-	// === 5.2) Match Termine -> vote-status OK pour un joueur de l'équipe 1 (creator)
+	// === 5.2) Vote-status OK pour creator
 	{
 		url := "/match/" + matchID + "/vote-status"
 		r := httptest.NewRequest("GET", url, nil)
@@ -270,12 +231,8 @@ func Test_MatchLifecycle(t *testing.T) {
 		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
 		w := httptest.NewRecorder()
 
-		err := s.GetMatchVoteStatus(w, r, models.AuthInfo{
-			IsConnected: true,
-			UserID:      creator.Id,
-		})
+		err := s.GetMatchVoteStatus(w, r, models.AuthInfo{IsConnected: true, UserID: creator.Id})
 		require.NoError(t, err)
-
 		resp := w.Result()
 		defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -296,7 +253,7 @@ func Test_MatchLifecycle(t *testing.T) {
 		require.Equal(t, 3, st.Opponent.Score.Score2)
 	}
 
-	// === 5.3) Match Termine -> vote-status OK pour un joueur de l'équipe 2 (u3)
+	// === 5.3) Vote-status OK pour u3
 	{
 		url := "/match/" + matchID + "/vote-status"
 		r := httptest.NewRequest("GET", url, nil)
@@ -305,12 +262,8 @@ func Test_MatchLifecycle(t *testing.T) {
 		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
 		w := httptest.NewRecorder()
 
-		err := s.GetMatchVoteStatus(w, r, models.AuthInfo{
-			IsConnected: true,
-			UserID:      u3.Id,
-		})
+		err := s.GetMatchVoteStatus(w, r, models.AuthInfo{IsConnected: true, UserID: u3.Id})
 		require.NoError(t, err)
-
 		resp := w.Result()
 		defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -331,7 +284,7 @@ func Test_MatchLifecycle(t *testing.T) {
 		require.Equal(t, 3, st.Opponent.Score.Score2)
 	}
 
-	// Bonus: empêcher un second vote team1 (si tenté après consensus, on tombe de toute façon sur "wrong state")
+	// Bonus: tentative de vote après consensus -> aucun nouvel email
 	{
 		body, _ := json.Marshal(models.UpdateScoreRequest{Score1: 9, Score2: 9})
 		url := "/match/" + matchID + "/score"
@@ -341,16 +294,14 @@ func Test_MatchLifecycle(t *testing.T) {
 		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
 		w := httptest.NewRecorder()
 
-		err := s.UpdateMatchScore(w, r, models.AuthInfo{
-			IsConnected: true,
-			UserID:      u2.Id,
-		})
+		err := s.UpdateMatchScore(w, r, models.AuthInfo{IsConnected: true, UserID: u2.Id})
 		require.NoError(t, err)
 
 		resp := w.Result()
-		defer func(Body io.ReadCloser) {
-			_ = Body.Close()
-		}(resp.Body)
+		defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+		// MAIL ASSERT: compteur inchangé
+		require.Equal(t, 1, mockMailer.GetSentCounts("result"), "no extra result email after consensus")
 	}
 }

@@ -1,5 +1,7 @@
 package mailer
 
+import "PLIC/models"
+
 type MockMailer struct {
 	SentCounts map[string]int
 }
@@ -17,6 +19,11 @@ func (m *MockMailer) SendLinkResetPassword(_ string, _ string) error {
 
 func (m *MockMailer) SendWelcomeEmail(_ string, _ string) error {
 	m.SentCounts["welcome"]++
+	return nil
+}
+
+func (m *MockMailer) SendMatchResultEmail(_ string, _ string, _ models.Sport, _ string, _, _ int, _ bool) error {
+	m.SentCounts["result"]++
 	return nil
 }
 

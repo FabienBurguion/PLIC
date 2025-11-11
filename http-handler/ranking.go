@@ -59,7 +59,7 @@ func (s *Service) GetRankingByCourtId(w http.ResponseWriter, r *http.Request, ai
 	return httpx.Write(w, http.StatusOK, res)
 }
 
-// GetUserFields godoc
+// GetRankedFieldsByUserID godoc
 // @Summary      Liste des terrains (fields) d’un utilisateur
 // @Description  Retourne uniquement la liste des fields associés à un utilisateur (ex: terrains classés/évalués)
 // @Tags         user
@@ -70,9 +70,9 @@ func (s *Service) GetRankingByCourtId(w http.ResponseWriter, r *http.Request, ai
 // @Failure      401  {object}  models.Error  "Utilisateur non autorisé"
 // @Failure      500  {object}  models.Error  "Erreur serveur / base"
 // @Router       /ranking/user/{userId} [get]
-func (s *Service) GetUserFields(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+func (s *Service) GetRankedFieldsByUserID(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
 	baseLogger := log.With().
-		Str("method", "GetUserFields").
+		Str("method", "GetRankedFieldsByUserID").
 		Str("user_id", ai.UserID).
 		Logger()
 

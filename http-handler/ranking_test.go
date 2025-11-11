@@ -252,7 +252,7 @@ func Test_GetUserFields(t *testing.T) {
 			r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
 
 			w := httptest.NewRecorder()
-			err := s.GetUserFields(w, r, tc.auth)
+			err := s.GetRankedFieldsByUserID(w, r, tc.auth)
 			require.NoError(t, err)
 
 			resp := w.Result()
