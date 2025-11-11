@@ -127,7 +127,6 @@ func (mailer *Mailer) SendWelcomeEmail(to string, username string) error {
 		Str("username", username).
 		Logger()
 
-	// anti-spam spécifique au mail de bienvenue
 	if mailer.AlreadySent[key] && time.Since(mailer.LastSentAt[key]) < time.Minute {
 		baseLogger.Warn().
 			Dur("since_last", time.Since(mailer.LastSentAt[key])).
@@ -154,66 +153,100 @@ Tu peux maintenant :
 L’équipe Play The Street`, username)
 
 	htmlBody := fmt.Sprintf(`
-	<html>
-		<body style="margin:0;padding:0;background:#0E0E0E;font-family: Inter, Arial, sans-serif;">
-			<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="padding:24px 0;">
-				<tr>
-					<td align="center">
-						<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:94%%;">
-							<tr>
-								<td align="center" style="padding:8px 0 20px 0;">
-									<div style="font-size:22px;color:#FF6A00;font-weight:700;letter-spacing:.3px;">
-										PLAY THE STREET
-									</div>
-								</td>
-							</tr>
+<html>
+	<body style="margin:0;padding:0;background:#0E0E0E;font-family: Inter, Arial, sans-serif;">
+		<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="padding:24px 0;">
+			<tr>
+				<td align="center">
+					<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:94%%;">
+						
+						<!-- LOGO / HEADER -->
+						<tr>
+							<td align="center" style="padding:8px 0 20px 0;">
+								<div style="font-size:22px;color:#FF6A00;font-weight:700;letter-spacing:.3px;">
+									PLAY THE STREET
+								</div>
+							</td>
+						</tr>
 
-							<tr>
-								<td style="background:#1A1A1A;border-radius:16px;padding:24px 22px;border:1px solid #2B2B2B;">
-									<h1 style="margin:0 0 12px 0;font-size:22px;line-height:28px;color:#EDEDED;">
-										Bienvenue, %s 👋
-									</h1>
-									<p style="margin:0 0 16px 0;font-size:15px;line-height:22px;color:#CFCFCF;">
-										Ravi de te compter parmi nous. À partir d’aujourd’hui, tu peux <strong style="color:#FFFFFF;">créer</strong> ou <strong style="color:#FFFFFF;">rejoindre</strong> des matchs, suivre tes <strong style="color:#FFFFFF;">stats</strong> et découvrir les <strong style="color:#FFFFFF;">meilleurs terrains</strong> autour de toi.
-									</p>
+						<!-- CARD -->
+						<tr>
+							<td style="background:#1A1A1A;border-radius:16px;padding:28px 22px;border:1px solid #2B2B2B;">
+								
+								<!-- TITRE CENTRÉ -->
+								<h1 style="
+									margin:0 0 16px 0;
+									font-size:24px;
+									line-height:30px;
+									color:#EDEDED;
+									text-align:center;
+									font-weight:600;
+								">
+									Bienvenue, %s 👋
+								</h1>
 
-									<table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px 0 6px 0;">
-										<tr>
-											<td style="background:#2B2B2B;border-radius:12px;padding:14px 16px;border:1px solid #3A3A3A;">
-												<ul style="padding-left:18px;margin:0;color:#D9D9D9;font-size:14px;line-height:22px;">
-													<li>Crée un match en 10&nbsp;secondes</li>
-													<li>Invite tes amis ou des joueurs proches</li>
-													<li>Suis tes victoires et ton classement</li>
-												</ul>
-											</td>
-										</tr>
-									</table>
+								<!-- Texte intro -->
+								<p style="margin:0 0 22px 0;font-size:15px;line-height:22px;color:#CFCFCF;text-align:center;">
+									Ravi de te compter parmi nous. À partir d’aujourd’hui, tu peux créer ou rejoindre des matchs,
+									suivre tes stats, et découvrir les meilleurs terrains autour de toi.
+								</p>
 
-									<div style="text-align:center;margin:22px 0 8px 0;">
-										<a href="#" 
-											style="display:inline-block;padding:12px 18px;border-radius:999px;background:#FF6A00;color:#0E0E0E;text-decoration:none;font-weight:700;">
-											Ouvrir l’app
-										</a>
-									</div>
+								<!-- LISTE CENTRÉE -->
+								<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 26px auto;">
+									<tr>
+										<td style="
+											background:#2B2B2B;
+											border-radius:12px;
+											padding:14px 16px;
+											border:1px solid #3A3A3A;
+											text-align:center;
+										">
+											<ul style="
+												list-style:none;
+												padding:0;
+												margin:0;
+												color:#D9D9D9;
+												font-size:14px;
+												line-height:22px;
+												text-align:center;
+											">
+												<li>Crée un match en 10&nbsp;secondes</li>
+												<li>Invite des joueurs près de chez toi</li>
+												<li>Suis tes victoires et ton classement</li>
+											</ul>
+										</td>
+									</tr>
+								</table>
 
-									<p style="margin:14px 0 0 0;font-size:12px;color:#9A9A9A;text-align:center;">
-										Si le bouton ne fonctionne pas, ouvre directement l’application Play The Street.
-									</p>
-								</td>
-							</tr>
+								<!-- TEXTE MOTIVANT -->
+								<p style="
+									margin:12px 0 0 0;
+									font-size:14px;
+									line-height:22px;
+									color:#FF6A00;
+									text-align:center;
+									font-weight:600;
+								">
+									🔥 Ne perds pas une seconde : ton prochain match t’attend déjà.
+								</p>
 
-							<tr>
-								<td style="padding:18px 6px 0 6px;text-align:center;color:#7A7A7A;font-size:12px;">
-									© %d Play The Street • Paris, France
-								</td>
-							</tr>
-						</table>
-					</td>
-				</tr>
-			</table>
-		</body>
-	</html>
-	`, username, time.Now().Year())
+							</td>
+						</tr>
+
+						<!-- FOOTER -->
+						<tr>
+							<td style="padding:18px 6px 0 6px;text-align:center;color:#7A7A7A;font-size:12px;">
+								© %d Play The Street • Paris, France
+							</td>
+						</tr>
+
+					</table>
+				</td>
+			</tr>
+		</table>
+	</body>
+</html>
+`, username, time.Now().Year())
 
 	m.SetBody("text/plain", textBody)
 	m.AddAlternative("text/html", htmlBody)

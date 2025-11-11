@@ -176,7 +176,7 @@ func TestService_Register(t *testing.T) {
 
 	tcs := []testCase{
 		{
-			name: "User does not exist -> can register and receives token (no username/bio provided)",
+			name: "User does not exist -> can register and receives token (no bio provided)",
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{},
 			},
@@ -280,6 +280,7 @@ func TestService_Register(t *testing.T) {
 
 			s := &Service{}
 			cleanup := s.InitServiceTest()
+			s.mailer = mailer.NewMockMailer()
 			defer func() {
 				if err := cleanup(); err != nil {
 					t.Logf("cleanup error: %v", err)
@@ -347,7 +348,13 @@ func TestService_Register(t *testing.T) {
 				require.False(t, u.UpdatedAt.IsZero())
 				require.NotEmpty(t, u.Id)
 
-				require.Equal(t, u.Id, actual.UserId, "Persisted user ID should match UserId in response")
+				require.Equal(t, u.Id, actual.UserId)
+
+				mock := s.mailer.(*mailer.MockMailer)
+				require.Equal(t, 1, mock.GetSentCounts("welcome"), "welcome email should be sent exactly once")
+			} else {
+				mock := s.mailer.(*mailer.MockMailer)
+				require.Equal(t, 0, mock.GetSentCounts("welcome"), "welcome email should not be sent on failure")
 			}
 		})
 	}
