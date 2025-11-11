@@ -5,11 +5,11 @@ import (
 	"PLIC/models"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"math"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
@@ -355,7 +355,7 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, ai models.
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to create match")
 	}
 
-	existing, err := s.db.GetRankingByUserAndCourt(ctx, ai.UserID, match.CourtID)
+	existing, err := s.db.GetRankingByUserCourtSport(ctx, ai.UserID, match.CourtID, match.Sport)
 	if err != nil {
 		logger.Error().Err(err).Msg("db get ranking failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to check ranking")
@@ -364,6 +364,7 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, ai models.
 		if err := s.db.InsertRanking(ctx, models.DBRanking{
 			UserID:    ai.UserID,
 			CourtID:   match.CourtID,
+			Sport:     match.Sport,
 			Elo:       DefaultElo,
 			CreatedAt: s.clock.Now(),
 			UpdatedAt: s.clock.Now(),
@@ -465,7 +466,7 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, ai models.Au
 		return httpx.WriteError(w, http.StatusBadRequest, "this team is full")
 	}
 
-	existing, err := s.db.GetRankingByUserAndCourt(ctx, ai.UserID, match.CourtID)
+	existing, err := s.db.GetRankingByUserCourtSport(ctx, ai.UserID, match.CourtID, match.Sport)
 	if err != nil {
 		logger.Error().Err(err).Msg("db get ranking failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to check ranking")
@@ -475,6 +476,7 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, ai models.Au
 			UserID:    ai.UserID,
 			CourtID:   match.CourtID,
 			Elo:       DefaultElo,
+			Sport:     match.Sport,
 			CreatedAt: s.clock.Now(),
 			UpdatedAt: s.clock.Now(),
 		}); err != nil {
@@ -552,27 +554,6 @@ func (s *Service) DeleteMatch(w http.ResponseWriter, r *http.Request, ai models.
 	return httpx.Write(w, http.StatusOK, nil)
 }
 
-func (s *Service) getOrCreateRanking(ctx context.Context, userID, courtID string, now time.Time) (models.DBRanking, error) {
-	rk, err := s.db.GetRankingByUserAndCourt(ctx, userID, courtID)
-	if err != nil {
-		return models.DBRanking{}, err
-	}
-	if rk != nil {
-		return *rk, nil
-	}
-	newRk := models.DBRanking{
-		UserID:    userID,
-		CourtID:   courtID,
-		Elo:       DefaultElo,
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-	if err := s.db.InsertRanking(ctx, newRk); err != nil {
-		return models.DBRanking{}, err
-	}
-	return newRk, nil
-}
-
 func (s *Service) applyEloForMatch(ctx context.Context, match models.DBMatches, score1, score2 int) error {
 	userMatches, err := s.db.GetUserMatchesByMatchID(ctx, match.Id)
 	if err != nil {
@@ -582,8 +563,7 @@ func (s *Service) applyEloForMatch(ctx context.Context, match models.DBMatches, 
 		return nil
 	}
 
-	team1Users := make([]string, 0)
-	team2Users := make([]string, 0)
+	var team1Users, team2Users []string
 	for _, um := range userMatches {
 		switch um.Team {
 		case 1:
@@ -601,11 +581,14 @@ func (s *Service) applyEloForMatch(ctx context.Context, match models.DBMatches, 
 	getRanks := func(userIDs []string) ([]models.DBRanking, error) {
 		out := make([]models.DBRanking, 0, len(userIDs))
 		for _, uid := range userIDs {
-			rk, err := s.getOrCreateRanking(ctx, uid, match.CourtID, now)
+			rk, err := s.db.GetRankingByUserCourtSport(ctx, uid, match.CourtID, match.Sport)
 			if err != nil {
 				return nil, err
 			}
-			out = append(out, rk)
+			if rk == nil {
+				return nil, fmt.Errorf("ranking missing for user=%s court=%s sport=%s", uid, match.CourtID, match.Sport)
+			}
+			out = append(out, *rk)
 		}
 		return out, nil
 	}
@@ -765,10 +748,6 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, ai mo
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to check consensus")
 	}
 
-	match.Score1 = &req.Score1
-	match.Score2 = &req.Score2
-	match.UpdatedAt = s.clock.Now()
-
 	if hasConsensus {
 		match.CurrentState = models.Termine
 		if err := s.applyEloForMatch(ctx, *match, req.Score1, req.Score2); err != nil {
@@ -816,6 +795,10 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, ai mo
 			}
 		}
 	}
+
+	match.Score1 = &req.Score1
+	match.Score2 = &req.Score2
+	match.UpdatedAt = s.clock.Now()
 
 	if err := s.db.UpsertMatch(ctx, *match); err != nil {
 		logger.Error().Err(err).Msg("db upsert match failed")

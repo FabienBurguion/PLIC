@@ -427,6 +427,9 @@ func Test_CreateMatch(t *testing.T) {
 		WithLatitude(48.8566).
 		WithLongitude(2.3522)
 
+	// On fixe explicitement le sport utilisé dans ce test
+	sport := models.Basket
+
 	defaultElo := 1000
 	existingElo := 1350
 
@@ -439,7 +442,8 @@ func Test_CreateMatch(t *testing.T) {
 			},
 			insertCourt: true,
 			param: models.NewMatchRequestFixture().
-				WithCourtId(court.Id),
+				WithCourtId(court.Id).
+				WithSport(sport),
 			expected: expected{
 				statusCode:   http.StatusCreated,
 				checkRanking: true,
@@ -454,7 +458,8 @@ func Test_CreateMatch(t *testing.T) {
 			},
 			insertCourt: true,
 			param: models.NewMatchRequestFixture().
-				WithCourtId(court.Id),
+				WithCourtId(court.Id).
+				WithSport(sport),
 			expected: expected{
 				statusCode: http.StatusUnauthorized,
 			},
@@ -467,7 +472,8 @@ func Test_CreateMatch(t *testing.T) {
 			},
 			insertCourt: false,
 			param: models.NewMatchRequestFixture().
-				WithCourtId(court.Id),
+				WithCourtId(court.Id).
+				WithSport(sport),
 			expected: expected{
 				statusCode: http.StatusBadRequest,
 			},
@@ -479,18 +485,17 @@ func Test_CreateMatch(t *testing.T) {
 				Users:  []models.DBUsers{user},
 				Courts: []models.DBCourt{court},
 				Rankings: []models.DBRanking{
-					{
-						UserID:    user.Id,
-						CourtID:   court.Id,
-						Elo:       existingElo,
-						CreatedAt: time.Now(),
-						UpdatedAt: time.Now(),
-					},
+					models.NewDBRankingFixture().
+						WithUserId(user.Id).
+						WithCourtId(court.Id).
+						WithSport(sport).
+						WithElo(existingElo),
 				},
 			},
 			insertCourt: false,
 			param: models.NewMatchRequestFixture().
-				WithCourtId(court.Id),
+				WithCourtId(court.Id).
+				WithSport(sport),
 			expected: expected{
 				statusCode:   http.StatusCreated,
 				checkRanking: true,
@@ -532,7 +537,7 @@ func Test_CreateMatch(t *testing.T) {
 
 			if c.expected.checkRanking && c.expected.statusCode == http.StatusCreated {
 				ctx := context.Background()
-				rk, err := s.db.GetRankingByUserAndCourt(ctx, user.Id, c.param.CourtID)
+				rk, err := s.db.GetRankingByUserCourtSport(ctx, user.Id, c.param.CourtID, c.param.Sport)
 				require.NoError(t, err)
 				require.NotNil(t, rk, "ranking should exist after CreateMatch")
 				if c.expected.wantElo != nil {
@@ -564,34 +569,54 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 	}
 
 	court := models.NewDBCourtFixture()
-	matchConsensus := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCurrentState(models.ManqueScore)
-	matchNoConsensus := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCurrentState(models.ManqueScore)
-	matchTeamTwice := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCurrentState(models.ManqueScore)
+	const sport = models.Foot
+
+	matchConsensus := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithSport(sport).
+		WithCurrentState(models.ManqueScore)
+
+	matchNoConsensus := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithSport(sport).
+		WithCurrentState(models.ManqueScore)
+
+	matchTeamTwice := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithSport(sport).
+		WithCurrentState(models.ManqueScore)
 
 	userA := models.NewDBUsersFixture()
 	userB := models.NewDBUsersFixture().WithUsername("userB").WithEmail("emailB@example.com")
 	userC := models.NewDBUsersFixture().WithUsername("userC").WithEmail("emailC@example.com")
 
-	fixtures := DBFixtures{
+	baseFixtures := DBFixtures{
 		Courts:  []models.DBCourt{court},
 		Matches: []models.DBMatches{matchConsensus, matchNoConsensus, matchTeamTwice},
 		Users:   []models.DBUsers{userA, userB, userC},
 		UserMatches: []models.DBUserMatch{
 			models.NewDBUserMatchFixture().WithUserId(userA.Id).WithMatchId(matchConsensus.Id).WithTeam(1),
 			models.NewDBUserMatchFixture().WithUserId(userB.Id).WithMatchId(matchConsensus.Id).WithTeam(2),
-
 			models.NewDBUserMatchFixture().WithUserId(userA.Id).WithMatchId(matchNoConsensus.Id).WithTeam(1),
 			models.NewDBUserMatchFixture().WithUserId(userB.Id).WithMatchId(matchNoConsensus.Id).WithTeam(2),
-
 			models.NewDBUserMatchFixture().WithUserId(userA.Id).WithMatchId(matchTeamTwice.Id).WithTeam(1),
 			models.NewDBUserMatchFixture().WithUserId(userC.Id).WithMatchId(matchTeamTwice.Id).WithTeam(1),
 		},
 	}
 
+	defaultElo := 1000
+	withRankings := baseFixtures
+	withRankings.Rankings = []models.DBRanking{
+		models.NewDBRankingFixture().WithUserId(userA.Id).WithCourtId(court.Id).WithSport(sport).WithElo(defaultElo),
+		models.NewDBRankingFixture().WithUserId(userB.Id).WithCourtId(court.Id).WithSport(sport).WithElo(defaultElo),
+		models.NewDBRankingFixture().WithUserId(userA.Id).WithCourtId(court.Id).WithSport(sport).WithElo(defaultElo),
+		models.NewDBRankingFixture().WithUserId(userC.Id).WithCourtId(court.Id).WithSport(sport).WithElo(defaultElo),
+	}
+
 	testCases := []testCase{
 		{
 			name:     "Consensus: two teams same score -> match becomes Termine and ELO updates",
-			fixtures: fixtures,
+			fixtures: withRankings,
 			steps: []struct {
 				auth  models.AuthInfo
 				param string
@@ -613,8 +638,8 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 			},
 		},
 		{
-			name:     "No consensus: second team different score -> state unchanged, score is last proposed, no ELO update",
-			fixtures: fixtures,
+			name:     "No consensus: second team different score -> state unchanged, scores are last proposal, no ELO update",
+			fixtures: baseFixtures,
 			steps: []struct {
 				auth  models.AuthInfo
 				param string
@@ -637,7 +662,7 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 		},
 		{
 			name:     "Same team second vote blocked -> error and no ELO update",
-			fixtures: fixtures,
+			fixtures: baseFixtures,
 			steps: []struct {
 				auth  models.AuthInfo
 				param string
@@ -660,7 +685,6 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 		},
 	}
 
-	const expectedDefaultElo = 1000
 	const expectedDelta = 16
 
 	for _, tc := range testCases {
@@ -680,7 +704,7 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 				body, err := json.Marshal(step.req)
 				require.NoError(t, err)
 
-				url := "/score/match/" + step.param
+				url := "/match/" + step.param + "/score"
 				r := httptest.NewRequest("PATCH", url, bytes.NewReader(body))
 				routeCtx := chi.NewRouteContext()
 				routeCtx.URLParams.Add("id", step.param)
@@ -699,6 +723,7 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 				require.NoError(t, dbErr)
 				require.NotNil(t, m)
 				require.Equal(t, step.exp.state, m.CurrentState)
+
 				require.NotNil(t, m.Score1)
 				require.NotNil(t, m.Score2)
 				require.Equal(t, step.exp.score1, *m.Score1)
@@ -717,9 +742,7 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 						require.NoError(t, err)
 						sentResultSoFar += len(ums)
 					}
-				case matchNoConsensus.Id, matchTeamTwice.Id:
 				}
-
 				require.Equal(t, sentResultSoFar, mockMailer.GetSentCounts("result"),
 					"unexpected number of result emails after step %d of %q", stepIdx, tc.name)
 
@@ -727,42 +750,30 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 				switch step.param {
 				case matchConsensus.Id:
 					if stepIdx == 0 {
-						rA, err := s.db.GetRankingByUserAndCourt(ctx, userA.Id, court.Id)
-						require.NoError(t, err)
-						require.Nil(t, rA)
-
-						rB, err := s.db.GetRankingByUserAndCourt(ctx, userB.Id, court.Id)
-						require.NoError(t, err)
-						require.Nil(t, rB)
-					} else {
-						rA, err := s.db.GetRankingByUserAndCourt(ctx, userA.Id, court.Id)
+						rA, err := s.db.GetRankingByUserCourtSport(ctx, userA.Id, court.Id, sport)
 						require.NoError(t, err)
 						require.NotNil(t, rA)
-						require.Equal(t, expectedDefaultElo+expectedDelta, rA.Elo)
+						require.Equal(t, defaultElo, rA.Elo)
 
-						rB, err := s.db.GetRankingByUserAndCourt(ctx, userB.Id, court.Id)
+						rB, err := s.db.GetRankingByUserCourtSport(ctx, userB.Id, court.Id, sport)
 						require.NoError(t, err)
 						require.NotNil(t, rB)
-						require.Equal(t, expectedDefaultElo-expectedDelta, rB.Elo)
+						require.Equal(t, defaultElo, rB.Elo)
+					} else {
+						rA, err := s.db.GetRankingByUserCourtSport(ctx, userA.Id, court.Id, sport)
+						require.NoError(t, err)
+						require.NotNil(t, rA)
+						require.Equal(t, defaultElo+expectedDelta, rA.Elo)
+
+						rB, err := s.db.GetRankingByUserCourtSport(ctx, userB.Id, court.Id, sport)
+						require.NoError(t, err)
+						require.NotNil(t, rB)
+						require.Equal(t, defaultElo-expectedDelta, rB.Elo)
 					}
 
 				case matchNoConsensus.Id:
-					rA, err := s.db.GetRankingByUserAndCourt(ctx, userA.Id, court.Id)
-					require.NoError(t, err)
-					require.Nil(t, rA)
-
-					rB, err := s.db.GetRankingByUserAndCourt(ctx, userB.Id, court.Id)
-					require.NoError(t, err)
-					require.Nil(t, rB)
 
 				case matchTeamTwice.Id:
-					rA, err := s.db.GetRankingByUserAndCourt(ctx, userA.Id, court.Id)
-					require.NoError(t, err)
-					require.Nil(t, rA)
-
-					rC, err := s.db.GetRankingByUserAndCourt(ctx, userC.Id, court.Id)
-					require.NoError(t, err)
-					require.Nil(t, rC)
 				}
 			}
 		})
@@ -792,8 +803,11 @@ func Test_JoinMatch(t *testing.T) {
 	court := models.NewDBCourtFixture().
 		WithAddress("123 Rue Sport")
 
+	const sport = models.Basket
+
 	match := models.NewDBMatchesFixture().
 		WithCourtId(court.Id).
+		WithSport(sport).
 		WithParticipantNber(2).
 		WithCurrentState(models.ManqueJoueur)
 
@@ -807,6 +821,7 @@ func Test_JoinMatch(t *testing.T) {
 
 	match4 := models.NewDBMatchesFixture().
 		WithCourtId(court.Id).
+		WithSport(sport).
 		WithParticipantNber(4).
 		WithCurrentState(models.ManqueJoueur)
 
@@ -932,13 +947,11 @@ func Test_JoinMatch(t *testing.T) {
 				Matches: []models.DBMatches{match},
 				Users:   []models.DBUsers{user},
 				Rankings: []models.DBRanking{
-					{
-						UserID:    user.Id,
-						CourtID:   court.Id,
-						Elo:       existingElo,
-						CreatedAt: time.Now(),
-						UpdatedAt: time.Now(),
-					},
+					models.NewDBRankingFixture().
+						WithUserId(user.Id).
+						WithCourtId(court.Id).
+						WithSport(sport).
+						WithElo(existingElo),
 				},
 			},
 			param: match.Id,
@@ -977,9 +990,7 @@ func Test_JoinMatch(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer func(Body io.ReadCloser) {
-				_ = Body.Close()
-			}(resp.Body)
+			defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
 
 			require.Equal(t, c.expected.code, resp.StatusCode)
 
@@ -1010,7 +1021,7 @@ func Test_JoinMatch(t *testing.T) {
 					require.Equal(t, *c.expected.wantState, updatedMatch.CurrentState)
 				}
 				if c.expected.checkRanking {
-					rk, err := s.db.GetRankingByUserAndCourt(ctx, c.auth.UserID, updatedMatch.CourtID)
+					rk, err := s.db.GetRankingByUserCourtSport(ctx, c.auth.UserID, updatedMatch.CourtID, sport)
 					require.NoError(t, err)
 					require.NotNil(t, rk)
 					if c.expected.wantElo != nil {

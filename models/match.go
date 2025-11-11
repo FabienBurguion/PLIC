@@ -27,6 +27,11 @@ func (m MatchRequest) WithCourtId(courtId string) MatchRequest {
 	return m
 }
 
+func (m MatchRequest) WithSport(sport Sport) MatchRequest {
+	m.Sport = sport
+	return m
+}
+
 func (m MatchRequest) ToDBMatches(now time.Time) DBMatches {
 	return DBMatches{
 		Id:              uuid.NewString(),

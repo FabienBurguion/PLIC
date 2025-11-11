@@ -4,6 +4,7 @@ type Field struct {
 	Ranking int    `json:"ranking"`
 	Name    string `json:"name"`
 	Elo     int    `json:"elo"`
+	Sport   Sport  `json:"sport"`
 }
 
 func NewFieldFixture() Field {
@@ -11,6 +12,7 @@ func NewFieldFixture() Field {
 		Ranking: 0,
 		Name:    "",
 		Elo:     0,
+		Sport:   Basket,
 	}
 }
 
@@ -26,5 +28,10 @@ func (f Field) WithName(name string) Field {
 
 func (f Field) WithScore(score int) Field {
 	f.Elo = score
+	return f
+}
+
+func (f Field) WithSport(sport Sport) Field {
+	f.Sport = sport
 	return f
 }

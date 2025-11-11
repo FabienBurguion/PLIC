@@ -211,7 +211,7 @@ func Test_MatchLifecycle(t *testing.T) {
 	const delta = 16
 
 	get := func(u models.DBUsers) *models.DBRanking {
-		rk, err := s.db.GetRankingByUserAndCourt(ctx, u.Id, court.Id)
+		rk, err := s.db.GetRankingByUserCourtSport(ctx, u.Id, court.Id, models.Foot)
 		require.NoError(t, err)
 		require.NotNil(t, rk, "ranking should exist for user %s", u.Username)
 		return rk

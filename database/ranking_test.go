@@ -32,9 +32,13 @@ func TestDatabase_GetRankedFieldsByUserID(t *testing.T) {
 	courtID2 := uuid.NewString()
 	courtID3 := uuid.NewString()
 
+	matchID1 := uuid.NewString()
+	matchID2 := uuid.NewString()
+	matchID3 := uuid.NewString()
+
 	testCases := []testCase{
 		{
-			name: "User has rankings on multiple courts with different local ranks",
+			name: "User has rankings on multiple courts with different local ranks (per sport)",
 			fixtures: DBFixtures{
 				Users: []models.DBUsers{
 					models.NewDBUsersFixture().
@@ -62,60 +66,97 @@ func TestDatabase_GetRankedFieldsByUserID(t *testing.T) {
 						WithName("Playground"),
 				},
 				Rankings: []models.DBRanking{
-					// Court 1
 					models.NewDBRankingFixture().
 						WithUserId(userID).
 						WithCourtId(courtID1).
+						WithSport(models.Basket).
 						WithElo(1200),
 					models.NewDBRankingFixture().
 						WithUserId(otherUser1).
 						WithCourtId(courtID1).
+						WithSport(models.Basket).
 						WithElo(1300),
 					models.NewDBRankingFixture().
 						WithUserId(otherUser2).
 						WithCourtId(courtID1).
+						WithSport(models.Basket).
 						WithElo(1250),
 
-					// Court 2
 					models.NewDBRankingFixture().
 						WithUserId(userID).
 						WithCourtId(courtID2).
+						WithSport(models.Foot).
 						WithElo(1300),
 					models.NewDBRankingFixture().
 						WithUserId(otherUser1).
 						WithCourtId(courtID2).
+						WithSport(models.Foot).
 						WithElo(1000),
 
-					// Court 3
 					models.NewDBRankingFixture().
 						WithUserId(userID).
 						WithCourtId(courtID3).
+						WithSport(models.PingPong).
 						WithElo(1250),
 					models.NewDBRankingFixture().
 						WithUserId(otherUser1).
 						WithCourtId(courtID3).
+						WithSport(models.PingPong).
 						WithElo(1250),
 					models.NewDBRankingFixture().
 						WithUserId(otherUser2).
 						WithCourtId(courtID3).
+						WithSport(models.PingPong).
 						WithElo(1100),
+				},
+
+				Matches: []models.DBMatches{
+					models.NewDBMatchesFixture().
+						WithId(matchID1).
+						WithCourtId(courtID1).
+						WithSport(models.Basket),
+					models.NewDBMatchesFixture().
+						WithId(matchID2).
+						WithCourtId(courtID2).
+						WithSport(models.Foot),
+					models.NewDBMatchesFixture().
+						WithId(matchID3).
+						WithCourtId(courtID3).
+						WithSport(models.PingPong),
+				},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().
+						WithUserId(userID).
+						WithMatchId(matchID1).
+						WithTeam(1),
+					models.NewDBUserMatchFixture().
+						WithUserId(userID).
+						WithMatchId(matchID2).
+						WithTeam(1),
+					models.NewDBUserMatchFixture().
+						WithUserId(userID).
+						WithMatchId(matchID3).
+						WithTeam(2),
 				},
 			},
 			param: userID,
 			expected: expected{
 				fields: []models.Field{
 					models.NewFieldFixture().
-						WithRanking(1).
-						WithName("Stade de Lyon").
-						WithScore(1300),
+						WithRanking(3).
+						WithName("Central Park").
+						WithScore(1200).
+						WithSport(models.Basket),
 					models.NewFieldFixture().
 						WithRanking(1).
 						WithName("Playground").
-						WithScore(1250),
+						WithScore(1250).
+						WithSport(models.PingPong),
 					models.NewFieldFixture().
-						WithRanking(3).
-						WithName("Central Park").
-						WithScore(1200),
+						WithRanking(1).
+						WithName("Stade de Lyon").
+						WithScore(1300).
+						WithSport(models.Foot),
 				},
 				isError: false,
 			},
@@ -170,16 +211,23 @@ func TestDatabase_GetRankedFieldsByUserID(t *testing.T) {
 			require.Equal(t, len(c.expected.fields), len(fields))
 
 			sort.Slice(fields, func(i, j int) bool {
+				if fields[i].Name == fields[j].Name {
+					return string(fields[i].Sport) < string(fields[j].Sport)
+				}
 				return fields[i].Name < fields[j].Name
 			})
 			sort.Slice(c.expected.fields, func(i, j int) bool {
+				if c.expected.fields[i].Name == c.expected.fields[j].Name {
+					return string(c.expected.fields[i].Sport) < string(c.expected.fields[j].Sport)
+				}
 				return c.expected.fields[i].Name < c.expected.fields[j].Name
 			})
 
 			for i := range fields {
-				require.Equal(t, c.expected.fields[i].Ranking, fields[i].Ranking, "wrong ranking for %s", fields[i].Name)
+				require.Equal(t, c.expected.fields[i].Ranking, fields[i].Ranking, "wrong ranking for %s (%s)", fields[i].Name, fields[i].Sport)
 				require.Equal(t, c.expected.fields[i].Name, fields[i].Name)
 				require.Equal(t, c.expected.fields[i].Elo, fields[i].Elo)
+				require.Equal(t, c.expected.fields[i].Sport, fields[i].Sport)
 			}
 		})
 	}
@@ -197,9 +245,12 @@ func TestDatabase_InsertRanking(t *testing.T) {
 	user := models.NewDBUsersFixture()
 	court := models.NewDBCourtFixture()
 
+	sport := models.Basket
+
 	initialRanking := models.NewDBRankingFixture().
 		WithUserId(user.Id).
 		WithCourtId(court.Id).
+		WithSport(sport).
 		WithElo(1450)
 
 	updatedRanking := initialRanking
@@ -217,7 +268,7 @@ func TestDatabase_InsertRanking(t *testing.T) {
 			expected: 1450,
 		},
 		{
-			name: "Update existing ranking on conflict",
+			name: "Update existing ranking on conflict (user,court,sport)",
 			fixtures: DBFixtures{
 				Users:  []models.DBUsers{user},
 				Courts: []models.DBCourt{court},
@@ -249,7 +300,7 @@ func TestDatabase_InsertRanking(t *testing.T) {
 			err := s.db.InsertRanking(ctx, c.param)
 			require.NoError(t, err)
 
-			ranking, err := s.db.GetRankingByUserAndCourt(ctx, c.param.UserID, c.param.CourtID)
+			ranking, err := s.db.GetRankingByUserCourtSport(ctx, c.param.UserID, c.param.CourtID, c.param.Sport)
 			require.NoError(t, err)
 			require.NotNil(t, ranking)
 			require.Equal(t, c.expected, ranking.Elo)
@@ -463,6 +514,119 @@ func TestDatabase_GetRankingsByCourtID(t *testing.T) {
 			if tc.expected.checkSort {
 				require.True(t, isSorted(out), "les rankings ne sont pas triés par (elo asc, user_id asc)")
 			}
+		})
+	}
+}
+
+func TestDatabase_GetRankingByUserCourtSport(t *testing.T) {
+	type expected struct {
+		found bool
+		elo   int
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		userID   string
+		courtID  string
+		sport    models.Sport
+		expected expected
+	}
+
+	user := models.NewDBUsersFixture()
+	court := models.NewDBCourtFixture()
+
+	ranking := models.NewDBRankingFixture().
+		WithUserId(user.Id).
+		WithCourtId(court.Id).
+		WithSport(models.Foot).
+		WithElo(1500)
+
+	testCases := []testCase{
+		{
+			name: "Ranking exists for (user,court,sport)",
+			fixtures: DBFixtures{
+				Users:    []models.DBUsers{user},
+				Courts:   []models.DBCourt{court},
+				Rankings: []models.DBRanking{ranking},
+			},
+			userID:  user.Id,
+			courtID: court.Id,
+			sport:   models.Foot,
+			expected: expected{
+				found: true,
+				elo:   1500,
+			},
+		},
+		{
+			name: "Ranking not found (no row)",
+			fixtures: DBFixtures{
+				Users:  []models.DBUsers{user},
+				Courts: []models.DBCourt{court},
+			},
+			userID:  user.Id,
+			courtID: court.Id,
+			sport:   models.Foot,
+			expected: expected{
+				found: false,
+			},
+		},
+		{
+			name: "Wrong court id",
+			fixtures: DBFixtures{
+				Users:    []models.DBUsers{user},
+				Courts:   []models.DBCourt{court},
+				Rankings: []models.DBRanking{ranking},
+			},
+			userID:  user.Id,
+			courtID: uuid.NewString(),
+			sport:   models.Foot,
+			expected: expected{
+				found: false,
+			},
+		},
+		{
+			name: "Wrong sport",
+			fixtures: DBFixtures{
+				Users:    []models.DBUsers{user},
+				Courts:   []models.DBCourt{court},
+				Rankings: []models.DBRanking{ranking},
+			},
+			userID:  user.Id,
+			courtID: court.Id,
+			sport:   models.Basket,
+			expected: expected{
+				found: false,
+			},
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() {
+				if err := cleanup(); err != nil {
+					t.Logf("cleanup error: %v", err)
+				}
+			}()
+			s.loadFixtures(c.fixtures)
+
+			ctx := context.Background()
+			got, err := s.db.GetRankingByUserCourtSport(ctx, c.userID, c.courtID, c.sport)
+
+			require.NoError(t, err)
+
+			if !c.expected.found {
+				require.Nil(t, got)
+				return
+			}
+
+			require.NotNil(t, got)
+			require.Equal(t, c.userID, got.UserID)
+			require.Equal(t, c.courtID, got.CourtID)
+			require.Equal(t, c.sport, got.Sport)
+			require.Equal(t, c.expected.elo, got.Elo)
 		})
 	}
 }
