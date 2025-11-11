@@ -310,7 +310,7 @@ func (mailer *Mailer) SendMatchResultEmail(to string, username string, sport mod
 	if teamScore > oppScore {
 		resultWord = "Victoire"
 		resultBadgeBg = "#22C55E"
-	} else {
+	} else if teamScore < oppScore {
 		resultWord = "Défaite"
 		resultBadgeBg = "#EF4444"
 	}
