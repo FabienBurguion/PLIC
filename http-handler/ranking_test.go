@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"testing"
 	"time"
 
@@ -202,15 +203,36 @@ func Test_GetUserFields(t *testing.T) {
 	c1 := models.NewDBCourtFixture().WithName("Court A")
 	c2 := models.NewDBCourtFixture().WithName("Court B")
 
-	rk1 := models.NewDBRankingFixture().WithUserId(user.Id).WithCourtId(c1.Id).WithElo(1200)
-	rk2 := models.NewDBRankingFixture().WithUserId(user.Id).WithCourtId(c2.Id).WithElo(1300)
+	m1 := models.NewDBMatchesFixture().
+		WithCourtId(c1.Id).
+		WithSport(models.Basket)
+	m2 := models.NewDBMatchesFixture().
+		WithCourtId(c2.Id).
+		WithSport(models.Foot)
+
+	rk1 := models.NewDBRankingFixture().
+		WithUserId(user.Id).
+		WithCourtId(c1.Id).
+		WithSport(models.Basket).
+		WithElo(1200)
+
+	rk2 := models.NewDBRankingFixture().
+		WithUserId(user.Id).
+		WithCourtId(c2.Id).
+		WithSport(models.Foot).
+		WithElo(1300)
 
 	tests := []testCase{
 		{
-			name: "success - returns ranked fields for user",
+			name: "success - returns ranked fields for user (per court & sport)",
 			fixtures: DBFixtures{
-				Users:    []models.DBUsers{user},
-				Courts:   []models.DBCourt{c1, c2},
+				Users:   []models.DBUsers{user},
+				Courts:  []models.DBCourt{c1, c2},
+				Matches: []models.DBMatches{m1, m2},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(user.Id).WithMatchId(m1.Id).WithTeam(1),
+					models.NewDBUserMatchFixture().WithUserId(user.Id).WithMatchId(m2.Id).WithTeam(2),
+				},
 				Rankings: []models.DBRanking{rk1, rk2},
 			},
 			param: user.Id,
@@ -256,9 +278,7 @@ func Test_GetUserFields(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer func(Body io.ReadCloser) {
-				_ = Body.Close()
-			}(resp.Body)
+			defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
 			require.Equal(t, tc.expected.code, resp.StatusCode)
 
 			body, _ := io.ReadAll(resp.Body)
@@ -272,6 +292,22 @@ func Test_GetUserFields(t *testing.T) {
 				var got []models.Field
 				require.NoError(t, json.Unmarshal(body, &got))
 				require.Len(t, got, tc.expected.expectLen)
+				sort.Slice(got, func(i, j int) bool {
+					if got[i].Name == got[j].Name {
+						return got[i].Sport < got[j].Sport
+					}
+					return got[i].Name < got[j].Name
+				})
+				require.Equal(t, "Court A", got[0].Name)
+				require.Equal(t, models.Basket, got[0].Sport)
+				require.Equal(t, 1200, got[0].Elo)
+
+				require.Equal(t, "Court B", got[1].Name)
+				require.Equal(t, models.Foot, got[1].Sport)
+				require.Equal(t, 1300, got[1].Elo)
+
+				require.Equal(t, 1, got[0].Ranking)
+				require.Equal(t, 1, got[1].Ranking)
 			}
 		})
 	}

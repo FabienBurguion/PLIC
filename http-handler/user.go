@@ -103,12 +103,10 @@ func (s *Service) GetUserById(w http.ResponseWriter, r *http.Request, ai models.
 		Str("path", r.URL.Path).
 		Logger()
 
-	/*
-		if !ai.IsConnected {
-			logger.Warn().Msg("unauthorized")
-			return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
-		}
-	*/
+	if !ai.IsConnected {
+		logger.Warn().Msg("unauthorized")
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
