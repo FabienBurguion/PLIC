@@ -10,13 +10,13 @@ func NewMockMailer() *MockMailer {
 	}
 }
 
-func (m *MockMailer) SendTestMail(_ string) error {
-	m.SentCounts["test"]++
+func (m *MockMailer) SendLinkResetPassword(_ string, _ string) error {
+	m.SentCounts["link_reset"]++
 	return nil
 }
 
-func (m *MockMailer) SendLinkResetPassword(_ string, _ string) error {
-	m.SentCounts["link_reset"]++
+func (m *MockMailer) SendWelcomeEmail(_ string, _ string) error {
+	m.SentCounts["welcome"]++
 	return nil
 }
 

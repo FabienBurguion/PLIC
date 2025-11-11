@@ -17,6 +17,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -181,6 +182,19 @@ func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.Auth
 	}
 
 	logger.Info().Str("user_id", newUser.Id).Msg("user registered successfully")
+
+	go func(email, username string, log zerolog.Logger) {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error().Interface("recover", r).Msg("panic while sending welcome email")
+			}
+		}()
+
+		if err := s.mailer.SendWelcomeEmail(email, username); err != nil {
+			log.Error().Err(err).Msg("async welcome email failed")
+		}
+	}(newUser.Email, newUser.Username, logger)
+
 	return httpx.Write(w, http.StatusCreated, models.LoginResponse{
 		Token:  token,
 		UserId: newUser.Id,
