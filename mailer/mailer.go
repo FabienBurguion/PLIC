@@ -395,7 +395,7 @@ Play The Street`,
 			if teamScore == oppScore {
 				return "Beau match"
 			}
-			return "ce n’est que partie remise"
+			return "Ce n’est que partie remise"
 		}(), username, time.Now().Year())
 
 	m.SetBody("text/plain", textBody)

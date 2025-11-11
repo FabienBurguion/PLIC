@@ -215,7 +215,7 @@ func (s *Service) Temp2(w http.ResponseWriter, _ *http.Request, _ models.AuthInf
 }
 
 func (s *Service) Temp3(w http.ResponseWriter, _ *http.Request, _ models.AuthInfo) error {
-	err := s.mailer.SendMatchResultEmail("fabien.burguion@epita.fr", "Fabien", models.PingPong, "Amphi 401", 6, 11)
+	err := s.mailer.SendMatchResultEmail("fabien.burguion@epita.fr", "Fabien", models.PingPong, "Amphi 401", 11, 11)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to send email")
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to send email")
