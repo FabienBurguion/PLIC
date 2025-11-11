@@ -14,7 +14,7 @@ import (
 type MailSender interface {
 	SendLinkResetPassword(to string, url string) error
 	SendWelcomeEmail(to string, username string) error
-	SendMatchResultEmail(to string, username string, sport models.Sport, fieldName string, teamScore, oppScore int, didWin bool) error
+	SendMatchResultEmail(to string, username string, sport models.Sport, fieldName string, teamScore, oppScore int) error
 }
 
 type Mailer struct {
@@ -287,7 +287,7 @@ func sportMeta(s models.Sport) (label, emoji string) {
 	}
 }
 
-func (mailer *Mailer) SendMatchResultEmail(to string, username string, sport models.Sport, fieldName string, teamScore, oppScore int, didWin bool) error {
+func (mailer *Mailer) SendMatchResultEmail(to string, username string, sport models.Sport, fieldName string, teamScore, oppScore int) error {
 	baseLogger := log.With().
 		Str("mail_kind", "match_result").
 		Str("to", to).
@@ -296,7 +296,6 @@ func (mailer *Mailer) SendMatchResultEmail(to string, username string, sport mod
 		Str("field", fieldName).
 		Int("team_score", teamScore).
 		Int("opp_score", oppScore).
-		Bool("win", didWin).
 		Logger()
 
 	key := to + ":match_result"
@@ -308,10 +307,10 @@ func (mailer *Mailer) SendMatchResultEmail(to string, username string, sport mod
 	label, emoji := sportMeta(sport)
 	resultWord := "Match nul"
 	resultBadgeBg := "#3F3F46"
-	if didWin {
+	if teamScore > oppScore {
 		resultWord = "Victoire"
 		resultBadgeBg = "#22C55E"
-	} else if teamScore < oppScore {
+	} else {
 		resultWord = "Défaite"
 		resultBadgeBg = "#EF4444"
 	}
@@ -390,11 +389,11 @@ Play The Street`,
 </html>
 `, label, emoji, fieldName, username, resultBadgeBg, resultWord, teamScore, oppScore,
 		func() string {
-			if didWin {
-				return "belle victoire"
+			if teamScore > oppScore {
+				return "Belle victoire"
 			}
 			if teamScore == oppScore {
-				return "beau match"
+				return "Beau match"
 			}
 			return "ce n’est que partie remise"
 		}(), username, time.Now().Year())

@@ -22,7 +22,7 @@ func (m *MockMailer) SendWelcomeEmail(_ string, _ string) error {
 	return nil
 }
 
-func (m *MockMailer) SendMatchResultEmail(_ string, _ string, _ models.Sport, _ string, _, _ int, _ bool) error {
+func (m *MockMailer) SendMatchResultEmail(_ string, _ string, _ models.Sport, _ string, _, _ int) error {
 	m.SentCounts["result"]++
 	return nil
 }

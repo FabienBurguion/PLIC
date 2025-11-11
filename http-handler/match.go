@@ -781,12 +781,6 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, ai mo
 		if err != nil {
 			logger.Error().Err(err).Msg("db get user by id failed (email for result mail)")
 		} else if u != nil {
-			didWin := false
-			if userMatch.Team == 1 {
-				didWin = req.Score1 > req.Score2
-			} else if userMatch.Team == 2 {
-				didWin = req.Score2 > req.Score1
-			}
 
 			var sport models.Sport
 			switch strings.ToLower(string(match.Sport)) {
@@ -800,11 +794,16 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, ai mo
 				sport = models.Sport(strings.ToLower(string(match.Sport)))
 			}
 
+			teamScore, oppScore := req.Score1, req.Score2
+			if userMatch.Team == 2 {
+				teamScore, oppScore = req.Score2, req.Score1
+			}
+
 			court, err := s.db.GetCourtByID(ctx, match.CourtID)
 			if err != nil || court == nil {
 				logger.Error().Err(err).Msg("db get court by id failed (email for result mail)")
 			} else {
-				if err := s.mailer.SendMatchResultEmail(u.Email, u.Username, sport, court.Name, req.Score1, req.Score2, didWin); err != nil {
+				if err := s.mailer.SendMatchResultEmail(u.Email, u.Username, sport, court.Name, teamScore, oppScore); err != nil {
 					logger.Error().Err(err).Msg("sending match result email failed")
 				} else {
 					logger.Info().Str("email", u.Email).Msg("match result email sent")
