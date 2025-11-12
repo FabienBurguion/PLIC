@@ -1359,6 +1359,9 @@ const docTemplate = `{
                 },
                 "ranking": {
                     "type": "integer"
+                },
+                "sport": {
+                    "$ref": "#/definitions/models.Sport"
                 }
             }
         },

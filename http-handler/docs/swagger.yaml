@@ -39,6 +39,8 @@ definitions:
         type: string
       ranking:
         type: integer
+      sport:
+        $ref: '#/definitions/models.Sport'
     type: object
   models.HelloWorldResponse:
     properties:
