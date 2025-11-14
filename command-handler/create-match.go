@@ -45,6 +45,7 @@ func RunCreateMatch(ctx context.Context, db database.Database, opt CreateMatchOp
 		CurrentState:    models.ManqueJoueur,
 		Score1:          nil,
 		Score2:          nil,
+		CreatorID:       opt.UserID,
 		CourtID:         opt.CourtID,
 		CreatedAt:       now,
 		UpdatedAt:       now,

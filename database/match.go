@@ -6,13 +6,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 )
 
 func (db Database) GetMatchById(ctx context.Context, id string) (*models.DBMatches, error) {
 	var match models.DBMatches
 
 	err := db.Database.GetContext(ctx, &match, `
-        SELECT id, sport, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
+        SELECT id, sport, date, participant_nber, current_state, score1, score2, creator_id, court_id, created_at, updated_at
         FROM matches
         WHERE id = $1`, id)
 
@@ -43,7 +44,7 @@ func (db Database) GetUsersByMatchId(ctx context.Context, matchId string) ([]mod
 func (db Database) GetMatchesByUserID(ctx context.Context, userID string) ([]models.DBMatches, error) {
 	var dbMatches []models.DBMatches
 	err := db.Database.SelectContext(ctx, &dbMatches, `
-		SELECT m.id, m.sport, m.date, m.participant_nber, m.current_state, m.score1, m.score2, m.court_id, m.created_at, m.updated_at
+		SELECT m.id, m.sport, m.date, m.participant_nber, m.current_state, m.score1, m.score2, m.court_id, m.creator_id, m.created_at, m.updated_at
 		FROM matches m
 		JOIN user_match um ON m.id = um.match_id
 		WHERE um.user_id = $1
@@ -58,7 +59,7 @@ func (db Database) GetMatchesByUserID(ctx context.Context, userID string) ([]mod
 func (db Database) GetMatchesByCourtId(ctx context.Context, courtID string) ([]models.DBMatches, error) {
 	var dbMatches []models.DBMatches
 	err := db.Database.SelectContext(ctx, &dbMatches, `
-        SELECT id, sport, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
+        SELECT id, sport, date, participant_nber, current_state, score1, score2, court_id, creator_id, created_at, updated_at
         FROM matches
         WHERE court_id = $1
         ORDER BY date DESC
@@ -89,7 +90,7 @@ func (db Database) GetMatchCountByUserID(ctx context.Context, userID string) (in
 func (db Database) GetAllMatches(ctx context.Context) ([]models.DBMatches, error) {
 	var matches []models.DBMatches
 	err := db.Database.SelectContext(ctx, &matches, `
-        SELECT id, sport, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
+        SELECT id, sport, date, participant_nber, current_state, score1, score2, court_id, creator_id, created_at, updated_at
         FROM matches`)
 	if err != nil {
 		return nil, fmt.Errorf("échec de la récupération des matchs : %w", err)
@@ -100,9 +101,9 @@ func (db Database) GetAllMatches(ctx context.Context) ([]models.DBMatches, error
 func (db Database) CreateMatch(ctx context.Context, match models.DBMatches) error {
 	_, err := db.Database.NamedExecContext(ctx, `
     INSERT INTO matches (
-        id, sport, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at
+        id, sport, date, participant_nber, current_state, score1, score2, court_id, creator_id, created_at, updated_at
     ) VALUES (
-        :id, :sport, :date, :participant_nber, :current_state, :score1, :score2, :court_id, :created_at, :updated_at
+        :id, :sport, :date, :participant_nber, :current_state, :score1, :score2, :court_id, :creator_id, :created_at, :updated_at
     )`, match)
 
 	if err != nil {
@@ -148,10 +149,10 @@ func (db Database) CreateUserMatch(ctx context.Context, um models.DBUserMatch) e
 	return err
 }
 
-func (db Database) UpsertMatch(ctx context.Context, match models.DBMatches) error {
+func (db Database) UpsertMatch(ctx context.Context, match models.DBMatches, now time.Time) error {
 	_, err := db.Database.ExecContext(ctx, `
-		INSERT INTO matches (id, sport, date, participant_nber, current_state, score1, score2, court_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+		INSERT INTO matches (id, sport, date, participant_nber, current_state, score1, score2, court_id, creator_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		ON CONFLICT (id) DO UPDATE SET
 			sport = EXCLUDED.sport,
 			date = EXCLUDED.date,
@@ -160,8 +161,9 @@ func (db Database) UpsertMatch(ctx context.Context, match models.DBMatches) erro
 			score1 = EXCLUDED.score1,
 			score2 = EXCLUDED.score2,
 			court_id = EXCLUDED.court_id,
-			updated_at = NOW()
-	`, match.Id, match.Sport, match.Date, match.ParticipantNber, match.CurrentState, match.Score1, match.Score2, match.CourtID, match.CreatedAt)
+			creator_id = EXCLUDED.creator_id,
+			updated_at = $11
+	`, match.Id, match.Sport, match.Date, match.ParticipantNber, match.CurrentState, match.Score1, match.Score2, match.CourtID, match.CreatorID, match.CreatedAt, now)
 
 	return err
 }
@@ -290,15 +292,4 @@ func (db Database) GetUsersByMatchIDs(ctx context.Context, matchIDs []string) (m
 	}
 
 	return result, nil
-}
-
-func (db Database) GetCourtsByIDs(ctx context.Context, ids []string) ([]models.DBCourt, error) {
-	query := `
-        SELECT id, address, longitude, latitude, created_at, name
-        FROM courts
-        WHERE id = ANY($1)
-    `
-	var courts []models.DBCourt
-	err := db.Database.SelectContext(ctx, &courts, query, ids)
-	return courts, err
 }

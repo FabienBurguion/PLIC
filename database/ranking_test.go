@@ -109,20 +109,22 @@ func TestDatabase_GetRankedFieldsByUserID(t *testing.T) {
 						WithSport(models.PingPong).
 						WithElo(1100),
 				},
-
 				Matches: []models.DBMatches{
 					models.NewDBMatchesFixture().
 						WithId(matchID1).
 						WithCourtId(courtID1).
-						WithSport(models.Basket),
+						WithSport(models.Basket).
+						WithCreatorId(userID),
 					models.NewDBMatchesFixture().
 						WithId(matchID2).
 						WithCourtId(courtID2).
-						WithSport(models.Foot),
+						WithSport(models.Foot).
+						WithCreatorId(userID),
 					models.NewDBMatchesFixture().
 						WithId(matchID3).
 						WithCourtId(courtID3).
-						WithSport(models.PingPong),
+						WithSport(models.PingPong).
+						WithCreatorId(userID),
 				},
 				UserMatches: []models.DBUserMatch{
 					models.NewDBUserMatchFixture().

@@ -37,15 +37,18 @@ func Test_GetUserById(t *testing.T) {
 	match1 := models.NewDBMatchesFixture().
 		WithCourtId(court1.Id).
 		WithCurrentState(models.Termine).
-		WithSport(models.Foot)
+		WithSport(models.Foot).
+		WithCreatorId(userWithData.Id)
 	match2 := models.NewDBMatchesFixture().
 		WithCourtId(court2.Id).
 		WithCurrentState(models.Termine).
-		WithSport(models.Basket)
+		WithSport(models.Basket).
+		WithCreatorId(userWithData.Id)
 	match3 := models.NewDBMatchesFixture().
 		WithCourtId(court1.Id).
 		WithCurrentState(models.Termine).
-		WithSport(models.PingPong)
+		WithSport(models.PingPong).
+		WithCreatorId(userWithData.Id)
 
 	testCases := []testCase{
 		{

@@ -12,9 +12,11 @@ import (
 
 func TestDatabase_CreateMatch(t *testing.T) {
 	type testCase struct {
-		name  string
-		param models.DBMatches
+		name     string
+		fixtures DBFixtures
+		param    models.DBMatches
 	}
+	user := models.NewDBUsersFixture()
 
 	court := models.NewDBCourtFixture().
 		WithName("Test Court").
@@ -25,9 +27,13 @@ func TestDatabase_CreateMatch(t *testing.T) {
 	testCases := []testCase{
 		{
 			name: "Basic param creation",
+			fixtures: DBFixtures{
+				Users: []models.DBUsers{user},
+			},
 			param: models.NewDBMatchesFixture().
 				WithCourtId(court.Id).
-				WithId(matchID),
+				WithId(matchID).
+				WithCreatorId(user.Id),
 		},
 	}
 
@@ -42,6 +48,7 @@ func TestDatabase_CreateMatch(t *testing.T) {
 					t.Logf("cleanup error: %v", err)
 				}
 			}()
+			s.loadFixtures(c.fixtures)
 			ctx := context.Background()
 			err := s.db.InsertCourtForTest(ctx, court)
 			require.NoError(t, err)
@@ -65,6 +72,7 @@ func TestDatabase_GetMatchById(t *testing.T) {
 		param    string
 		expected bool
 	}
+	user := models.NewDBUsersFixture()
 
 	court := models.NewDBCourtFixture()
 
@@ -74,11 +82,13 @@ func TestDatabase_GetMatchById(t *testing.T) {
 		{
 			name: "Match exists",
 			fixtures: DBFixtures{
+				Users:  []models.DBUsers{user},
 				Courts: []models.DBCourt{court},
 				Matches: []models.DBMatches{
 					models.NewDBMatchesFixture().
 						WithId(id).
-						WithCourtId(court.Id),
+						WithCourtId(court.Id).
+						WithCreatorId(user.Id),
 				},
 			},
 			param:    id,
@@ -123,6 +133,7 @@ func TestDatabase_GetAllMatches(t *testing.T) {
 		fixtures DBFixtures
 		expected []string
 	}
+	user := models.NewDBUsersFixture()
 
 	court := models.NewDBCourtFixture()
 
@@ -133,14 +144,17 @@ func TestDatabase_GetAllMatches(t *testing.T) {
 		{
 			name: "Two matches exist",
 			fixtures: DBFixtures{
+				Users:  []models.DBUsers{user},
 				Courts: []models.DBCourt{court},
 				Matches: []models.DBMatches{
 					models.NewDBMatchesFixture().
 						WithId(id1).
-						WithCourtId(court.Id),
+						WithCourtId(court.Id).
+						WithCreatorId(user.Id),
 					models.NewDBMatchesFixture().
 						WithId(id2).
-						WithCourtId(court.Id),
+						WithCourtId(court.Id).
+						WithCreatorId(user.Id),
 				},
 			},
 			expected: []string{id1, id2},
@@ -220,10 +234,12 @@ func TestDatabase_GetMatchesByUserID(t *testing.T) {
 				Matches: []models.DBMatches{
 					models.NewDBMatchesFixture().
 						WithId(matchID1).
-						WithCourtId(courtID),
+						WithCourtId(courtID).
+						WithCreatorId(userID),
 					models.NewDBMatchesFixture().
 						WithId(matchID2).
-						WithCourtId(courtID),
+						WithCourtId(courtID).
+						WithCreatorId(userID),
 				},
 				UserMatches: []models.DBUserMatch{
 					models.NewDBUserMatchFixture().
@@ -322,15 +338,18 @@ func TestDatabase_GetMatchCountByUserID(t *testing.T) {
 					models.NewDBMatchesFixture().
 						WithId(matchID1).
 						WithCourtId(courtID).
-						WithCurrentState(models.Termine),
+						WithCurrentState(models.Termine).
+						WithCreatorId(userID1),
 					models.NewDBMatchesFixture().
 						WithId(matchID2).
 						WithCourtId(courtID).
-						WithCurrentState(models.ManqueScore),
+						WithCurrentState(models.ManqueScore).
+						WithCreatorId(userID1),
 					models.NewDBMatchesFixture().
 						WithId(matchID3).
 						WithCourtId(courtID).
-						WithCurrentState(models.Valide),
+						WithCurrentState(models.Valide).
+						WithCreatorId(userID1),
 				},
 				UserMatches: []models.DBUserMatch{
 					models.NewDBUserMatchFixture().
@@ -362,7 +381,8 @@ func TestDatabase_GetMatchCountByUserID(t *testing.T) {
 					models.NewDBMatchesFixture().
 						WithId(matchID4).
 						WithCourtId(courtID).
-						WithCurrentState(models.Valide),
+						WithCurrentState(models.Valide).
+						WithCreatorId(userID2),
 				},
 				UserMatches: []models.DBUserMatch{
 					models.NewDBUserMatchFixture().
@@ -424,19 +444,23 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 		param    string
 		expected expected
 	}
+	user := models.NewDBUsersFixture()
 
 	court1 := models.NewDBCourtFixture()
 	court2 := models.NewDBCourtFixture()
 
 	match1 := models.NewDBMatchesFixture().
-		WithCourtId(court1.Id)
+		WithCourtId(court1.Id).
+		WithCreatorId(user.Id)
 	match2 := models.NewDBMatchesFixture().
-		WithCourtId(court2.Id)
+		WithCourtId(court2.Id).
+		WithCreatorId(user.Id)
 
 	testCases := []testCase{
 		{
 			name: "Matches found for court1",
 			fixtures: DBFixtures{
+				Users:   []models.DBUsers{user},
 				Courts:  []models.DBCourt{court1, court2},
 				Matches: []models.DBMatches{match1, match2},
 			},
@@ -450,6 +474,7 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 		{
 			name: "Matches found for court2",
 			fixtures: DBFixtures{
+				Users:   []models.DBUsers{user},
 				Courts:  []models.DBCourt{court1, court2},
 				Matches: []models.DBMatches{match1, match2},
 			},
@@ -463,6 +488,7 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 		{
 			name: "No matches for unknown court",
 			fixtures: DBFixtures{
+				Users:   []models.DBUsers{user},
 				Courts:  []models.DBCourt{court1, court2},
 				Matches: []models.DBMatches{match1, match2},
 			},
@@ -533,6 +559,7 @@ func TestDatabase_UpsertMatch(t *testing.T) {
 		param    models.DBMatches
 		expected expected
 	}
+	user := models.NewDBUsersFixture()
 
 	court := models.NewDBCourtFixture().
 		WithName("Court Test").
@@ -544,7 +571,8 @@ func TestDatabase_UpsertMatch(t *testing.T) {
 		WithId(matchID).
 		WithCourtId(court.Id).
 		WithScore1(0).
-		WithScore2(0)
+		WithScore2(0).
+		WithCreatorId(user.Id)
 
 	updatedMatch := initialMatch
 	updatedMatch.Score1 = ptr(5)
@@ -555,6 +583,7 @@ func TestDatabase_UpsertMatch(t *testing.T) {
 		{
 			name: "Insert new param",
 			fixtures: DBFixtures{
+				Users:  []models.DBUsers{user},
 				Courts: []models.DBCourt{court},
 			},
 			param: initialMatch,
@@ -566,6 +595,7 @@ func TestDatabase_UpsertMatch(t *testing.T) {
 		{
 			name: "Update existing param",
 			fixtures: DBFixtures{
+				Users:   []models.DBUsers{user},
 				Courts:  []models.DBCourt{court},
 				Matches: []models.DBMatches{initialMatch},
 			},
@@ -591,7 +621,7 @@ func TestDatabase_UpsertMatch(t *testing.T) {
 			s.loadFixtures(c.fixtures)
 
 			ctx := context.Background()
-			err := s.db.UpsertMatch(ctx, c.param)
+			err := s.db.UpsertMatch(ctx, c.param, time.Now())
 			require.NoError(t, err)
 
 			matchFromDB, err := s.db.GetMatchById(ctx, c.param.Id)
@@ -657,7 +687,8 @@ func TestDatabase_CountUsersByMatchAndTeam(t *testing.T) {
 				Matches: []models.DBMatches{
 					models.NewDBMatchesFixture().
 						WithId(matchID).
-						WithCourtId(court.Id),
+						WithCourtId(court.Id).
+						WithCreatorId(user1.Id),
 				},
 				UserMatches: []models.DBUserMatch{
 					models.NewDBUserMatchFixture().
@@ -691,7 +722,8 @@ func TestDatabase_CountUsersByMatchAndTeam(t *testing.T) {
 				Matches: []models.DBMatches{
 					models.NewDBMatchesFixture().
 						WithId(matchID).
-						WithCourtId(court.Id),
+						WithCourtId(court.Id).
+						WithCreatorId(user1.Id),
 				},
 				UserMatches: []models.DBUserMatch{
 					models.NewDBUserMatchFixture().
@@ -766,8 +798,8 @@ func TestDatabase_GetUserInMatch(t *testing.T) {
 	user1 := models.NewDBUsersFixture().WithUsername("user1").WithEmail("email1")
 	user2 := models.NewDBUsersFixture().WithUsername("user2").WithEmail("email2")
 	court := models.NewDBCourtFixture()
-	match1 := models.NewDBMatchesFixture().WithCourtId(court.Id)
-	match2 := models.NewDBMatchesFixture().WithCourtId(court.Id)
+	match1 := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCreatorId(user1.Id)
+	match2 := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCreatorId(user1.Id)
 
 	testCases := []testCase{
 		{
@@ -870,14 +902,16 @@ func TestDatabase_GetUserMatchesByMatchID(t *testing.T) {
 
 	court := models.NewDBCourtFixture()
 
-	match1 := models.NewDBMatchesFixture().
-		WithCourtId(court.Id)
-	match2 := models.NewDBMatchesFixture().
-		WithCourtId(court.Id)
-
 	u1 := models.NewDBUsersFixture().WithUsername("u1").WithEmail("u1@example.com")
 	u2 := models.NewDBUsersFixture().WithUsername("u2").WithEmail("u2@example.com")
 	u3 := models.NewDBUsersFixture().WithUsername("u3").WithEmail("u3@example.com")
+
+	match1 := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCreatorId(u1.Id)
+	match2 := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCreatorId(u1.Id)
 
 	testCases := []testCase{
 		{
@@ -962,26 +996,31 @@ func TestDatabase_GetUserWinrate(t *testing.T) {
 
 	court := models.NewDBCourtFixture()
 
-	mWin := models.NewDBMatchesFixture().
-		WithCourtId(court.Id).
-		WithCurrentState(models.Termine)
-	mLoss := models.NewDBMatchesFixture().
-		WithCourtId(court.Id).
-		WithCurrentState(models.Termine)
-	mDraw := models.NewDBMatchesFixture().
-		WithCourtId(court.Id).
-		WithCurrentState(models.Termine)
-	mNotFinished := models.NewDBMatchesFixture().
-		WithCourtId(court.Id).
-		WithCurrentState(models.EnCours)
-	mNoScore := models.NewDBMatchesFixture().
-		WithCourtId(court.Id).
-		WithCurrentState(models.Termine)
-
 	u1 := models.NewDBUsersFixture().WithUsername("u1").WithEmail("u1@example.com")
 	u2 := models.NewDBUsersFixture().WithUsername("u2").WithEmail("u2@example.com")
 	u3 := models.NewDBUsersFixture().WithUsername("u3").WithEmail("u3@example.com")
 	u4 := models.NewDBUsersFixture().WithUsername("u4").WithEmail("u4@example.com")
+
+	mWin := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.Termine).
+		WithCreatorId(u1.Id)
+	mLoss := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.Termine).
+		WithCreatorId(u1.Id)
+	mDraw := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.Termine).
+		WithCreatorId(u1.Id)
+	mNotFinished := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.EnCours).
+		WithCreatorId(u1.Id)
+	mNoScore := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.Termine).
+		WithCreatorId(u1.Id)
 
 	mWin.Score1 = ptr(3)
 	mWin.Score2 = ptr(1)
@@ -1079,11 +1118,11 @@ func TestDatabase_GetUsersByMatchIDs(t *testing.T) {
 	}
 
 	court := models.NewDBCourtFixture()
-	match1 := models.NewDBMatchesFixture().WithCourtId(court.Id)
-	match2 := models.NewDBMatchesFixture().WithCourtId(court.Id)
 	user1 := models.NewDBUsersFixture().WithUsername("Alice").WithEmail("email1@gmail.com")
 	user2 := models.NewDBUsersFixture().WithUsername("Bob").WithEmail("email2@gmail.com")
 	user3 := models.NewDBUsersFixture().WithUsername("Charlie").WithEmail("email3@gmail.com")
+	match1 := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCreatorId(user1.Id)
+	match2 := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCreatorId(user1.Id)
 
 	testCases := []testCase{
 		{
@@ -1109,6 +1148,7 @@ func TestDatabase_GetUsersByMatchIDs(t *testing.T) {
 		{
 			name: "Aucun user pour les matchs demandés",
 			fixtures: DBFixtures{
+				Users:   []models.DBUsers{user1},
 				Courts:  []models.DBCourt{court},
 				Matches: []models.DBMatches{match1, match2},
 			},
@@ -1142,66 +1182,6 @@ func TestDatabase_GetUsersByMatchIDs(t *testing.T) {
 	}
 }
 
-func TestDatabase_GetCourtsByIDs(t *testing.T) {
-	type expected struct {
-		courts map[string]string
-	}
-
-	type testCase struct {
-		name     string
-		fixtures DBFixtures
-		ids      []string
-		expected expected
-	}
-
-	court1 := models.NewDBCourtFixture().WithName("Court A")
-	court2 := models.NewDBCourtFixture().WithName("Court B")
-
-	testCases := []testCase{
-		{
-			name: "Deux courts existants",
-			fixtures: DBFixtures{
-				Courts: []models.DBCourt{court1, court2},
-			},
-			ids: []string{court1.Id, court2.Id},
-			expected: expected{
-				courts: map[string]string{
-					court1.Id: "Court A",
-					court2.Id: "Court B",
-				},
-			},
-		},
-		{
-			name: "Aucun court trouvé",
-			fixtures: DBFixtures{
-				Courts: []models.DBCourt{},
-			},
-			ids:      []string{"nonexistent-id"},
-			expected: expected{courts: map[string]string{}},
-		},
-	}
-
-	for _, c := range testCases {
-		t.Run(c.name, func(t *testing.T) {
-			s := &Service{}
-			cleanup := s.InitServiceTest()
-			defer func() { _ = cleanup() }()
-			s.loadFixtures(c.fixtures)
-
-			ctx := context.Background()
-			got, err := s.db.GetCourtsByIDs(ctx, c.ids)
-			require.NoError(t, err)
-
-			gotMap := make(map[string]string)
-			for _, ct := range got {
-				gotMap[ct.Id] = ct.Name
-			}
-
-			require.Equal(t, c.expected.courts, gotMap)
-		})
-	}
-}
-
 func TestDatabase_GetUsersByMatchId(t *testing.T) {
 	type expected struct {
 		userIDs []string
@@ -1216,10 +1196,9 @@ func TestDatabase_GetUsersByMatchId(t *testing.T) {
 	}
 
 	court := models.NewDBCourtFixture()
-	match := models.NewDBMatchesFixture().WithCourtId(court.Id)
-
 	user1 := models.NewDBUsersFixture().WithUsername("alice").WithEmail("alice@test.com")
 	user2 := models.NewDBUsersFixture().WithUsername("bob").WithEmail("bob@test.com")
+	match := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCreatorId(user1.Id)
 
 	testCases := []testCase{
 		{
@@ -1242,6 +1221,7 @@ func TestDatabase_GetUsersByMatchId(t *testing.T) {
 		{
 			name: "Match exists but no users",
 			fixtures: DBFixtures{
+				Users:   []models.DBUsers{user1},
 				Courts:  []models.DBCourt{court},
 				Matches: []models.DBMatches{match},
 			},
@@ -1301,12 +1281,14 @@ func TestDatabase_DeleteMatch(t *testing.T) {
 	}
 
 	court := models.NewDBCourtFixture()
-	match := models.NewDBMatchesFixture().WithCourtId(court.Id)
+	user := models.NewDBUsersFixture()
+	match := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCreatorId(user.Id)
 
 	testCases := []testCase{
 		{
 			name: "Delete existing match",
 			fixtures: DBFixtures{
+				Users:   []models.DBUsers{user},
 				Courts:  []models.DBCourt{court},
 				Matches: []models.DBMatches{match},
 			},
@@ -1363,11 +1345,10 @@ func TestDatabase_CountUsersByMatch(t *testing.T) {
 	}
 
 	court := models.NewDBCourtFixture()
-	match1 := models.NewDBMatchesFixture().WithCourtId(court.Id)
-	match2 := models.NewDBMatchesFixture().WithCourtId(court.Id)
-
 	user1 := models.NewDBUsersFixture().WithUsername("alice").WithEmail("alice@test.com")
 	user2 := models.NewDBUsersFixture().WithUsername("bob").WithEmail("bob@test.com")
+	match1 := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCreatorId(user1.Id)
+	match2 := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCreatorId(user1.Id)
 
 	testCases := []testCase{
 		{
@@ -1389,6 +1370,7 @@ func TestDatabase_CountUsersByMatch(t *testing.T) {
 		{
 			name: "Match exists but has no users",
 			fixtures: DBFixtures{
+				Users:   []models.DBUsers{user1},
 				Courts:  []models.DBCourt{court},
 				Matches: []models.DBMatches{match2},
 			},

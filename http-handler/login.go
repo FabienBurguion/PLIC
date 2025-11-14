@@ -182,7 +182,7 @@ func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.Auth
 
 	logger.Info().Str("user_id", newUser.Id).Msg("user registered successfully")
 
-	if err := s.mailer.SendWelcomeEmail(newUser.Email, newUser.Username); err != nil {
+	if err := s.mailer.SendWelcomeEmail(newUser.Id, newUser.Email, newUser.Username); err != nil {
 		log.Error().Err(err).Msg("async welcome email failed")
 	}
 

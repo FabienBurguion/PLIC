@@ -506,11 +506,13 @@ func TestDatabase_GetFavoriteFieldByUserID(t *testing.T) {
 					models.NewDBMatchesFixture().
 						WithId(matchID1).
 						WithCourtId(courtID).
-						WithCurrentState(models.Termine),
+						WithCurrentState(models.Termine).
+						WithCreatorId(userID),
 					models.NewDBMatchesFixture().
 						WithId(matchID2).
 						WithCourtId(courtID).
-						WithCurrentState(models.Termine),
+						WithCurrentState(models.Termine).
+						WithCreatorId(userID),
 				},
 				UserMatches: []models.DBUserMatch{
 					models.NewDBUserMatchFixture().
@@ -609,12 +611,14 @@ func TestDatabase_GetFavoriteSportByUserID(t *testing.T) {
 						WithId(matchID1).
 						WithCourtId(courtID).
 						WithSport(models.Basket).
-						WithCurrentState(models.Termine),
+						WithCurrentState(models.Termine).
+						WithCreatorId(userID),
 					models.NewDBMatchesFixture().
 						WithId(matchID2).
 						WithCourtId(courtID).
 						WithSport(models.Basket).
-						WithCurrentState(models.Termine),
+						WithCurrentState(models.Termine).
+						WithCreatorId(userID),
 				},
 				UserMatches: []models.DBUserMatch{
 					models.NewDBUserMatchFixture().
@@ -711,17 +715,20 @@ func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
 						WithId(matchID1).
 						WithSport(models.Foot).
 						WithCourtId(courtID).
-						WithCurrentState(models.Termine),
+						WithCurrentState(models.Termine).
+						WithCreatorId(userID),
 					models.NewDBMatchesFixture().
 						WithId(matchID2).
 						WithSport(models.Basket).
 						WithCourtId(courtID).
-						WithCurrentState(models.Termine),
+						WithCurrentState(models.Termine).
+						WithCreatorId(userID),
 					models.NewDBMatchesFixture().
 						WithId(matchID3).
 						WithSport(models.PingPong).
 						WithCourtId(courtID).
-						WithCurrentState(models.Termine),
+						WithCurrentState(models.Termine).
+						WithCreatorId(userID),
 				},
 				UserMatches: []models.DBUserMatch{
 					models.NewDBUserMatchFixture().
@@ -781,8 +788,6 @@ func TestDatabase_GetPlayedSportsByUserID(t *testing.T) {
 }
 
 func TestDatabase_GetUserStatsByIDs(t *testing.T) {
-	ptrInt := func(i int) *int { return &i }
-
 	court1 := models.NewDBCourtFixture().WithName("Court A")
 	court2 := models.NewDBCourtFixture().WithName("Court B")
 
@@ -791,27 +796,29 @@ func TestDatabase_GetUserStatsByIDs(t *testing.T) {
 
 	m1 := models.NewDBMatchesFixture().
 		WithCourtId(court1.Id).
-		WithCurrentState(models.Termine)
-	m1.Score1 = ptrInt(3)
-	m1.Score2 = ptrInt(1)
+		WithCurrentState(models.Termine).
+		WithScore1(3).
+		WithScore2(1).
+		WithCreatorId(u1.Id)
 
 	m2 := models.NewDBMatchesFixture().
 		WithCourtId(court2.Id).
-		WithCurrentState(models.ManqueScore)
-	m2.Score1 = nil
-	m2.Score2 = nil
+		WithCurrentState(models.ManqueScore).
+		WithCreatorId(u1.Id)
 
 	m3 := models.NewDBMatchesFixture().
 		WithCourtId(court1.Id).
-		WithCurrentState(models.Termine)
-	m3.Score1 = ptrInt(2)
-	m3.Score2 = ptrInt(2)
+		WithCurrentState(models.Termine).
+		WithScore1(2).
+		WithScore2(2).
+		WithCreatorId(u1.Id)
 
 	m4 := models.NewDBMatchesFixture().
 		WithCourtId(court1.Id).
-		WithCurrentState(models.Termine)
-	m4.Score1 = ptrInt(1)
-	m4.Score2 = ptrInt(3)
+		WithCurrentState(models.Termine).
+		WithScore1(1).
+		WithScore2(3).
+		WithCreatorId(u1.Id)
 
 	ums := []models.DBUserMatch{
 		{UserID: u1.Id, MatchID: m1.Id, Team: 1, CreatedAt: time.Now()},

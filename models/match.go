@@ -32,7 +32,7 @@ func (m MatchRequest) WithSport(sport Sport) MatchRequest {
 	return m
 }
 
-func (m MatchRequest) ToDBMatches(now time.Time) DBMatches {
+func (m MatchRequest) ToDBMatches(now time.Time, creatorId string) DBMatches {
 	return DBMatches{
 		Id:              uuid.NewString(),
 		Sport:           m.Sport,
@@ -42,6 +42,7 @@ func (m MatchRequest) ToDBMatches(now time.Time) DBMatches {
 		Score1:          nil,
 		Score2:          nil,
 		CourtID:         m.CourtID,
+		CreatorID:       creatorId,
 		CreatedAt:       now,
 		UpdatedAt:       now,
 	}

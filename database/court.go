@@ -82,6 +82,17 @@ func (db Database) GetCourtByID(ctx context.Context, id string) (*models.DBCourt
 	return &court, nil
 }
 
+func (db Database) GetCourtsByIDs(ctx context.Context, ids []string) ([]models.DBCourt, error) {
+	query := `
+        SELECT id, address, longitude, latitude, created_at, name
+        FROM courts
+        WHERE id = ANY($1)
+    `
+	var courts []models.DBCourt
+	err := db.Database.SelectContext(ctx, &courts, query, ids)
+	return courts, err
+}
+
 func (db Database) InsertCourtForTest(ctx context.Context, court models.DBCourt) error {
 	_, err := db.Database.NamedExecContext(ctx, `
 		INSERT INTO courts (id, name, address, latitude, longitude, created_at)

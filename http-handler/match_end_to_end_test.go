@@ -127,7 +127,7 @@ func Test_MatchLifecycle(t *testing.T) {
 		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
 		w := httptest.NewRecorder()
 
-		err := s.FinishMatch(w, r, models.AuthInfo{IsConnected: true, UserID: u2.Id})
+		err := s.FinishMatch(w, r, models.AuthInfo{IsConnected: true, UserID: creator.Id})
 		require.NoError(t, err)
 		resp := w.Result()
 		defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)

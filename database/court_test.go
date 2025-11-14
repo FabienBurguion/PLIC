@@ -167,13 +167,16 @@ func TestDatabase_GetVisitedFieldCountByUserID(t *testing.T) {
 				Matches: []models.DBMatches{
 					models.NewDBMatchesFixture().
 						WithId(matchID1).
-						WithCourtId(court1.Id),
+						WithCourtId(court1.Id).
+						WithCreatorId(userID1),
 					models.NewDBMatchesFixture().
 						WithId(matchID2).
-						WithCourtId(court2.Id),
+						WithCourtId(court2.Id).
+						WithCreatorId(userID1),
 					models.NewDBMatchesFixture().
 						WithId(matchID3).
-						WithCourtId(court1.Id),
+						WithCourtId(court1.Id).
+						WithCreatorId(userID1),
 				},
 				UserMatches: []models.DBUserMatch{
 					models.NewDBUserMatchFixture().
@@ -308,6 +311,66 @@ func TestDatabase_GetCourtByID(t *testing.T) {
 			require.NotNil(t, got)
 			require.Equal(t, tc.param, got.Id)
 			require.Equal(t, tc.expected.name, got.Name)
+		})
+	}
+}
+
+func TestDatabase_GetCourtsByIDs(t *testing.T) {
+	type expected struct {
+		courts map[string]string
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		ids      []string
+		expected expected
+	}
+
+	court1 := models.NewDBCourtFixture().WithName("Court A")
+	court2 := models.NewDBCourtFixture().WithName("Court B")
+
+	testCases := []testCase{
+		{
+			name: "Deux courts existants",
+			fixtures: DBFixtures{
+				Courts: []models.DBCourt{court1, court2},
+			},
+			ids: []string{court1.Id, court2.Id},
+			expected: expected{
+				courts: map[string]string{
+					court1.Id: "Court A",
+					court2.Id: "Court B",
+				},
+			},
+		},
+		{
+			name: "Aucun court trouvé",
+			fixtures: DBFixtures{
+				Courts: []models.DBCourt{},
+			},
+			ids:      []string{"nonexistent-id"},
+			expected: expected{courts: map[string]string{}},
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+			s.loadFixtures(c.fixtures)
+
+			ctx := context.Background()
+			got, err := s.db.GetCourtsByIDs(ctx, c.ids)
+			require.NoError(t, err)
+
+			gotMap := make(map[string]string)
+			for _, ct := range got {
+				gotMap[ct.Id] = ct.Name
+			}
+
+			require.Equal(t, c.expected.courts, gotMap)
 		})
 	}
 }

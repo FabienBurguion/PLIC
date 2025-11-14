@@ -33,6 +33,7 @@ type DBMatches struct {
 	Score1          *int       `db:"score1"`
 	Score2          *int       `db:"score2"`
 	CourtID         string     `db:"court_id"`
+	CreatorID       string     `db:"creator_id"`
 	CreatedAt       time.Time  `db:"created_at"`
 	UpdatedAt       time.Time  `db:"updated_at"`
 }
@@ -44,6 +45,7 @@ func NewDBMatchesFixture() DBMatches {
 		Date:            time.Now(),
 		ParticipantNber: 8,
 		CurrentState:    "Manque joueur",
+		CreatorID:       uuid.NewString(),
 		Score1:          nil,
 		Score2:          nil,
 	}
@@ -56,6 +58,11 @@ func (m DBMatches) WithId(id string) DBMatches {
 
 func (m DBMatches) WithCourtId(courtId string) DBMatches {
 	m.CourtID = courtId
+	return m
+}
+
+func (m DBMatches) WithCreatorId(creatorId string) DBMatches {
+	m.CreatorID = creatorId
 	return m
 }
 

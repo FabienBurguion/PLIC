@@ -2,6 +2,7 @@ ALTER TABLE ranking
     ADD COLUMN sport sport NOT NULL DEFAULT 'basket';
 
 ALTER TABLE ranking
+    DROP CONSTRAINT ranking_user_court_unique,
     ADD CONSTRAINT ranking_user_court_sport_unique
         UNIQUE (user_id, court_id, sport);
 

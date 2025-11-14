@@ -348,7 +348,7 @@ func (s *Service) CreateMatch(w http.ResponseWriter, r *http.Request, ai models.
 		return httpx.WriteError(w, http.StatusBadRequest, "court not found")
 	}
 
-	matchDb := match.ToDBMatches(s.clock.Now())
+	matchDb := match.ToDBMatches(s.clock.Now(), ai.UserID)
 
 	if err := s.db.CreateMatch(ctx, matchDb); err != nil {
 		logger.Error().Err(err).Msg("db create match failed")
@@ -505,7 +505,7 @@ func (s *Service) JoinMatch(w http.ResponseWriter, r *http.Request, ai models.Au
 	}
 
 	match.UpdatedAt = s.clock.Now()
-	if err := s.db.UpsertMatch(ctx, *match); err != nil {
+	if err := s.db.UpsertMatch(ctx, *match, s.clock.Now()); err != nil {
 		logger.Error().Err(err).Msg("db upsert match failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to update match")
 	}
@@ -775,7 +775,7 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, ai mo
 						teamScore, oppScore = req.Score2, req.Score1
 					}
 
-					if err := s.mailer.SendMatchResultEmail(u.Email, u.Username, match.Sport, court.Name, teamScore, oppScore); err != nil {
+					if err := s.mailer.SendMatchResultEmail(id, u.Email, u.Username, match.Sport, court.Name, teamScore, oppScore); err != nil {
 						logger.Error().
 							Err(err).
 							Str("email", u.Email).
@@ -800,7 +800,7 @@ func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, ai mo
 	match.Score2 = &req.Score2
 	match.UpdatedAt = s.clock.Now()
 
-	if err := s.db.UpsertMatch(ctx, *match); err != nil {
+	if err := s.db.UpsertMatch(ctx, *match, s.clock.Now()); err != nil {
 		logger.Error().Err(err).Msg("db upsert match failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to update match")
 	}
@@ -854,6 +854,11 @@ func (s *Service) StartMatch(w http.ResponseWriter, r *http.Request, ai models.A
 		logger.Warn().Str("state", string(match.CurrentState)).Msg("match not in Valide")
 		return httpx.WriteError(w, http.StatusBadRequest, "match is not in the right state")
 	}
+	if match.CreatorID != ai.UserID {
+		msg := "user is not the match creator"
+		logger.Warn().Str("creator_id", match.CreatorID).Msg(msg)
+		return httpx.WriteError(w, http.StatusForbidden, msg)
+	}
 
 	userInMatch, err := s.db.IsUserInMatch(ctx, ai.UserID, id)
 	if err != nil {
@@ -868,7 +873,7 @@ func (s *Service) StartMatch(w http.ResponseWriter, r *http.Request, ai models.A
 	match.Date = s.clock.Now()
 	match.CurrentState = models.EnCours
 	match.UpdatedAt = s.clock.Now()
-	if err := s.db.UpsertMatch(ctx, *match); err != nil {
+	if err := s.db.UpsertMatch(ctx, *match, s.clock.Now()); err != nil {
 		logger.Error().Err(err).Msg("db upsert match failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to update match")
 	}
@@ -922,6 +927,11 @@ func (s *Service) FinishMatch(w http.ResponseWriter, r *http.Request, ai models.
 		logger.Warn().Str("state", string(match.CurrentState)).Msg("match not in EnCours")
 		return httpx.WriteError(w, http.StatusBadRequest, "match is not in the right state")
 	}
+	if match.CreatorID != ai.UserID {
+		msg := "user is not the match creator"
+		logger.Warn().Str("creator_id", match.CreatorID).Msg(msg)
+		return httpx.WriteError(w, http.StatusForbidden, msg)
+	}
 
 	userInMatch, err := s.db.IsUserInMatch(ctx, ai.UserID, id)
 	if err != nil {
@@ -935,7 +945,7 @@ func (s *Service) FinishMatch(w http.ResponseWriter, r *http.Request, ai models.
 
 	match.CurrentState = models.ManqueScore
 	match.UpdatedAt = s.clock.Now()
-	if err := s.db.UpsertMatch(ctx, *match); err != nil {
+	if err := s.db.UpsertMatch(ctx, *match, s.clock.Now()); err != nil {
 		logger.Error().Err(err).Msg("db upsert match failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to update match")
 	}

@@ -32,10 +32,11 @@ func Test_GetMatchByID(t *testing.T) {
 	}
 	court := models.NewDBCourtFixture()
 
-	match := models.NewDBMatchesFixture().
-		WithCourtId(court.Id)
-
 	user := models.NewDBUsersFixture()
+
+	match := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCreatorId(user.Id)
 
 	testCases := []testCase{
 		{
@@ -113,10 +114,10 @@ func Test_GetMatchesByUserID(t *testing.T) {
 	}
 
 	court := models.NewDBCourtFixture()
-	match := models.NewDBMatchesFixture().
-		WithCourtId(court.Id)
-
 	user := models.NewDBUsersFixture()
+	match := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCreatorId(user.Id)
 
 	testCases := []testCase{
 		{
@@ -210,14 +211,18 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 	court1 := models.NewDBCourtFixture()
 	court2 := models.NewDBCourtFixture()
 
+	user := models.NewDBUsersFixture()
+
 	match1 := models.NewDBMatchesFixture().
 		WithCourtId(court1.Id).
 		WithSport(models.Foot).
-		WithCurrentState(models.Termine)
+		WithCurrentState(models.Termine).
+		WithCreatorId(user.Id)
 	match2 := models.NewDBMatchesFixture().
 		WithCourtId(court2.Id).
 		WithSport(models.Basket).
-		WithCurrentState(models.Termine)
+		WithCurrentState(models.Termine).
+		WithCreatorId(user.Id)
 
 	testCases := []testCase{
 		{
@@ -241,6 +246,7 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 		{
 			name: "No matches for given court",
 			fixtures: DBFixtures{
+				Users:   []models.DBUsers{user},
 				Courts:  []models.DBCourt{court1, court2},
 				Matches: []models.DBMatches{match2},
 			},
@@ -254,6 +260,7 @@ func Test_GetMatchesByCourtId(t *testing.T) {
 		{
 			name: "Matches found for court1",
 			fixtures: DBFixtures{
+				Users:   []models.DBUsers{user},
 				Courts:  []models.DBCourt{court1, court2},
 				Matches: []models.DBMatches{match1, match2},
 			},
@@ -328,12 +335,14 @@ func Test_GetAllMatches(t *testing.T) {
 	court1 := models.NewDBCourtFixture()
 	court2 := models.NewDBCourtFixture()
 
-	match1 := models.NewDBMatchesFixture().
-		WithCourtId(court1.Id)
-	match2 := models.NewDBMatchesFixture().
-		WithCourtId(court2.Id)
-
 	user := models.NewDBUsersFixture()
+
+	match1 := models.NewDBMatchesFixture().
+		WithCourtId(court1.Id).
+		WithCreatorId(user.Id)
+	match2 := models.NewDBMatchesFixture().
+		WithCourtId(court2.Id).
+		WithCreatorId(user.Id)
 
 	testCases := []testCase{
 		{
@@ -571,24 +580,27 @@ func Test_UpdateMatchScore_ConsensusAndTeamRules(t *testing.T) {
 	court := models.NewDBCourtFixture()
 	const sport = models.Foot
 
+	userA := models.NewDBUsersFixture()
+	userB := models.NewDBUsersFixture().WithUsername("userB").WithEmail("emailB@example.com")
+	userC := models.NewDBUsersFixture().WithUsername("userC").WithEmail("emailC@example.com")
+
 	matchConsensus := models.NewDBMatchesFixture().
 		WithCourtId(court.Id).
 		WithSport(sport).
-		WithCurrentState(models.ManqueScore)
+		WithCurrentState(models.ManqueScore).
+		WithCreatorId(userA.Id)
 
 	matchNoConsensus := models.NewDBMatchesFixture().
 		WithCourtId(court.Id).
 		WithSport(sport).
-		WithCurrentState(models.ManqueScore)
+		WithCurrentState(models.ManqueScore).
+		WithCreatorId(userA.Id)
 
 	matchTeamTwice := models.NewDBMatchesFixture().
 		WithCourtId(court.Id).
 		WithSport(sport).
-		WithCurrentState(models.ManqueScore)
-
-	userA := models.NewDBUsersFixture()
-	userB := models.NewDBUsersFixture().WithUsername("userB").WithEmail("emailB@example.com")
-	userC := models.NewDBUsersFixture().WithUsername("userC").WithEmail("emailC@example.com")
+		WithCurrentState(models.ManqueScore).
+		WithCreatorId(userA.Id)
 
 	baseFixtures := DBFixtures{
 		Courts:  []models.DBCourt{court},
@@ -804,14 +816,15 @@ func Test_JoinMatch(t *testing.T) {
 		WithAddress("123 Rue Sport")
 
 	const sport = models.Basket
+	user := models.NewDBUsersFixture()
 
 	match := models.NewDBMatchesFixture().
 		WithCourtId(court.Id).
 		WithSport(sport).
 		WithParticipantNber(2).
-		WithCurrentState(models.ManqueJoueur)
+		WithCurrentState(models.ManqueJoueur).
+		WithCreatorId(user.Id)
 
-	user := models.NewDBUsersFixture()
 	uTeam1A := models.NewDBUsersFixture().WithUsername("t1_a").WithEmail("t1_a@gmail.com")
 	uTeam1B := models.NewDBUsersFixture().WithUsername("t1_b").WithEmail("t1_b@gmail.com")
 	uTeam2A := models.NewDBUsersFixture().WithUsername("t2_a").WithEmail("t2_a@gmail.com")
@@ -823,7 +836,8 @@ func Test_JoinMatch(t *testing.T) {
 		WithCourtId(court.Id).
 		WithSport(sport).
 		WithParticipantNber(4).
-		WithCurrentState(models.ManqueJoueur)
+		WithCurrentState(models.ManqueJoueur).
+		WithCreatorId(user.Id)
 
 	defaultElo := 1000
 	existingElo := 1337
@@ -1052,10 +1066,12 @@ func Test_StartMatch(t *testing.T) {
 	court := models.NewDBCourtFixture()
 	matchValide := models.NewDBMatchesFixture().
 		WithCourtId(court.Id).
-		WithCurrentState(models.Valide)
+		WithCurrentState(models.Valide).
+		WithCreatorId(user.Id)
 	matchWrongState := models.NewDBMatchesFixture().
 		WithCourtId(court.Id).
-		WithCurrentState(models.ManqueJoueur)
+		WithCurrentState(models.ManqueJoueur).
+		WithCreatorId(user.Id)
 
 	testCases := []testCase{
 		{
@@ -1182,10 +1198,12 @@ func Test_FinishMatch(t *testing.T) {
 	court := models.NewDBCourtFixture()
 	matchEnCours := models.NewDBMatchesFixture().
 		WithCourtId(court.Id).
-		WithCurrentState(models.EnCours)
+		WithCurrentState(models.EnCours).
+		WithCreatorId(user.Id)
 	matchWrongState := models.NewDBMatchesFixture().
 		WithCourtId(court.Id).
-		WithCurrentState(models.Valide)
+		WithCurrentState(models.Valide).
+		WithCreatorId(user.Id)
 
 	tests := []testCase{
 		{
@@ -1314,21 +1332,24 @@ func Test_GetMatchVoteStatus(t *testing.T) {
 
 	court := models.NewDBCourtFixture()
 
-	matchTermine := models.NewDBMatchesFixture().
-		WithCourtId(court.Id).
-		WithCurrentState(models.Termine)
-
-	matchTermineOnlyOpp := models.NewDBMatchesFixture().
-		WithCourtId(court.Id).
-		WithCurrentState(models.Termine)
-
-	matchWrongState := models.NewDBMatchesFixture().
-		WithCourtId(court.Id).
-		WithCurrentState(models.ManqueScore)
-
 	userA := models.NewDBUsersFixture().WithUsername("userA").WithEmail("a@example.com")
 	userB := models.NewDBUsersFixture().WithUsername("userB").WithEmail("b@example.com")
 	userC := models.NewDBUsersFixture().WithUsername("userC").WithEmail("c@example.com")
+
+	matchTermine := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.Termine).
+		WithCreatorId(userA.Id)
+
+	matchTermineOnlyOpp := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.Termine).
+		WithCreatorId(userA.Id)
+
+	matchWrongState := models.NewDBMatchesFixture().
+		WithCourtId(court.Id).
+		WithCurrentState(models.ManqueScore).
+		WithCreatorId(userA.Id)
 
 	makeBool := func(b bool) *bool { return &b }
 	makeTeam := func(t int) *int { return &t }

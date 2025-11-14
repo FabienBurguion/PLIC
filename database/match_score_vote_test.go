@@ -33,7 +33,8 @@ func TestDatabase_GetMatchScoreVote(t *testing.T) {
 	c := models.NewDBCourtFixture()
 	m := models.NewDBMatchesFixture().
 		WithCourtId(c.Id).
-		WithCurrentState(models.ManqueScore)
+		WithCurrentState(models.ManqueScore).
+		WithCreatorId(u1.Id)
 
 	tests := []testCase{
 		{
@@ -152,7 +153,8 @@ func TestDatabase_UpsertMatchScoreVote(t *testing.T) {
 	c := models.NewDBCourtFixture()
 	m := models.NewDBMatchesFixture().
 		WithCourtId(c.Id).
-		WithCurrentState(models.ManqueScore)
+		WithCurrentState(models.ManqueScore).
+		WithCreatorId(u1.Id)
 
 	tests := []testCase{
 		{
@@ -299,7 +301,8 @@ func TestDatabase_HasConsensusScore(t *testing.T) {
 	c := models.NewDBCourtFixture()
 	m := models.NewDBMatchesFixture().
 		WithCourtId(c.Id).
-		WithCurrentState(models.ManqueScore)
+		WithCurrentState(models.ManqueScore).
+		WithCreatorId(u1.Id)
 
 	testCases := []testCase{
 		{
@@ -416,7 +419,8 @@ func TestDatabase_HasOtherTeamVote(t *testing.T) {
 	c := models.NewDBCourtFixture()
 	m := models.NewDBMatchesFixture().
 		WithCourtId(c.Id).
-		WithCurrentState(models.ManqueScore)
+		WithCurrentState(models.ManqueScore).
+		WithCreatorId(u1.Id)
 
 	tests := []testCase{
 		{
@@ -527,12 +531,11 @@ func TestDatabase_GetScoreVoteByMatchAndTeam(t *testing.T) {
 		param    param
 		expected expected
 	}
-
-	court := models.NewDBCourtFixture()
-	match := models.NewDBMatchesFixture().WithCourtId(court.Id)
-
 	uTeam1 := models.NewDBUsersFixture().WithUsername("t1").WithEmail("t1@example.com")
 	uTeam2 := models.NewDBUsersFixture().WithUsername("t2").WithEmail("t2@example.com")
+
+	court := models.NewDBCourtFixture()
+	match := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCreatorId(uTeam1.Id)
 
 	baseFixtures := DBFixtures{
 		Courts:  []models.DBCourt{court},

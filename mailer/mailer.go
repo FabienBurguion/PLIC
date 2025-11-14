@@ -13,8 +13,8 @@ import (
 
 type MailSender interface {
 	SendLinkResetPassword(to string, url string) error
-	SendWelcomeEmail(to string, username string) error
-	SendMatchResultEmail(to string, username string, sport models.Sport, fieldName string, teamScore, oppScore int) error
+	SendWelcomeEmail(userId string, to string, username string) error
+	SendMatchResultEmail(matchId string, to string, username string, sport models.Sport, fieldName string, teamScore, oppScore int) error
 }
 
 type Mailer struct {
@@ -119,8 +119,8 @@ L'équipe Support`, url)
 	return nil
 }
 
-func (mailer *Mailer) SendWelcomeEmail(to string, username string) error {
-	key := to + ":welcome"
+func (mailer *Mailer) SendWelcomeEmail(userId string, to string, username string) error {
+	key := userId + ":welcome"
 
 	baseLogger := log.With().
 		Str("mail_kind", "welcome").
@@ -287,7 +287,7 @@ func sportMeta(s models.Sport) (label, emoji string) {
 	}
 }
 
-func (mailer *Mailer) SendMatchResultEmail(to string, username string, sport models.Sport, fieldName string, teamScore, oppScore int) error {
+func (mailer *Mailer) SendMatchResultEmail(matchId string, to string, username string, sport models.Sport, fieldName string, teamScore, oppScore int) error {
 	baseLogger := log.With().
 		Str("mail_kind", "match_result").
 		Str("to", to).
@@ -298,7 +298,7 @@ func (mailer *Mailer) SendMatchResultEmail(to string, username string, sport mod
 		Int("opp_score", oppScore).
 		Logger()
 
-	key := to + ":match_result"
+	key := matchId + ":match_result"
 	if mailer.AlreadySent[key] && time.Since(mailer.LastSentAt[key]) < 10*time.Second {
 		baseLogger.Warn().Dur("since_last", time.Since(mailer.LastSentAt[key])).Msg("match result email throttled")
 		return fmt.Errorf("match result email recently sent to %s → throttled", to)

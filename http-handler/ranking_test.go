@@ -205,10 +205,12 @@ func Test_GetUserFields(t *testing.T) {
 
 	m1 := models.NewDBMatchesFixture().
 		WithCourtId(c1.Id).
-		WithSport(models.Basket)
+		WithSport(models.Basket).
+		WithCreatorId(user.Id)
 	m2 := models.NewDBMatchesFixture().
 		WithCourtId(c2.Id).
-		WithSport(models.Foot)
+		WithSport(models.Foot).
+		WithCreatorId(user.Id)
 
 	rk1 := models.NewDBRankingFixture().
 		WithUserId(user.Id).
