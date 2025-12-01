@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -510,8 +511,10 @@ func TestService_ResetPassword(t *testing.T) {
 	}
 
 	for _, c := range testCases {
+		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
+
 			s := &Service{}
 			cleanup := s.InitServiceTest()
 			defer func() {
@@ -519,8 +522,10 @@ func TestService_ResetPassword(t *testing.T) {
 					t.Logf("cleanup error: %v", err)
 				}
 			}()
+
 			mockMailer := mailer.NewMockMailer()
 			s.mailer = mockMailer
+
 			s.loadFixtures(DBFixtures{
 				Users: []models.DBUsers{c.param},
 			})
@@ -550,6 +555,7 @@ func TestService_ResetPassword(t *testing.T) {
 			defer func(Body io.ReadCloser) {
 				_ = Body.Close()
 			}(resp.Body)
+
 			require.Equal(t, c.expected.statusCode, resp.StatusCode)
 
 			if c.expected.statusCode != http.StatusOK {
@@ -558,8 +564,85 @@ func TestService_ResetPassword(t *testing.T) {
 
 			updatedUser, err := s.db.GetUserByEmail(req.Context(), userEmail)
 			require.NoError(t, err)
-			require.NotEqual(t, c.param.Password, updatedUser.Password)
+			require.NotEqual(t, c.param.Password, updatedUser.Password, "le mot de passe doit être modifié")
 		})
+	}
+}
+
+func extractPasswordFromHTML(t *testing.T, body string) string {
+	t.Helper()
+
+	re := regexp.MustCompile(`<div id="password" class="password-box">([^<]+)</div>`)
+	matches := re.FindStringSubmatch(body)
+	require.Len(t, matches, 2, "impossible de trouver le mot de passe dans le HTML")
+	return matches[1]
+}
+
+func TestService_ResetPassword_SamePasswordForSameToken(t *testing.T) {
+	userEmail := "reset-idempotent@example.com"
+	userId := uuid.NewString()
+
+	s := &Service{}
+	cleanup := s.InitServiceTest()
+	defer func() {
+		if err := cleanup(); err != nil {
+			t.Logf("cleanup error: %v", err)
+		}
+	}()
+
+	mockMailer := mailer.NewMockMailer()
+	s.mailer = mockMailer
+
+	s.loadFixtures(DBFixtures{
+		Users: []models.DBUsers{
+			models.NewDBUsersFixture().
+				WithId(userId).
+				WithEmail(userEmail).
+				WithPassword("old-password-hash"),
+		},
+	})
+
+	token, err := generateResetToken(userEmail)
+	require.NoError(t, err)
+
+	var firstPassword string
+
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest("GET", "/reset-password/"+token, nil)
+		routeCtx := chi.NewRouteContext()
+		routeCtx.URLParams.Add("token", token)
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
+		w := httptest.NewRecorder()
+
+		err = s.ResetPassword(w, req, models.AuthInfo{})
+		require.NoError(t, err)
+
+		resp := w.Result()
+		bodyBytes, err := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		require.NoError(t, err)
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		body := string(bodyBytes)
+		pw := extractPasswordFromHTML(t, body)
+
+		require.Len(t, pw, 12, "le mot de passe doit faire 12 caractères")
+		allowed := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$"
+		for _, r := range pw {
+			require.Containsf(t, allowed, string(r), "caractère interdit dans le mot de passe: %q", r)
+		}
+
+		updatedUser, err := s.db.GetUserByEmail(req.Context(), userEmail)
+		require.NoError(t, err)
+		err = bcrypt.CompareHashAndPassword([]byte(updatedUser.Password), []byte(pw))
+		require.NoError(t, err, "le hash en base doit correspondre au mot de passe affiché")
+
+		if i == 0 {
+			firstPassword = pw
+		} else {
+			require.Equal(t, firstPassword, pw, "pour un même token, le mot de passe doit rester identique")
+		}
 	}
 }
 

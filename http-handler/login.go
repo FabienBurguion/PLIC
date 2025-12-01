@@ -4,14 +4,16 @@ import (
 	"PLIC/database"
 	"PLIC/httpx"
 	"PLIC/models"
-	"crypto/rand"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"math/big"
 	"net/http"
 	"net/mail"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -192,18 +194,27 @@ func (s *Service) Register(w http.ResponseWriter, r *http.Request, _ models.Auth
 	})
 }
 
-const passwordCharset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+func encodeAndTrim(data []byte, length int) string {
+	encoded := base64.StdEncoding.EncodeToString(data)
 
-func generatePassword(length int) (string, error) {
-	password := make([]byte, length)
-	for i := range password {
-		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(passwordCharset))))
-		if err != nil {
-			return "", err
+	encoded = strings.Map(func(r rune) rune {
+		if strings.ContainsRune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$", r) {
+			return r
 		}
-		password[i] = passwordCharset[num.Int64()]
+		return -1
+	}, encoded)
+
+	if len(encoded) < length {
+		return encoded
 	}
-	return string(password), nil
+	return encoded[:length]
+}
+
+func passwordFromToken(token string, secret string) (string, error) {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(token))
+	sum := mac.Sum(nil)
+	return encodeAndTrim(sum, 12), nil
 }
 
 func generateResetToken(email string) (string, error) {
@@ -326,13 +337,11 @@ func (s *Service) ResetPassword(w http.ResponseWriter, r *http.Request, _ models
 		return httpx.WriteError(w, http.StatusInternalServerError, httpx.InternalServerError)
 	}
 
-	newPassword, err := generatePassword(12)
+	newPassword, err := passwordFromToken(token, jwtSecret)
 	if err != nil {
 		logger.Error().Err(err).Msg("password generation failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, "Could not generate password")
 	}
-
-	logger.Info().Msg("New password generated: " + newPassword)
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
