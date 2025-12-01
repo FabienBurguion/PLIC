@@ -332,6 +332,8 @@ func (s *Service) ResetPassword(w http.ResponseWriter, r *http.Request, _ models
 		return httpx.WriteError(w, http.StatusInternalServerError, "Could not generate password")
 	}
 
+	logger.Info().Msg("New password generated: " + newPassword)
+
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		logger.Error().Err(err).Msg("password hashing failed")
