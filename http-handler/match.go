@@ -664,7 +664,7 @@ func (s *Service) applyEloForMatch(ctx context.Context, match models.DBMatches, 
 // @Failure      401   {object}  models.Error
 // @Failure      404   {object}  models.Error
 // @Failure      500   {object}  models.Error
-// @Router       /match/{id}/score [patch]
+// @Router       /score/match/{id} [patch]
 func (s *Service) UpdateMatchScore(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
 	baseLogger := log.With().
 		Str("method", "UpdateMatchScore").

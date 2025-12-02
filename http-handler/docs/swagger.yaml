@@ -592,47 +592,6 @@ paths:
       summary: Termine un match (passage à la saisie des scores)
       tags:
       - match
-  /match/{id}/score:
-    patch:
-      consumes:
-      - application/json
-      description: Met à jour les scores (score1 et score2) d’un match via son ID
-      parameters:
-      - description: ID du match
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Nouveaux scores
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/models.UpdateScoreRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/models.Error'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/models.Error'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/models.Error'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/models.Error'
-      summary: Met à jour le score d’un match
-      tags:
-      - match
   /match/{id}/start:
     patch:
       description: Passe un match de l’état "Valide" à "En cours" et met à jour la
@@ -945,6 +904,47 @@ paths:
       summary: Réinitialise le mot de passe d’un utilisateur via un lien sécurisé
       tags:
       - auth
+  /score/match/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Met à jour les scores (score1 et score2) d’un match via son ID
+      parameters:
+      - description: ID du match
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Nouveaux scores
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateScoreRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Met à jour le score d’un match
+      tags:
+      - match
   /user/matches/{userId}:
     get:
       description: Retourne les matchs auxquels un utilisateur a participé
