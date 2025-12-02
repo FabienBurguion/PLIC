@@ -186,27 +186,24 @@ func (s *Service) GetMatchByID(w http.ResponseWriter, r *http.Request, ai models
 // @Failure      500  {object}  models.Error
 // @Router       /user/matches/{userId} [get]
 func (s *Service) GetMatchesByUserID(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
-	baseLogger := log.With().
+	logger := log.With().
 		Str("method", "GetMatchesByUserID").
 		Str("user_id", ai.UserID).
 		Logger()
 
 	if !ai.IsConnected {
-		baseLogger.Warn().Msg("unauthorized")
+		logger.Warn().Msg("unauthorized")
 		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
 	}
 
-	userId := chi.URLParam(r, "userId")
-	logger := baseLogger.With().Str("target_user_id", userId).Logger()
-
-	if userId == "" {
-		logger.Warn().Msg("missing userId in url params")
-		return httpx.WriteError(w, http.StatusBadRequest, "missing userId in url params")
+	if ai.UserID == "" {
+		logger.Warn().Msg("missing userId token")
+		return httpx.WriteError(w, http.StatusBadRequest, "missing userId in token")
 	}
 
 	ctx := r.Context()
 
-	dbMatches, err := s.db.GetMatchesByUserID(ctx, userId)
+	dbMatches, err := s.db.GetMatchesByUserID(ctx, ai.UserID)
 	if err != nil {
 		logger.Error().Err(err).Msg("db get matches by user failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, "database error")

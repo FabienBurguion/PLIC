@@ -221,7 +221,7 @@ func main() {
 
 	s.GET("/match/all", withAuthentication(s.GetAllMatches))
 	s.GET("/match/{id}", withAuthentication(s.GetMatchByID))
-	s.GET("/user/matches/{userId}", withAuthentication(s.GetMatchesByUserID))
+	s.GET("/user/matches", withAuthentication(s.GetMatchesByUserID))
 	s.GET("/matches/court/{courtId}", withAuthentication(s.GetMatchesByCourtId))
 	s.POST("/match", withAuthentication(s.CreateMatch))
 	s.POST("/join/match/{id}", withAuthentication(s.JoinMatch))
