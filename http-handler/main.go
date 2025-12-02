@@ -83,7 +83,26 @@ func (s *Service) initService() {
 	s.server = chi.NewRouter()
 
 	if s.isLambda {
-		s.server.Use(ddchi.Middleware(ddchi.WithServiceName("plic-api")))
+		s.server.Use(ddchi.Middleware(
+			ddchi.WithServiceName("plic-api"),
+			ddchi.WithResourceNamer(func(r *http.Request) string {
+				routeCtx := chi.RouteContext(r.Context())
+				pattern := ""
+				if routeCtx != nil {
+					pattern = routeCtx.RoutePattern()
+				}
+
+				if pattern == "/match/{id}" && r.URL.Path == "/match/all" {
+					pattern = "/match/all"
+				}
+
+				if pattern == "" {
+					pattern = r.URL.Path
+				}
+
+				return r.Method + " " + pattern
+			}),
+		))
 	}
 
 	s.server.Use(middleware.Logger)
@@ -147,6 +166,14 @@ func (s *Service) initService() {
 		s.s3Service = &s3_management.RealS3Service{Client: s3Client}
 		log.Info().Msg("S3 service initialized successfully")
 	}
+
+	_ = chi.Walk(s.server, func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+		log.Info().
+			Str("method", method).
+			Str("route", route).
+			Msg("registered route")
+		return nil
+	})
 }
 
 // ----------------------
