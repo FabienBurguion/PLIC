@@ -139,7 +139,7 @@ func (db Database) CreateUser(ctx context.Context, user models.DBUsers) error {
 		switch pgErr.ConstraintName {
 		case "users_email_uniq", "users_email_key":
 			return ErrEmailTaken
-		case "unique_username":
+		case "users_username_uniq", "users_username_key", "unique_username":
 			return ErrUsernameTaken
 		}
 	}
