@@ -85,23 +85,6 @@ func (s *Service) initService() {
 	if s.isLambda {
 		s.server.Use(ddchi.Middleware(
 			ddchi.WithServiceName("plic-api"),
-			ddchi.WithResourceNamer(func(r *http.Request) string {
-				routeCtx := chi.RouteContext(r.Context())
-				pattern := ""
-				if routeCtx != nil {
-					pattern = routeCtx.RoutePattern()
-				}
-
-				if pattern == "/match/{id}" && r.URL.Path == "/match/all" {
-					pattern = "/match/all"
-				}
-
-				if pattern == "" {
-					pattern = r.URL.Path
-				}
-
-				return r.Method + " " + pattern
-			}),
 		))
 	}
 
@@ -218,8 +201,17 @@ func (s *Service) initDb() database.Database {
 
 func (s *Service) Start() {
 	log.Info().Msg("🚀 Starting server on AWS Lambda (Datadog enabled)")
+
 	lambdaHandler := httpadapter.NewV2(s.server)
-	lambda.Start(ddlambda.WrapFunction(lambdaHandler.ProxyWithContext, nil))
+
+	wrapped := ddlambda.WrapFunction(lambdaHandler.ProxyWithContext, &ddlambda.Config{
+		DDTraceEnabled: true,
+		TracerOptions: []tracer.StartOption{
+			tracer.WithService("plic-api"),
+		},
+	})
+
+	lambda.Start(wrapped)
 }
 
 // ----------------------
@@ -266,12 +258,10 @@ func main() {
 	s.GET("/ranking/user/{userId}", withAuthentication(s.GetRankedFieldsByUserID))
 
 	if s.isLambda {
-		tracer.Start(tracer.WithService("plic-api"))
-		defer tracer.Stop()
-
 		log.Info().Msg("🚀 Running in AWS Lambda mode...")
 		s.Start()
 	} else {
+
 		log.Info().Str("port", Port).Msg("🌍 Running locally...")
 		if err := http.ListenAndServe(":"+Port, s.server); err != nil {
 			log.Fatal().Err(err).Msg("server failed")
