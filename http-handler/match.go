@@ -23,6 +23,10 @@ func (s *Service) buildMatchesResponse(ctx context.Context, matches []models.DBM
 
 	logger.Info().Msg("building matches batch")
 
+	if len(matches) == 0 {
+		return nil
+	}
+
 	matchIDs := make([]string, 0, len(matches))
 	courtIDs := make(map[string]struct{})
 	for _, m := range matches {
@@ -57,6 +61,10 @@ func (s *Service) buildMatchesResponse(ctx context.Context, matches []models.DBM
 			userIDSet[u.Id] = struct{}{}
 		}
 	}
+	if len(userIDSet) == 0 {
+		logger.Warn().Msg("no users found for matches")
+	}
+
 	userIDs := make([]string, 0, len(userIDSet))
 	for id := range userIDSet {
 		userIDs = append(userIDs, id)
@@ -67,40 +75,49 @@ func (s *Service) buildMatchesResponse(ctx context.Context, matches []models.DBM
 		logger.Error().Err(err).Msg("prefetching user stats failed")
 	}
 
+	profilePics := make(map[string]string, len(userIDs))
+	var mu sync.Mutex
+
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 10)
+
+	for _, uid := range userIDs {
+		wg.Add(1)
+		go func(userID string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			pic, err := s.s3Service.GetProfilePicture(ctx, userID)
+			if err != nil {
+				logger.Warn().Err(err).Str("user_id", userID).Msg("failed to get profile picture")
+				return
+			}
+
+			mu.Lock()
+			profilePics[userID] = pic.URL
+			mu.Unlock()
+		}(uid)
+	}
+	wg.Wait()
+
 	responses := make([]models.MatchResponse, 0, len(matches))
 	for _, match := range matches {
 		users := usersByMatch[match.Id]
 
-		profilePictures := make([]string, len(users))
-		var wg sync.WaitGroup
-		sem := make(chan struct{}, 10)
-
-		for i, user := range users {
-			wg.Add(1)
-			go func(i int, user models.DBUsers) {
-				defer wg.Done()
-				sem <- struct{}{}
-				defer func() { <-sem }()
-				pic, err := s.s3Service.GetProfilePicture(ctx, user.Id)
-				if err != nil {
-					logger.Warn().Err(err).Str("user_id", user.Id).Msg("failed to get profile picture")
-					profilePictures[i] = ""
-				} else {
-					profilePictures[i] = pic.URL
-				}
-			}(i, user)
-		}
-		wg.Wait()
-
 		court, ok := courtMap[match.CourtID]
 		if !ok {
-			logger.Warn().Str("match_id", match.Id).Msg("no court found for match")
+			logger.Warn().
+				Str("match_id", match.Id).
+				Str("court_id", match.CourtID).
+				Msg("no court found for match")
 			continue
 		}
 
 		userResponses := make([]models.UserResponse, len(users))
 		for i, u := range users {
-			userResponses[i] = s.buildUserResponseFast(&u, profilePictures[i], statsByUser[u.Id])
+			picURL := profilePics[u.Id]
+			userResponses[i] = s.buildUserResponseFast(&u, picURL, statsByUser[u.Id])
 		}
 
 		responses = append(responses, models.MatchResponse{
