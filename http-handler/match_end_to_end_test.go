@@ -138,7 +138,7 @@ func Test_MatchLifecycle(t *testing.T) {
 		require.Equal(t, models.ManqueScore, m.CurrentState)
 	}
 
-	// === 4.1) Vote-status interdit tant que ManqueScore
+	// === 4.1) Vote-status
 	{
 		url := "/match/" + matchID + "/vote-status"
 		r := httptest.NewRequest("GET", url, nil)
@@ -151,7 +151,7 @@ func Test_MatchLifecycle(t *testing.T) {
 		require.NoError(t, err)
 		resp := w.Result()
 		defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
-		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
 	}
 
 	// === 5) Votes de score ===

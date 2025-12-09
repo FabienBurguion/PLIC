@@ -1338,15 +1338,10 @@ func Test_GetMatchVoteStatus(t *testing.T) {
 
 	matchTermine := models.NewDBMatchesFixture().
 		WithCourtId(court.Id).
-		WithCurrentState(models.Termine).
+		WithCurrentState(models.ManqueScore).
 		WithCreatorId(userA.Id)
 
 	matchTermineOnlyOpp := models.NewDBMatchesFixture().
-		WithCourtId(court.Id).
-		WithCurrentState(models.Termine).
-		WithCreatorId(userA.Id)
-
-	matchWrongState := models.NewDBMatchesFixture().
 		WithCourtId(court.Id).
 		WithCurrentState(models.ManqueScore).
 		WithCreatorId(userA.Id)
@@ -1413,24 +1408,6 @@ func Test_GetMatchVoteStatus(t *testing.T) {
 				opHasVoted: makeBool(true),
 				myScore:    nil,
 				opScore:    makeScore(9, 9),
-			},
-		},
-		{
-			name:    "Wrong state: match not 'Termine'",
-			auth:    models.AuthInfo{IsConnected: true, UserID: userA.Id},
-			paramID: matchWrongState.Id,
-			fixtures: DBFixtures{
-				Courts:  []models.DBCourt{court},
-				Matches: []models.DBMatches{matchWrongState},
-				Users:   []models.DBUsers{userA, userB},
-				UserMatches: []models.DBUserMatch{
-					models.NewDBUserMatchFixture().WithUserId(userA.Id).WithMatchId(matchWrongState.Id).WithTeam(1),
-					models.NewDBUserMatchFixture().WithUserId(userB.Id).WithMatchId(matchWrongState.Id).WithTeam(2),
-				},
-			},
-			expected: expected{
-				code:        http.StatusBadRequest,
-				errContains: "only when match is 'Termine'",
 			},
 		},
 		{

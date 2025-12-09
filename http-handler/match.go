@@ -1010,11 +1010,6 @@ func (s *Service) GetMatchVoteStatus(w http.ResponseWriter, r *http.Request, ai 
 		return httpx.WriteError(w, http.StatusNotFound, "match not found")
 	}
 
-	if match.CurrentState != models.Termine {
-		logger.Warn().Str("state", string(match.CurrentState)).Msg("match not in Termine")
-		return httpx.WriteError(w, http.StatusBadRequest, "vote status available only when match is 'Termine'")
-	}
-
 	um, err := s.db.GetUserInMatch(ctx, ai.UserID, matchID)
 	if err != nil {
 		logger.Error().Err(err).Msg("db get user in match failed")
