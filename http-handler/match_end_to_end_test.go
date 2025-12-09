@@ -152,6 +152,17 @@ func Test_MatchLifecycle(t *testing.T) {
 		resp := w.Result()
 		defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var st models.MatchVoteStatusResponse
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		require.NoError(t, json.Unmarshal(bodyBytes, &st))
+
+		require.Equal(t, matchID, st.MatchID)
+		require.Equal(t, 1, st.PlayerTeam)
+		require.False(t, st.MyTeam.HasVoted)
+		require.False(t, st.Opponent.HasVoted)
+		require.Nil(t, st.MyTeam.Score)
+		require.Nil(t, st.Opponent.Score)
 	}
 
 	// === 5) Votes de score ===
