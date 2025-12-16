@@ -413,6 +413,7 @@ func TestDatabase_GetRankingsByCourtID(t *testing.T) {
 		name     string
 		fixtures DBFixtures
 		courtID  string
+		sport    models.Sport
 		expected expected
 	}
 
@@ -425,11 +426,11 @@ func TestDatabase_GetRankingsByCourtID(t *testing.T) {
 
 	u4 := models.NewDBUsersFixture().WithUsername("dave").WithEmail("dave@example.com")
 
-	rA1 := models.NewDBRankingFixture().WithUserId(u1.Id).WithCourtId(courtA.Id).WithElo(1200)
-	rA2 := models.NewDBRankingFixture().WithUserId(u2.Id).WithCourtId(courtA.Id).WithElo(1100)
-	rA3 := models.NewDBRankingFixture().WithUserId(u3.Id).WithCourtId(courtA.Id).WithElo(1100)
+	rA1 := models.NewDBRankingFixture().WithUserId(u1.Id).WithCourtId(courtA.Id).WithSport(models.PingPong).WithElo(1200)
+	rA2 := models.NewDBRankingFixture().WithUserId(u2.Id).WithCourtId(courtA.Id).WithSport(models.Basket).WithElo(1100)
+	rA3 := models.NewDBRankingFixture().WithUserId(u3.Id).WithCourtId(courtA.Id).WithSport(models.Foot).WithElo(1100)
 
-	rB1 := models.NewDBRankingFixture().WithUserId(u4.Id).WithCourtId(courtB.Id).WithElo(1500)
+	rB1 := models.NewDBRankingFixture().WithUserId(u4.Id).WithCourtId(courtB.Id).WithSport(models.PingPong).WithElo(1500)
 
 	now := time.Now()
 	for _, r := range []*models.DBRanking{&rA1, &rA2, &rA3, &rB1} {
@@ -446,6 +447,7 @@ func TestDatabase_GetRankingsByCourtID(t *testing.T) {
 				Rankings: []models.DBRanking{rA1, rA2, rA3},
 			},
 			courtID: courtA.Id,
+			sport:   models.PingPong,
 			expected: expected{
 				wantLen:   3,
 				checkSort: true,
@@ -458,6 +460,7 @@ func TestDatabase_GetRankingsByCourtID(t *testing.T) {
 				Users:  []models.DBUsers{u1},
 			},
 			courtID: courtA.Id,
+			sport:   models.Foot,
 			expected: expected{
 				wantLen:   0,
 				checkSort: false,
@@ -471,6 +474,7 @@ func TestDatabase_GetRankingsByCourtID(t *testing.T) {
 				Rankings: []models.DBRanking{rA1, rA2, rA3, rB1},
 			},
 			courtID: courtB.Id,
+			sport:   models.PingPong,
 			expected: expected{
 				wantLen:   1,
 				checkSort: true,
@@ -484,6 +488,7 @@ func TestDatabase_GetRankingsByCourtID(t *testing.T) {
 				Rankings: []models.DBRanking{rA1, rA2, rA3},
 			},
 			courtID: uuid.NewString(),
+			sport:   models.PingPong,
 			expected: expected{
 				wantLen:   0,
 				checkSort: false,
@@ -508,7 +513,11 @@ func TestDatabase_GetRankingsByCourtID(t *testing.T) {
 
 			s.loadFixtures(tc.fixtures)
 
-			out, err := s.db.GetRankingsByCourtID(context.Background(), tc.courtID)
+			out, err := s.db.GetRankingsByCourtID(
+				context.Background(),
+				tc.courtID,
+				tc.sport,
+			)
 			require.NoError(t, err)
 
 			require.Len(t, out, tc.expected.wantLen)
