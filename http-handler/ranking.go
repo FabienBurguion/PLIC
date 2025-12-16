@@ -3,6 +3,8 @@ package main
 import (
 	"PLIC/httpx"
 	"PLIC/models"
+	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -42,7 +44,15 @@ func (s *Service) GetRankingByCourtId(w http.ResponseWriter, r *http.Request, ai
 		return httpx.WriteError(w, http.StatusBadRequest, "missing court ID")
 	}
 
-	rows, err := s.db.GetRankingsByCourtID(ctx, id)
+	var req models.CourtRankingRequest
+	decoder := json.NewDecoder(r.Body)
+	defer func(Body io.ReadCloser) { _ = Body.Close() }(r.Body)
+	if err := decoder.Decode(&req); err != nil {
+		logger.Warn().Err(err).Msg("invalid JSON body")
+		return httpx.WriteError(w, http.StatusBadRequest, "invalid JSON")
+	}
+
+	rows, err := s.db.GetRankingsByCourtID(ctx, id, req.Sport)
 	if err != nil {
 		logger.Error().Err(err).Msg("db get rankings by court failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch rankings")

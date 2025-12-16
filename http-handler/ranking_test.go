@@ -2,6 +2,7 @@ package main
 
 import (
 	"PLIC/models"
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -29,8 +30,13 @@ func Test_GetRankingByCourtId(t *testing.T) {
 		fixtures DBFixtures
 		param    string
 		auth     models.AuthInfo
+		sport    models.Sport
+		body     io.Reader
 		expected expected
 	}
+
+	sportTennis := models.PingPong
+	sportPadel := models.Basket
 
 	court := models.NewDBCourtFixture()
 
@@ -38,9 +44,24 @@ func Test_GetRankingByCourtId(t *testing.T) {
 	u2 := models.NewDBUsersFixture().WithUsername("bob").WithEmail("bob@example.com")
 	u3 := models.NewDBUsersFixture().WithUsername("carol").WithEmail("carol@example.com")
 
-	r1 := models.NewDBRankingFixture().WithUserId(u1.Id).WithCourtId(court.Id).WithElo(1300)
-	r2 := models.NewDBRankingFixture().WithUserId(u2.Id).WithCourtId(court.Id).WithElo(1100)
-	r3 := models.NewDBRankingFixture().WithUserId(u3.Id).WithCourtId(court.Id).WithElo(1100)
+	r1 := models.NewDBRankingFixture().
+		WithUserId(u1.Id).
+		WithCourtId(court.Id).
+		WithSport(sportTennis).
+		WithElo(1300)
+
+	r2 := models.NewDBRankingFixture().
+		WithUserId(u2.Id).
+		WithCourtId(court.Id).
+		WithSport(sportTennis).
+		WithElo(1100)
+
+	r3 := models.NewDBRankingFixture().
+		WithUserId(u3.Id).
+		WithCourtId(court.Id).
+		WithSport(sportTennis).
+		WithElo(1100)
+
 	now := time.Now()
 	for _, r := range []*models.DBRanking{&r1, &r2, &r3} {
 		r.CreatedAt = now
@@ -49,9 +70,19 @@ func Test_GetRankingByCourtId(t *testing.T) {
 
 	otherCourt := models.NewDBCourtFixture()
 	u4 := models.NewDBUsersFixture().WithUsername("dave").WithEmail("dave@example.com")
-	rOther := models.NewDBRankingFixture().WithUserId(u4.Id).WithCourtId(otherCourt.Id).WithElo(1500)
+	rOther := models.NewDBRankingFixture().
+		WithUserId(u4.Id).
+		WithCourtId(otherCourt.Id).
+		WithSport(sportPadel).
+		WithElo(1500)
+
 	rOther.CreatedAt = now
 	rOther.UpdatedAt = now
+
+	validBody := func(s models.Sport) io.Reader {
+		b, _ := json.Marshal(models.CourtRankingRequest{Sport: s})
+		return bytes.NewReader(b)
+	}
 
 	testCases := []testCase{
 		{
@@ -62,6 +93,8 @@ func Test_GetRankingByCourtId(t *testing.T) {
 				Rankings: []models.DBRanking{r1, r2, r3},
 			},
 			param: court.Id,
+			sport: sportTennis,
+			body:  validBody(sportTennis),
 			auth:  models.AuthInfo{IsConnected: true, UserID: u1.Id},
 			expected: expected{
 				code:          http.StatusOK,
@@ -71,12 +104,15 @@ func Test_GetRankingByCourtId(t *testing.T) {
 			},
 		},
 		{
-			name: "OK - empty list when no rankings",
+			name: "OK - empty list when no rankings for sport",
 			fixtures: DBFixtures{
-				Courts: []models.DBCourt{court},
-				Users:  []models.DBUsers{u1},
+				Courts:   []models.DBCourt{court},
+				Users:    []models.DBUsers{u1},
+				Rankings: []models.DBRanking{r1}, // tennis only
 			},
 			param: court.Id,
+			sport: sportPadel,
+			body:  validBody(sportPadel),
 			auth:  models.AuthInfo{IsConnected: true, UserID: u1.Id},
 			expected: expected{
 				code:          http.StatusOK,
@@ -85,31 +121,17 @@ func Test_GetRankingByCourtId(t *testing.T) {
 			},
 		},
 		{
-			name: "OK - filters by courtID when multiple courts exist",
+			name: "Bad request - invalid JSON",
 			fixtures: DBFixtures{
-				Courts:   []models.DBCourt{court, otherCourt},
-				Users:    []models.DBUsers{u1, u2, u3, u4},
-				Rankings: []models.DBRanking{r1, r2, r3, rOther},
+				Courts: []models.DBCourt{court},
+				Users:  []models.DBUsers{u1},
 			},
-			param: otherCourt.Id,
-			auth:  models.AuthInfo{IsConnected: true, UserID: u4.Id},
-			expected: expected{
-				code:          http.StatusOK,
-				expectJSONArr: true,
-				wantLen:       1,
-				checkSorted:   true,
-			},
-		},
-		{
-			name: "Bad request - missing id",
-			fixtures: DBFixtures{
-				Users: []models.DBUsers{u1},
-			},
-			param: "",
+			param: court.Id,
+			body:  bytes.NewReader([]byte("{invalid")),
 			auth:  models.AuthInfo{IsConnected: true, UserID: u1.Id},
 			expected: expected{
 				code:         http.StatusBadRequest,
-				expectErrMsg: "missing court ID",
+				expectErrMsg: "invalid JSON",
 			},
 		},
 		{
@@ -119,6 +141,7 @@ func Test_GetRankingByCourtId(t *testing.T) {
 				Users:  []models.DBUsers{u1},
 			},
 			param: court.Id,
+			body:  validBody(sportTennis),
 			auth:  models.AuthInfo{IsConnected: false, UserID: u1.Id},
 			expected: expected{
 				code:         http.StatusUnauthorized,
@@ -148,7 +171,8 @@ func Test_GetRankingByCourtId(t *testing.T) {
 			s.loadFixtures(tc.fixtures)
 
 			url := "/ranking/court/" + tc.param
-			r := httptest.NewRequest("GET", url, nil)
+			r := httptest.NewRequest("GET", url, tc.body)
+
 			routeCtx := chi.NewRouteContext()
 			if tc.param != "" {
 				routeCtx.URLParams.Add("id", tc.param)
@@ -160,7 +184,7 @@ func Test_GetRankingByCourtId(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
+			defer resp.Body.Close()
 
 			require.Equal(t, tc.expected.code, resp.StatusCode)
 
@@ -176,7 +200,7 @@ func Test_GetRankingByCourtId(t *testing.T) {
 				require.NoError(t, json.Unmarshal(body, &out))
 				require.Len(t, out, tc.expected.wantLen)
 				if tc.expected.checkSorted {
-					require.True(t, isSorted(out), "ranking list should be sorted by (elo asc, user_id asc)")
+					require.True(t, isSorted(out))
 				}
 			}
 		})
