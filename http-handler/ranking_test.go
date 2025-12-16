@@ -124,6 +124,20 @@ func Test_GetRankingByCourtId(t *testing.T) {
 				expectErrMsg: "not authorized",
 			},
 		},
+		{
+			name: "Bad request - invalid sport",
+			fixtures: DBFixtures{
+				Courts: []models.DBCourt{court},
+				Users:  []models.DBUsers{u1},
+			},
+			param: court.Id,
+			sport: models.Sport("curling"),
+			auth:  models.AuthInfo{IsConnected: true, UserID: u1.Id},
+			expected: expected{
+				code:         http.StatusBadRequest,
+				expectErrMsg: "wrong sport",
+			},
+		},
 	}
 
 	isSorted := func(arr []models.CourtRankingResponse) bool {
