@@ -837,13 +837,11 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Nouveaux scores",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.CourtRankingRequest"
-                        }
+                        "type": "string",
+                        "description": "Identifiant du sport",
+                        "name": "sport",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -1312,14 +1310,6 @@ const docTemplate = `{
             "properties": {
                 "password": {
                     "type": "string"
-                }
-            }
-        },
-        "models.CourtRankingRequest": {
-            "type": "object",
-            "properties": {
-                "sport": {
-                    "$ref": "#/definitions/models.Sport"
                 }
             }
         },

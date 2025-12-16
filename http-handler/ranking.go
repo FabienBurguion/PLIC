@@ -3,8 +3,6 @@ package main
 import (
 	"PLIC/httpx"
 	"PLIC/models"
-	"encoding/json"
-	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -18,7 +16,7 @@ import (
 // @Tags         ranking
 // @Produce      json
 // @Param        id   path      string  true  "Identifiant du court"
-// @Param        body body      models.CourtRankingRequest true  "Nouveaux scores"
+// @Param        sport   path      string  true  "Identifiant du sport"
 // @Success      200  {array}   models.CourtRankingResponse
 // @Failure      400  {object}  models.Error  "ID manquant"
 // @Failure      401  {object}  models.Error  "Utilisateur non autorisé"
@@ -38,24 +36,26 @@ func (s *Service) GetRankingByCourtId(w http.ResponseWriter, r *http.Request, ai
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
 
-	logger := baseLogger.With().Str("court_id", id).Logger()
+	rawSport := chi.URLParam(r, "sport")
+
+	l := baseLogger.With().Str("court_id", id).Str("sport", rawSport).Logger()
 
 	if id == "" {
-		logger.Warn().Msg("missing court ID")
+		l.Warn().Msg("missing court ID")
 		return httpx.WriteError(w, http.StatusBadRequest, "missing court ID")
 	}
 
-	var req models.CourtRankingRequest
-	decoder := json.NewDecoder(r.Body)
-	defer func(Body io.ReadCloser) { _ = Body.Close() }(r.Body)
-	if err := decoder.Decode(&req); err != nil {
-		logger.Warn().Err(err).Msg("invalid JSON body")
-		return httpx.WriteError(w, http.StatusBadRequest, "invalid JSON")
+	sport := models.Sport(rawSport)
+
+	switch sport {
+	case models.Basket, models.Foot, models.PingPong:
+	default:
+		return httpx.WriteError(w, http.StatusBadRequest, "wrong sport")
 	}
 
-	rows, err := s.db.GetRankingsByCourtID(ctx, id, req.Sport)
+	rows, err := s.db.GetRankingsByCourtID(ctx, id, sport)
 	if err != nil {
-		logger.Error().Err(err).Msg("db get rankings by court failed")
+		l.Error().Err(err).Msg("db get rankings by court failed")
 		return httpx.WriteError(w, http.StatusInternalServerError, "failed to fetch rankings")
 	}
 
@@ -66,7 +66,7 @@ func (s *Service) GetRankingByCourtId(w http.ResponseWriter, r *http.Request, ai
 		}
 	})
 
-	logger.Info().Int("count", len(res)).Msg("rankings fetched")
+	l.Info().Int("count", len(res)).Msg("rankings fetched")
 	return httpx.Write(w, http.StatusOK, res)
 }
 

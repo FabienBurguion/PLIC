@@ -2,7 +2,6 @@ package main
 
 import (
 	"PLIC/models"
-	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -31,7 +30,6 @@ func Test_GetRankingByCourtId(t *testing.T) {
 		param    string
 		auth     models.AuthInfo
 		sport    models.Sport
-		body     io.Reader
 		expected expected
 	}
 
@@ -79,11 +77,6 @@ func Test_GetRankingByCourtId(t *testing.T) {
 	rOther.CreatedAt = now
 	rOther.UpdatedAt = now
 
-	validBody := func(s models.Sport) io.Reader {
-		b, _ := json.Marshal(models.CourtRankingRequest{Sport: s})
-		return bytes.NewReader(b)
-	}
-
 	testCases := []testCase{
 		{
 			name: "OK - returns sorted list by elo then user_id",
@@ -94,7 +87,6 @@ func Test_GetRankingByCourtId(t *testing.T) {
 			},
 			param: court.Id,
 			sport: sportTennis,
-			body:  validBody(sportTennis),
 			auth:  models.AuthInfo{IsConnected: true, UserID: u1.Id},
 			expected: expected{
 				code:          http.StatusOK,
@@ -112,26 +104,11 @@ func Test_GetRankingByCourtId(t *testing.T) {
 			},
 			param: court.Id,
 			sport: sportPadel,
-			body:  validBody(sportPadel),
 			auth:  models.AuthInfo{IsConnected: true, UserID: u1.Id},
 			expected: expected{
 				code:          http.StatusOK,
 				expectJSONArr: true,
 				wantLen:       0,
-			},
-		},
-		{
-			name: "Bad request - invalid JSON",
-			fixtures: DBFixtures{
-				Courts: []models.DBCourt{court},
-				Users:  []models.DBUsers{u1},
-			},
-			param: court.Id,
-			body:  bytes.NewReader([]byte("{invalid")),
-			auth:  models.AuthInfo{IsConnected: true, UserID: u1.Id},
-			expected: expected{
-				code:         http.StatusBadRequest,
-				expectErrMsg: "invalid JSON",
 			},
 		},
 		{
@@ -141,7 +118,6 @@ func Test_GetRankingByCourtId(t *testing.T) {
 				Users:  []models.DBUsers{u1},
 			},
 			param: court.Id,
-			body:  validBody(sportTennis),
 			auth:  models.AuthInfo{IsConnected: false, UserID: u1.Id},
 			expected: expected{
 				code:         http.StatusUnauthorized,
@@ -171,11 +147,12 @@ func Test_GetRankingByCourtId(t *testing.T) {
 			s.loadFixtures(tc.fixtures)
 
 			url := "/ranking/court/" + tc.param
-			r := httptest.NewRequest("GET", url, tc.body)
+			r := httptest.NewRequest("GET", url, nil)
 
 			routeCtx := chi.NewRouteContext()
 			if tc.param != "" {
 				routeCtx.URLParams.Add("id", tc.param)
+				routeCtx.URLParams.Add("sport", string(tc.sport))
 			}
 			r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
 
@@ -184,7 +161,9 @@ func Test_GetRankingByCourtId(t *testing.T) {
 			require.NoError(t, err)
 
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
 
 			require.Equal(t, tc.expected.code, resp.StatusCode)
 

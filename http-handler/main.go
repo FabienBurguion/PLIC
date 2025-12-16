@@ -254,7 +254,7 @@ func main() {
 	s.PATCH("/users/{id}", withAuthentication(s.PatchUser))
 	s.DELETE("/users/{id}", withAuthentication(s.DeleteUser))
 
-	s.GET("/ranking/court/{id}", withAuthentication(s.GetRankingByCourtId))
+	s.GET("/ranking/court/{id}/sport/{sport}", withAuthentication(s.GetRankingByCourtId))
 	s.GET("/ranking/user/{userId}", withAuthentication(s.GetRankedFieldsByUserID))
 
 	if s.isLambda {
