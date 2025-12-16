@@ -818,7 +818,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/ranking/court/{id}": {
+        "/ranking/court/{id}/sport/{sport}": {
             "get": {
                 "description": "Retourne la liste des utilisateurs et leur ELO pour un court donné, triée par ELO croissant",
                 "produces": [

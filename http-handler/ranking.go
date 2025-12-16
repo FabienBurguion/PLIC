@@ -21,7 +21,7 @@ import (
 // @Failure      400  {object}  models.Error  "ID manquant"
 // @Failure      401  {object}  models.Error  "Utilisateur non autorisé"
 // @Failure      500  {object}  models.Error  "Erreur serveur / base"
-// @Router       /ranking/court/{id} [get]
+// @Router       /ranking/court/{id}/sport/{sport} [get]
 func (s *Service) GetRankingByCourtId(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
 	baseLogger := log.With().
 		Str("method", "GetRankingByCourtId").
