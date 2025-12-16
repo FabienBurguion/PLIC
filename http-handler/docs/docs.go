@@ -835,6 +835,15 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Nouveaux scores",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CourtRankingRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -1303,6 +1312,14 @@ const docTemplate = `{
             "properties": {
                 "password": {
                     "type": "string"
+                }
+            }
+        },
+        "models.CourtRankingRequest": {
+            "type": "object",
+            "properties": {
+                "sport": {
+                    "$ref": "#/definitions/models.Sport"
                 }
             }
         },

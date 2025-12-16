@@ -4,6 +4,11 @@ definitions:
       password:
         type: string
     type: object
+  models.CourtRankingRequest:
+    properties:
+      sport:
+        $ref: '#/definitions/models.Sport'
+    type: object
   models.CourtRankingResponse:
     properties:
       elo:
@@ -780,6 +785,12 @@ paths:
         name: id
         required: true
         type: string
+      - description: Nouveaux scores
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.CourtRankingRequest'
       produces:
       - application/json
       responses:

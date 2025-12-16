@@ -18,6 +18,7 @@ import (
 // @Tags         ranking
 // @Produce      json
 // @Param        id   path      string  true  "Identifiant du court"
+// @Param        body body      models.CourtRankingRequest true  "Nouveaux scores"
 // @Success      200  {array}   models.CourtRankingResponse
 // @Failure      400  {object}  models.Error  "ID manquant"
 // @Failure      401  {object}  models.Error  "Utilisateur non autorisé"
