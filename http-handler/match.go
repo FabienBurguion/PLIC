@@ -122,6 +122,7 @@ func (s *Service) buildMatchesResponse(ctx context.Context, matches []models.DBM
 
 		responses = append(responses, models.MatchResponse{
 			Id:              match.Id,
+			CreatorId:       match.CreatorID,
 			Sport:           match.Sport,
 			Place:           court.Name,
 			Date:            match.Date,

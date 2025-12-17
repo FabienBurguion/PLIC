@@ -50,6 +50,7 @@ func (m MatchRequest) ToDBMatches(now time.Time, creatorId string) DBMatches {
 
 type MatchResponse struct {
 	Id              string         `json:"id"`
+	CreatorId       string         `json:"creator_id"`
 	Sport           Sport          `json:"sport"`
 	Place           string         `json:"place"`
 	Date            time.Time      `json:"date"`

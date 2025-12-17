@@ -86,6 +86,8 @@ definitions:
     properties:
       created_at:
         type: string
+      creator_id:
+        type: string
       current_state:
         $ref: '#/definitions/models.MatchState'
       date:
@@ -686,7 +688,7 @@ paths:
       summary: Liste tous les matchs
       tags:
       - match
-  /match/court/{courtId}:
+  /matches/court/{courtId}:
     get:
       description: Retourne les matchs associés à un terrain (court) via son ID
       parameters:

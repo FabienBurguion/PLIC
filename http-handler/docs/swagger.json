@@ -433,62 +433,6 @@
                 }
             }
         },
-        "/match/court/{courtId}": {
-            "get": {
-                "description": "Retourne les matchs associés à un terrain (court) via son ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "match"
-                ],
-                "summary": "Liste des matchs pour un court",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Identifiant du terrain",
-                        "name": "courtId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.MatchResponse"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "ID manquant",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "401": {
-                        "description": "Utilisateur non autorisé",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "404": {
-                        "description": "Aucun match trouvé pour ce terrain",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Erreur interne serveur ou base",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
         "/match/{id}": {
             "get": {
                 "description": "Retourne les informations d’un match en fonction de son identifiant passé en paramètre de requête",
@@ -730,6 +674,62 @@
                     },
                     "500": {
                         "description": "Erreur serveur",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/matches/court/{courtId}": {
+            "get": {
+                "description": "Retourne les matchs associés à un terrain (court) via son ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Liste des matchs pour un court",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Identifiant du terrain",
+                        "name": "courtId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.MatchResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "ID manquant",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Utilisateur non autorisé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Aucun match trouvé pour ce terrain",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur interne serveur ou base",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -1428,6 +1428,9 @@
             "type": "object",
             "properties": {
                 "created_at": {
+                    "type": "string"
+                },
+                "creator_id": {
                     "type": "string"
                 },
                 "current_state": {
