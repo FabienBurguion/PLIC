@@ -86,7 +86,7 @@ func (db Database) GetRankingsByCourtID(ctx context.Context, courtID string, spo
 				FROM ranking
 				WHERE court_id = $1
 				AND sport = $2
-				ORDER BY elo , user_id
+				ORDER BY elo DESC, user_id
 			`, courtID, sport)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch rankings: %w", err)

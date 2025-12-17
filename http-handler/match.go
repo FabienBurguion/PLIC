@@ -242,7 +242,7 @@ func (s *Service) GetMatchesByUserID(w http.ResponseWriter, r *http.Request, ai 
 // @Failure      401  {object}  models.Error  "Utilisateur non autorisé"
 // @Failure      404  {object}  models.Error  "Aucun match trouvé pour ce terrain"
 // @Failure      500  {object}  models.Error  "Erreur interne serveur ou base"
-// @Router       /match/court/{courtId} [get]
+// @Router       /matches/court/{courtId} [get]
 func (s *Service) GetMatchesByCourtId(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
 	baseLogger := log.With().
 		Str("method", "GetMatchesByCourtId").
