@@ -534,7 +534,7 @@ func TestDatabase_GetRankingsByCourtID(t *testing.T) {
 			if rs[i].Elo == rs[j].Elo {
 				return rs[i].UserID < rs[j].UserID
 			}
-			return rs[i].Elo < rs[j].Elo
+			return rs[i].Elo > rs[j].Elo
 		})
 	}
 

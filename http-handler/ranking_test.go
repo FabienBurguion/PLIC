@@ -142,7 +142,7 @@ func Test_GetRankingByCourtId(t *testing.T) {
 
 	isSorted := func(arr []models.CourtRankingResponse) bool {
 		for i := 1; i < len(arr); i++ {
-			if arr[i-1].Elo > arr[i].Elo {
+			if arr[i-1].Elo < arr[i].Elo {
 				return false
 			}
 			if arr[i-1].Elo == arr[i].Elo && arr[i-1].UserID > arr[i].UserID {
