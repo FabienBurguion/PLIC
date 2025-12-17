@@ -293,3 +293,33 @@ func (db Database) GetUsersByMatchIDs(ctx context.Context, matchIDs []string) (m
 
 	return result, nil
 }
+
+func (db Database) GetUsersWithTeamByMatchID(
+	ctx context.Context,
+	matchID string,
+) ([]models.DBUserWithTeam, error) {
+
+	query := `
+        SELECT
+            u.id,
+            u.username,
+            u.email,
+            u.bio,
+            u.current_field_id,
+            u.password,
+            u.created_at,
+            u.updated_at,
+            mu.team
+        FROM user_match mu
+        JOIN users u ON u.id = mu.user_id
+        WHERE mu.match_id = $1
+        ORDER BY mu.team, u.username
+    `
+
+	var rows []models.DBUserWithTeam
+	if err := db.Database.SelectContext(ctx, &rows, query, matchID); err != nil {
+		return nil, fmt.Errorf("failed to fetch users with team by matchID: %w", err)
+	}
+
+	return rows, nil
+}

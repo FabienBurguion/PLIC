@@ -1516,3 +1516,131 @@ func Test_GetMatchVoteStatus(t *testing.T) {
 		})
 	}
 }
+
+func Test_GetTeamsByMatchId(t *testing.T) {
+	type expected struct {
+		code  int
+		team1 []string
+		team2 []string
+		check bool
+	}
+
+	type testCase struct {
+		name     string
+		auth     models.AuthInfo
+		paramID  string
+		fixtures DBFixtures
+		expected expected
+	}
+
+	user1 := models.NewDBUsersFixture().WithUsername("Alice").WithEmail("email1@gmail.com")
+	user2 := models.NewDBUsersFixture().WithUsername("Bob").WithEmail("email2@gmail.com")
+	user3 := models.NewDBUsersFixture().WithUsername("Charlie").WithEmail("email3@gmail.com")
+
+	court := models.NewDBCourtFixture()
+	match := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCreatorId(user1.Id)
+
+	tests := []testCase{
+		{
+			name:    "Happy path: returns teams",
+			auth:    models.AuthInfo{IsConnected: true, UserID: user1.Id},
+			paramID: match.Id,
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match},
+				Users:   []models.DBUsers{user1, user2, user3},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(user1.Id).WithMatchId(match.Id).WithTeam(1),
+					models.NewDBUserMatchFixture().WithUserId(user2.Id).WithMatchId(match.Id).WithTeam(1),
+					models.NewDBUserMatchFixture().WithUserId(user3.Id).WithMatchId(match.Id).WithTeam(2),
+				},
+			},
+			expected: expected{
+				code:  http.StatusOK,
+				team1: []string{"Alice", "Bob"},
+				team2: []string{"Charlie"},
+				check: true,
+			},
+		},
+		{
+			name:     "Missing match ID",
+			auth:     models.AuthInfo{IsConnected: true, UserID: user1.Id},
+			paramID:  "",
+			fixtures: DBFixtures{},
+			expected: expected{code: http.StatusBadRequest},
+		},
+		{
+			name:     "Unauthorized",
+			auth:     models.AuthInfo{IsConnected: false, UserID: user1.Id},
+			paramID:  match.Id,
+			fixtures: DBFixtures{},
+			expected: expected{code: http.StatusUnauthorized},
+		},
+		{
+			name:    "Match exists but no joined users -> empty teams",
+			auth:    models.AuthInfo{IsConnected: true, UserID: user1.Id},
+			paramID: match.Id,
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match},
+				Users:   []models.DBUsers{user1},
+			},
+			expected: expected{
+				code:  http.StatusOK,
+				team1: []string{},
+				team2: []string{},
+				check: true,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+			s.loadFixtures(tc.fixtures)
+
+			url := "/match/" + tc.paramID + "/teams"
+			r := httptest.NewRequest("GET", url, nil)
+
+			routeCtx := chi.NewRouteContext()
+			if tc.paramID != "" {
+				routeCtx.URLParams.Add("id", tc.paramID)
+			}
+			r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
+
+			w := httptest.NewRecorder()
+			err := s.GetTeamsByMatchId(w, r, tc.auth)
+			require.NoError(t, err)
+
+			resp := w.Result()
+			defer func() { _ = resp.Body.Close() }()
+
+			require.Equal(t, tc.expected.code, resp.StatusCode)
+
+			if !tc.expected.check {
+				return
+			}
+
+			if resp.StatusCode != http.StatusOK {
+				return
+			}
+
+			var body models.TeamsByMatchIdResponse
+			require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+
+			gotTeam1 := make([]string, 0, len(body.Team1))
+			for _, u := range body.Team1 {
+				gotTeam1 = append(gotTeam1, u.Username)
+			}
+			gotTeam2 := make([]string, 0, len(body.Team2))
+			for _, u := range body.Team2 {
+				gotTeam2 = append(gotTeam2, u.Username)
+			}
+
+			require.ElementsMatch(t, tc.expected.team1, gotTeam1)
+			require.ElementsMatch(t, tc.expected.team2, gotTeam2)
+		})
+	}
+}

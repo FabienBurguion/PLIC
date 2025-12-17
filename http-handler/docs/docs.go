@@ -639,6 +639,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/match/{id}/teams": {
+            "get": {
+                "description": "Renvoie la liste des joueurs répartis par équipe (team 1 et team 2) pour un match donné.\nChaque joueur est enrichi avec ses informations publiques (profil, stats, sports, terrains, etc.).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match"
+                ],
+                "summary": "Récupérer les équipes d’un match",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID du match",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.TeamsByMatchIdResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ID du match manquant",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Utilisateur non autorisé",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur serveur",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/match/{id}/vote-status": {
             "get": {
                 "description": "Renvoie l'équipe du joueur, si son équipe a voté et le score voté (nullable), et la même info pour l'équipe adverse. Ne fonctionne que si le match est en statut \"Termine\".",
@@ -1559,6 +1606,23 @@ const docTemplate = `{
                 },
                 "score": {
                     "$ref": "#/definitions/models.ScorePair"
+                }
+            }
+        },
+        "models.TeamsByMatchIdResponse": {
+            "type": "object",
+            "properties": {
+                "team1": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.UserResponse"
+                    }
+                },
+                "team2": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.UserResponse"
+                    }
                 }
             }
         },

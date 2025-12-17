@@ -1403,3 +1403,87 @@ func TestDatabase_CountUsersByMatch(t *testing.T) {
 		})
 	}
 }
+
+func TestDatabase_GetUsersWithTeamByMatchID(t *testing.T) {
+	type expected struct {
+		teamUsers map[int][]string
+	}
+
+	type testCase struct {
+		name     string
+		fixtures DBFixtures
+		matchID  string
+		expected expected
+	}
+
+	court := models.NewDBCourtFixture()
+	user1 := models.NewDBUsersFixture().WithUsername("Alice").WithEmail("email1@gmail.com")
+	user2 := models.NewDBUsersFixture().WithUsername("Bob").WithEmail("email2@gmail.com")
+	user3 := models.NewDBUsersFixture().WithUsername("Charlie").WithEmail("email3@gmail.com")
+
+	match1 := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCreatorId(user1.Id)
+	match2 := models.NewDBMatchesFixture().WithCourtId(court.Id).WithCreatorId(user1.Id)
+
+	testCases := []testCase{
+		{
+			name: "Un match avec des users dans les deux teams",
+			fixtures: DBFixtures{
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match1, match2},
+				Users:   []models.DBUsers{user1, user2, user3},
+				UserMatches: []models.DBUserMatch{
+					models.NewDBUserMatchFixture().WithUserId(user1.Id).WithMatchId(match1.Id).WithTeam(1),
+					models.NewDBUserMatchFixture().WithUserId(user2.Id).WithMatchId(match1.Id).WithTeam(2),
+					models.NewDBUserMatchFixture().WithUserId(user3.Id).WithMatchId(match2.Id).WithTeam(1),
+				},
+			},
+			matchID: match1.Id,
+			expected: expected{
+				teamUsers: map[int][]string{
+					1: {"Alice"},
+					2: {"Bob"},
+				},
+			},
+		},
+		{
+			name: "Aucun user pour le match demandé",
+			fixtures: DBFixtures{
+				Users:   []models.DBUsers{user1, user2},
+				Courts:  []models.DBCourt{court},
+				Matches: []models.DBMatches{match1},
+			},
+			matchID: match1.Id,
+			expected: expected{
+				teamUsers: map[int][]string{},
+			},
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			s := &Service{}
+			cleanup := s.InitServiceTest()
+			defer func() { _ = cleanup() }()
+			s.loadFixtures(c.fixtures)
+
+			ctx := context.Background()
+			got, err := s.db.GetUsersWithTeamByMatchID(ctx, c.matchID)
+			require.NoError(t, err)
+
+			gotTeamUsers := make(map[int][]string)
+			for _, u := range got {
+				gotTeamUsers[u.Team] = append(gotTeamUsers[u.Team], u.Username)
+			}
+
+			if len(c.expected.teamUsers) == 0 {
+				require.Len(t, got, 0)
+				return
+			}
+
+			for team, usernames := range c.expected.teamUsers {
+				require.Contains(t, gotTeamUsers, team)
+				require.ElementsMatch(t, usernames, gotTeamUsers[team])
+			}
+		})
+	}
+}

@@ -1057,3 +1057,114 @@ func (s *Service) GetMatchVoteStatus(w http.ResponseWriter, r *http.Request, ai 
 	logger.Info().Msg("vote status fetched")
 	return httpx.Write(w, http.StatusOK, resp)
 }
+
+// GetTeamsByMatchId godoc
+// @Summary      Récupérer les équipes d’un match
+// @Description  Renvoie la liste des joueurs répartis par équipe (team 1 et team 2) pour un match donné.
+// @Description  Chaque joueur est enrichi avec ses informations publiques (profil, stats, sports, terrains, etc.).
+// @Tags         match
+// @Produce      json
+// @Param        id   path      string  true  "ID du match"
+// @Success      200  {object}  models.TeamsByMatchIdResponse
+// @Failure      400  {object}  models.Error  "ID du match manquant"
+// @Failure      401  {object}  models.Error  "Utilisateur non autorisé"
+// @Failure      500  {object}  models.Error  "Erreur serveur"
+// @Router       /match/{id}/teams [get]
+func (s *Service) GetTeamsByMatchId(w http.ResponseWriter, r *http.Request, ai models.AuthInfo) error {
+	baseLogger := log.With().
+		Str("method", "GetTeamsByMatchId").
+		Str("user_id", ai.UserID).
+		Logger()
+
+	if !ai.IsConnected {
+		baseLogger.Warn().Msg("unauthorized")
+		return httpx.WriteError(w, http.StatusUnauthorized, "not authorized")
+	}
+
+	ctx := r.Context()
+	matchID := chi.URLParam(r, "id")
+	logger := baseLogger.With().Str("match_id", matchID).Logger()
+
+	if matchID == "" {
+		logger.Warn().Msg("missing match ID")
+		return httpx.WriteError(w, http.StatusBadRequest, "missing match ID")
+	}
+
+	rows, err := s.db.GetUsersWithTeamByMatchID(ctx, matchID)
+	if err != nil {
+		logger.Error().Err(err).Msg("fetching users with team failed")
+		return httpx.WriteError(w, http.StatusInternalServerError, "internal error")
+	}
+	if len(rows) == 0 {
+		return httpx.Write(w, http.StatusOK, models.TeamsByMatchIdResponse{
+			Team1: []models.UserResponse{},
+			Team2: []models.UserResponse{},
+		})
+	}
+
+	userIDs := make([]string, 0, len(rows))
+	for _, row := range rows {
+		userIDs = append(userIDs, row.Id)
+	}
+
+	statsByUser, err := s.db.GetUserStatsByIDs(ctx, userIDs)
+	if err != nil {
+		logger.Error().Err(err).Msg("prefetching user stats failed")
+	}
+
+	profilePics := make(map[string]string, len(userIDs))
+	var mu sync.Mutex
+
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 10)
+
+	for _, uid := range userIDs {
+		wg.Add(1)
+		go func(userID string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			pic, err := s.s3Service.GetProfilePicture(ctx, userID)
+			if err != nil {
+				logger.Warn().Err(err).Str("user_id", userID).Msg("failed to get profile picture")
+				return
+			}
+			mu.Lock()
+			profilePics[userID] = pic.URL
+			mu.Unlock()
+		}(uid)
+	}
+	wg.Wait()
+
+	team1 := make([]models.UserResponse, 0)
+	team2 := make([]models.UserResponse, 0)
+
+	for _, row := range rows {
+		picURL := profilePics[row.Id]
+
+		u := models.DBUsers{
+			Id:             row.Id,
+			Username:       row.Username,
+			Bio:            row.Bio,
+			CurrentFieldId: row.CurrentFieldId,
+			CreatedAt:      row.CreatedAt,
+		}
+
+		resp := s.buildUserResponseFast(&u, picURL, statsByUser[row.Id])
+
+		switch row.Team {
+		case 1:
+			team1 = append(team1, resp)
+		case 2:
+			team2 = append(team2, resp)
+		default:
+			logger.Warn().Str("user_id", row.Id).Int("team", row.Team).Msg("unexpected team value")
+		}
+	}
+
+	return httpx.Write(w, http.StatusOK, models.TeamsByMatchIdResponse{
+		Team1: team1,
+		Team2: team2,
+	})
+}

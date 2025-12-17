@@ -86,3 +86,8 @@ type MatchVoteStatusResponse struct {
 	MyTeam     TeamVoteStatus `json:"myTeam"`
 	Opponent   TeamVoteStatus `json:"opponent"`
 }
+
+type TeamsByMatchIdResponse struct {
+	Team1 []UserResponse `json:"team1"`
+	Team2 []UserResponse `json:"team2"`
+}

@@ -90,3 +90,8 @@ func (m DBMatches) WithScore2(score2 int) DBMatches {
 	m.Score2 = &score2
 	return m
 }
+
+type DBUserWithTeam struct {
+	DBUsers
+	Team int `db:"team"`
+}

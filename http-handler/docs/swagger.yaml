@@ -169,6 +169,17 @@ definitions:
       score:
         $ref: '#/definitions/models.ScorePair'
     type: object
+  models.TeamsByMatchIdResponse:
+    properties:
+      team1:
+        items:
+          $ref: '#/definitions/models.UserResponse'
+        type: array
+      team2:
+        items:
+          $ref: '#/definitions/models.UserResponse'
+        type: array
+    type: object
   models.UpdateScoreRequest:
     properties:
       score1:
@@ -626,6 +637,39 @@ paths:
           schema:
             $ref: '#/definitions/models.Error'
       summary: Démarre un match
+      tags:
+      - match
+  /match/{id}/teams:
+    get:
+      description: |-
+        Renvoie la liste des joueurs répartis par équipe (team 1 et team 2) pour un match donné.
+        Chaque joueur est enrichi avec ses informations publiques (profil, stats, sports, terrains, etc.).
+      parameters:
+      - description: ID du match
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TeamsByMatchIdResponse'
+        "400":
+          description: ID du match manquant
+          schema:
+            $ref: '#/definitions/models.Error'
+        "401":
+          description: Utilisateur non autorisé
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Erreur serveur
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Récupérer les équipes d’un match
       tags:
       - match
   /match/{id}/vote-status:
